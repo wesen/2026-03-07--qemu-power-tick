@@ -1,0 +1,54 @@
+#!/bin/busybox sh
+set -eu
+
+export PATH=/bin
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mount -t tmpfs tmpfs /run
+
+mkdir -p /dev/pts /tmp
+mount -t devpts devpts /dev/pts || true
+hostname sleep-lab
+echo 8 > /proc/sys/kernel/printk || true
+
+echo "[init] booted" >/dev/console
+
+ip link set lo up
+ip link set eth0 up || true
+udhcpc -i eth0 -n -q >/dev/console 2>&1 || echo "[init] dhcp failed" >/dev/console
+
+HOST_IP=${SLEEPDEMO_HOST:-10.0.2.2}
+HOST_PORT=${SLEEPDEMO_PORT:-5555}
+IDLE_SECONDS=${SLEEPDEMO_IDLE_SECONDS:-5}
+REDRAW_MS=${SLEEPDEMO_REDRAW_MS:-1000}
+RECONNECT_MS=${SLEEPDEMO_RECONNECT_MS:-1000}
+MAX_SUSPEND_CYCLES=${SLEEPDEMO_MAX_SUSPEND_CYCLES:-1}
+PM_TEST=${SLEEPDEMO_PM_TEST:-none}
+NO_SUSPEND=${SLEEPDEMO_NO_SUSPEND:-0}
+
+for token in $(cat /proc/cmdline); do
+  case "$token" in
+    sleepdemo.host=*) HOST_IP=${token#sleepdemo.host=} ;;
+    sleepdemo.port=*) HOST_PORT=${token#sleepdemo.port=} ;;
+    sleepdemo.idle=*) IDLE_SECONDS=${token#sleepdemo.idle=} ;;
+    sleepdemo.redraw_ms=*) REDRAW_MS=${token#sleepdemo.redraw_ms=} ;;
+    sleepdemo.reconnect_ms=*) RECONNECT_MS=${token#sleepdemo.reconnect_ms=} ;;
+    sleepdemo.max_suspend_cycles=*) MAX_SUSPEND_CYCLES=${token#sleepdemo.max_suspend_cycles=} ;;
+    sleepdemo.pm_test=*) PM_TEST=${token#sleepdemo.pm_test=} ;;
+    sleepdemo.no_suspend=1) NO_SUSPEND=1 ;;
+  esac
+done
+
+echo "[init] launching sleepdemo host=$HOST_IP port=$HOST_PORT idle=$IDLE_SECONDS pm_test=$PM_TEST no_suspend=$NO_SUSPEND" >/dev/console
+
+exec /bin/sleepdemo \
+  --host "$HOST_IP" \
+  --port "$HOST_PORT" \
+  --idle-seconds "$IDLE_SECONDS" \
+  --redraw-ms "$REDRAW_MS" \
+  --reconnect-ms "$RECONNECT_MS" \
+  --max-suspend-cycles "$MAX_SUSPEND_CYCLES" \
+  --pm-test "$PM_TEST" \
+  $( [ "$NO_SUSPEND" = "1" ] && echo --no-suspend )
+
