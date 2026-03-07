@@ -1,0 +1,69 @@
+#!/bin/busybox sh
+set -eu
+
+export PATH=/bin
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mount -t tmpfs tmpfs /run
+
+mkdir -p /dev/pts /tmp
+mount -t devpts devpts /dev/pts || true
+hostname sleep-lab
+echo 8 > /proc/sys/kernel/printk || true
+
+echo "[init] booted" >/dev/console
+
+ip link set lo up
+ip link set eth0 up || true
+# QEMU user networking defaults are stable enough for this lab, so configure
+# the guest interface directly instead of depending on a DHCP hook script.
+ip addr add 10.0.2.15/24 dev eth0 2>/dev/null || true
+ip route add default via 10.0.2.2 dev eth0 2>/dev/null || true
+
+HOST_IP=${SLEEPDEMO_HOST:-10.0.2.2}
+HOST_PORT=${SLEEPDEMO_PORT:-5555}
+IDLE_SECONDS=${SLEEPDEMO_IDLE_SECONDS:-5}
+REDRAW_MS=${SLEEPDEMO_REDRAW_MS:-1000}
+RECONNECT_MS=${SLEEPDEMO_RECONNECT_MS:-1000}
+MAX_SUSPEND_CYCLES=${SLEEPDEMO_MAX_SUSPEND_CYCLES:-1}
+PM_TEST=${SLEEPDEMO_PM_TEST:-none}
+NO_SUSPEND=${SLEEPDEMO_NO_SUSPEND:-0}
+RUNTIME_SECONDS=${SLEEPDEMO_RUNTIME_SECONDS:-0}
+WAKE_SECONDS=${SLEEPDEMO_WAKE_SECONDS:-5}
+
+for token in $(cat /proc/cmdline); do
+  case "$token" in
+    sleepdemo.host=*) HOST_IP=${token#sleepdemo.host=} ;;
+    sleepdemo.port=*) HOST_PORT=${token#sleepdemo.port=} ;;
+    sleepdemo.idle=*) IDLE_SECONDS=${token#sleepdemo.idle=} ;;
+    sleepdemo.redraw_ms=*) REDRAW_MS=${token#sleepdemo.redraw_ms=} ;;
+    sleepdemo.reconnect_ms=*) RECONNECT_MS=${token#sleepdemo.reconnect_ms=} ;;
+    sleepdemo.max_suspend_cycles=*) MAX_SUSPEND_CYCLES=${token#sleepdemo.max_suspend_cycles=} ;;
+    sleepdemo.pm_test=*) PM_TEST=${token#sleepdemo.pm_test=} ;;
+    sleepdemo.no_suspend=1) NO_SUSPEND=1 ;;
+    sleepdemo.runtime=*) RUNTIME_SECONDS=${token#sleepdemo.runtime=} ;;
+    sleepdemo.wake=*) WAKE_SECONDS=${token#sleepdemo.wake=} ;;
+  esac
+done
+
+echo "[init] launching sleepdemo host=$HOST_IP port=$HOST_PORT idle=$IDLE_SECONDS pm_test=$PM_TEST no_suspend=$NO_SUSPEND runtime=$RUNTIME_SECONDS wake=$WAKE_SECONDS" >/dev/console
+
+set +e
+/bin/sleepdemo \
+  --host "$HOST_IP" \
+  --port "$HOST_PORT" \
+  --idle-seconds "$IDLE_SECONDS" \
+  --redraw-ms "$REDRAW_MS" \
+  --reconnect-ms "$RECONNECT_MS" \
+  --max-suspend-cycles "$MAX_SUSPEND_CYCLES" \
+  --wake-seconds "$WAKE_SECONDS" \
+  --pm-test "$PM_TEST" \
+  --runtime-seconds "$RUNTIME_SECONDS" \
+  $( [ "$NO_SUSPEND" = "1" ] && echo --no-suspend )
+status=$?
+set -e
+
+echo "[init] sleepdemo exited status=$status" >/dev/console
+sync
+poweroff -f

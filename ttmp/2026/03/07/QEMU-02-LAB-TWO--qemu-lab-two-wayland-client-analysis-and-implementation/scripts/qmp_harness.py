@@ -60,6 +60,7 @@ def parse_args() -> argparse.Namespace:
     subparsers = parser.add_subparsers(dest="command", required=True)
 
     subparsers.add_parser("query-status")
+    subparsers.add_parser("query-mice")
 
     screendump = subparsers.add_parser("screendump")
     screendump.add_argument("--file", required=True)
@@ -71,11 +72,27 @@ def parse_args() -> argparse.Namespace:
     pointer_move.add_argument("--x", type=int, required=True)
     pointer_move.add_argument("--y", type=int, required=True)
 
+    pointer_move_normalized = subparsers.add_parser("pointer-move-normalized")
+    pointer_move_normalized.add_argument("--x", type=float, required=True, help="0.0-1.0 horizontal position")
+    pointer_move_normalized.add_argument("--y", type=float, required=True, help="0.0-1.0 vertical position")
+
+    pointer_move_rel = subparsers.add_parser("pointer-move-rel")
+    pointer_move_rel.add_argument("--dx", type=int, required=True)
+    pointer_move_rel.add_argument("--dy", type=int, required=True)
+
     pointer_button = subparsers.add_parser("pointer-button")
     pointer_button.add_argument("--button", choices=["left", "middle", "right"], required=True)
     pointer_button.add_argument("--down", action="store_true")
 
     return parser.parse_args()
+
+
+def clamp(value: float, minimum: float, maximum: float) -> float:
+    return max(minimum, min(maximum, value))
+
+
+def normalized_to_abs(value: float) -> int:
+    return int(round(clamp(value, 0.0, 1.0) * 0x7FFF))
 
 
 def main() -> int:
@@ -89,6 +106,8 @@ def main() -> int:
 
         if args.command == "query-status":
             response = client.execute("query-status")
+        elif args.command == "query-mice":
+            response = client.execute("query-mice")
         elif args.command == "screendump":
             response = client.execute("screendump", {"filename": args.file})
         elif args.command == "send-key":
@@ -103,6 +122,26 @@ def main() -> int:
                     "events": [
                         {"type": "abs", "data": {"axis": "x", "value": args.x}},
                         {"type": "abs", "data": {"axis": "y", "value": args.y}},
+                    ]
+                },
+            )
+        elif args.command == "pointer-move-normalized":
+            response = client.execute(
+                "input-send-event",
+                {
+                    "events": [
+                        {"type": "abs", "data": {"axis": "x", "value": normalized_to_abs(args.x)}},
+                        {"type": "abs", "data": {"axis": "y", "value": normalized_to_abs(args.y)}},
+                    ]
+                },
+            )
+        elif args.command == "pointer-move-rel":
+            response = client.execute(
+                "input-send-event",
+                {
+                    "events": [
+                        {"type": "rel", "data": {"axis": "x", "value": args.dx}},
+                        {"type": "rel", "data": {"axis": "y", "value": args.dy}},
                     ]
                 },
             )

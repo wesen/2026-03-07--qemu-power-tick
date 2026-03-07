@@ -8,6 +8,7 @@ mount -t devtmpfs devtmpfs /dev
 mount -t tmpfs tmpfs /run
 mount -t tmpfs tmpfs /tmp
 mkdir -p /dev/pts /run/user/0 /var/log /var/lib /etc/xdg/weston
+mkdir -p /run/udev
 mount -t devpts devpts /dev/pts || true
 
 hostname qemu-lab-phase2
@@ -30,7 +31,15 @@ export LD_LIBRARY_PATH=/usr/lib/x86_64-linux-gnu/weston:/usr/lib/x86_64-linux-gn
 KERNEL_RELEASE=$(uname -r)
 for module in \
   "/lib/modules/$KERNEL_RELEASE/kernel/drivers/virtio/virtio_dma_buf.ko" \
-  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/gpu/drm/virtio/virtio-gpu.ko"
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/gpu/drm/virtio/virtio-gpu.ko" \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/hid/hid.ko" \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/hid/hid-generic.ko" \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/hid/usbhid/usbhid.ko" \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/hid/usbhid/usbkbd.ko" \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/hid/usbhid/usbmouse.ko" \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/input/mouse/psmouse.ko" \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/usb/host/xhci-pci-renesas.ko" \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/usb/host/xhci-pci.ko"
 do
   if [ -f "$module" ]; then
     echo "[init-phase2] loading module=$module" >/dev/console
@@ -38,7 +47,20 @@ do
   fi
 done
 
+/lib/systemd/systemd-udevd --daemon >/dev/console 2>&1 || true
+udevadm trigger --action=add --subsystem-match=input >/dev/console 2>&1 || true
+udevadm trigger --action=add --subsystem-match=drm >/dev/console 2>&1 || true
+udevadm settle >/dev/console 2>&1 || true
+
 ls -l /dev/dri >/dev/console 2>&1 || echo "[init-phase2] /dev/dri missing" >/dev/console
+ls -l /dev/input >/dev/console 2>&1 || echo "[init-phase2] /dev/input missing" >/dev/console
+
+if [ -x /bin/evdev_probe ]; then
+  /bin/evdev_probe >/var/log/evdev-probe.log 2>&1 &
+  EVDEV_PROBE_PID=$!
+  echo "[init-phase2] evdev_probe pid=$EVDEV_PROBE_PID" >/dev/console
+  tail -f /var/log/evdev-probe.log >/dev/console 2>&1 &
+fi
 
 /usr/sbin/seatd >/var/log/seatd.log 2>&1 &
 SEATD_PID=$!
@@ -67,6 +89,7 @@ if [ ! -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
 fi
 
 echo "[init-phase2] wayland ready" >/dev/console
+sed -n '1,160p' /var/log/weston.log >/dev/console 2>&1 || true
 
 CLIENT_BIN=${PHASE2_CLIENT_BIN:-/usr/bin/weston-simple-shm}
 if [ -x /bin/wl_sleepdemo ]; then

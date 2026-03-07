@@ -88,6 +88,9 @@ struct app {
     char last_key[64];
     char last_pointer[64];
     char last_redraw_reason[64];
+
+    bool keyboard_fallback_bound;
+    bool pointer_fallback_bound;
 };
 
 static const uint8_t font5x7[][5] = {
@@ -306,7 +309,11 @@ static void create_buffer(struct app *app) {
 
 static void handle_global(void *data, struct wl_registry *registry, uint32_t name, const char *interface, uint32_t version) {
     struct app *app = data;
+    char msg[256];
     (void)version;
+
+    snprintf(msg, sizeof(msg), "global name=%u interface=%s version=%u", name, interface, version);
+    log_line("state", msg);
 
     if (strcmp(interface, wl_compositor_interface.name) == 0) {
         app->compositor = wl_registry_bind(registry, name, &wl_compositor_interface, 4);
@@ -542,15 +549,33 @@ static const struct wl_pointer_listener pointer_listener = {
 
 static void handle_seat_capabilities(void *data, struct wl_seat *seat, uint32_t capabilities) {
     struct app *app = data;
+    char msg[128];
+
+    snprintf(msg, sizeof(msg), "seat-capabilities=%u", capabilities);
+    log_line("state", msg);
 
     if ((capabilities & WL_SEAT_CAPABILITY_KEYBOARD) && !app->keyboard) {
         app->keyboard = wl_seat_get_keyboard(seat);
         wl_keyboard_add_listener(app->keyboard, &keyboard_listener, app);
+        log_line("state", "keyboard-bound");
+    } else if ((capabilities & WL_SEAT_CAPABILITY_KEYBOARD) && app->keyboard_fallback_bound) {
+        wl_keyboard_destroy(app->keyboard);
+        app->keyboard = wl_seat_get_keyboard(seat);
+        wl_keyboard_add_listener(app->keyboard, &keyboard_listener, app);
+        app->keyboard_fallback_bound = false;
+        log_line("state", "keyboard-rebound");
     }
 
     if ((capabilities & WL_SEAT_CAPABILITY_POINTER) && !app->pointer) {
         app->pointer = wl_seat_get_pointer(seat);
         wl_pointer_add_listener(app->pointer, &pointer_listener, app);
+        log_line("state", "pointer-bound");
+    } else if ((capabilities & WL_SEAT_CAPABILITY_POINTER) && app->pointer_fallback_bound) {
+        wl_pointer_destroy(app->pointer);
+        app->pointer = wl_seat_get_pointer(seat);
+        wl_pointer_add_listener(app->pointer, &pointer_listener, app);
+        app->pointer_fallback_bound = false;
+        log_line("state", "pointer-rebound");
     }
 }
 
@@ -694,8 +719,23 @@ static void setup_wayland(struct app *app) {
 
     xdg_wm_base_add_listener(app->wm_base, &wm_base_listener, app);
     if (app->seat) {
+        log_line("state", "seat-listener-added");
         wl_seat_add_listener(app->seat, &seat_listener, app);
         wl_display_roundtrip(app->display);
+        if (!app->keyboard) {
+            app->keyboard = wl_seat_get_keyboard(app->seat);
+            wl_keyboard_add_listener(app->keyboard, &keyboard_listener, app);
+            app->keyboard_fallback_bound = true;
+            log_line("state", "keyboard-bound-fallback");
+        }
+        if (!app->pointer) {
+            app->pointer = wl_seat_get_pointer(app->seat);
+            wl_pointer_add_listener(app->pointer, &pointer_listener, app);
+            app->pointer_fallback_bound = true;
+            log_line("state", "pointer-bound-fallback");
+        }
+    } else {
+        log_line("state", "seat-missing");
     }
 
     app->surface = wl_compositor_create_surface(app->compositor);

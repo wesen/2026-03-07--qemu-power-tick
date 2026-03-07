@@ -31,6 +31,7 @@ The implementation goal is to preserve the stage-1 state machine and suspend/res
 
 - **Primary design doc**: [design-doc/01-phase-2-wayland-client-analysis-and-implementation-guide.md](./design-doc/01-phase-2-wayland-client-analysis-and-implementation-guide.md)
 - **Diary**: [reference/01-diary.md](./reference/01-diary.md)
+- **Input playbook**: [reference/02-input-bring-up-playbook.md](./reference/02-input-bring-up-playbook.md)
 - **Tasks**: [tasks.md](./tasks.md)
 - **Imported source**: [sources/local/lab2.md](./sources/local/lab2.md)
 
