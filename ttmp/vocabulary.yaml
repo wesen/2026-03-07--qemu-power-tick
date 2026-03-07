@@ -13,6 +13,8 @@ topics:
       description: Hands-on lab assignments and prototypes
     - slug: systems
       description: Systems programming and OS-level behavior
+    - slug: refactor
+      description: Code-structure cleanup and modularization work
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
