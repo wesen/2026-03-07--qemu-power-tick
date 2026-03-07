@@ -146,7 +146,7 @@ The host-side smoke test validated the core behavior of the guest binary without
 
 **Inferred user intent:** Move from documentation to a functioning, measured prototype while preserving traceability in the ticket.
 
-**Commit (code):** pending
+**Commit (code):** `78baa4d` — "Scaffold QEMU sleep lab harness"
 
 ### What I did
 
@@ -247,7 +247,7 @@ Then continue."
 
 **Inferred user intent:** Preserve the fast path without losing sight of the cleaner near-single-process architecture.
 
-**Commit (code):** pending
+**Commit (code):** `83f1868` — "Validate QEMU suspend measurements"
 
 ### What I did
 
@@ -310,7 +310,7 @@ The work also surfaced two environment-specific constraints that matter for futu
 
 **Inferred user intent:** Produce a functioning and measured prototype, not just a code scaffold.
 
-**Commit (code):** pending
+**Commit (code):** `83f1868` — "Validate QEMU suspend measurements"
 
 ### What I did
 
