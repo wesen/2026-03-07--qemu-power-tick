@@ -17,33 +17,41 @@
 - [x] Implement guest suspend/resume timing instrumentation and reconnect logic
 - [x] Add guest `/init` workflow and initramfs builder script
 - [x] Add `guest/run-qemu.sh` with serial logging, QMP socket, and deterministic wake support
-- [ ] Add README with exact host/guest workflow and measurement procedure
+- [x] Add README with exact host/guest workflow and measurement procedure
 
 ## Bring-Up
 
 - [x] Build the host server and static guest binary successfully
-- [ ] Boot the initramfs guest in QEMU successfully
-- [ ] Verify guest networking to host-side server through QEMU user networking
-- [ ] Verify the app blocks in `epoll_wait()` while idle
-- [ ] Verify periodic redraw updates while awake
+- [x] Boot the initramfs guest in QEMU successfully
+- [x] Verify guest networking to host-side server through QEMU user networking
+- [x] Verify the app blocks in `epoll_wait()` while idle
+- [x] Verify periodic redraw updates while awake
 - [x] Verify clean shutdown through `signalfd`
 
 ## Suspend And Resume
 
-- [ ] Validate `pm_test=freezer`
-- [ ] Validate `pm_test=devices`
-- [ ] Validate real `freeze` suspend-to-idle entry
+- [x] Validate `pm_test=freezer`
+- [x] Validate `pm_test=devices`
+- [x] Validate real `freeze` suspend-to-idle entry
 - [ ] Wake the guest deterministically through QEMU monitor/QMP
-- [ ] Verify post-resume redraw and state continuity
-- [ ] Verify reconnect behavior after resume when the socket breaks
+- [x] Verify post-resume redraw and state continuity
+- [x] Verify reconnect behavior after resume when the socket breaks
 
 ## Measurements And Reporting
 
 - [ ] Capture suspend-entry latency
-- [ ] Capture observed sleep duration inside the guest
-- [ ] Capture resume-to-redraw latency
-- [ ] Capture reconnect latency after resume
-- [ ] Record test commands, logs, and observed caveats in the diary
+- [x] Capture observed sleep duration inside the guest
+- [x] Capture resume-to-redraw latency
+- [x] Capture reconnect latency after resume
+- [x] Record test commands, logs, and observed caveats in the diary
 - [ ] Refresh ticket docs, changelog, and task completion state
-- [ ] Commit milestone changes at appropriate intervals
+- [x] Commit milestone changes at appropriate intervals
 - [ ] Upload the refreshed ticket bundle to reMarkable
+
+## Bonus Point
+
+- [ ] Reduce the bootstrap dependency on `busybox` as far as practical
+- [ ] Move more early-boot responsibilities into `sleepdemo` itself
+- [ ] Evaluate replacing `udhcpc` with direct networking setup inside `sleepdemo`
+- [ ] Evaluate replacing shell-driven shutdown with a `sleepdemo`-controlled exit path
+- [ ] Document the tradeoffs between the current thin-init model and a near-single-process model

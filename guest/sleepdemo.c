@@ -72,6 +72,7 @@ struct app_state {
     int reconnect_ms;
     int runtime_seconds;
     int max_suspend_cycles;
+    int wake_seconds;
     bool no_suspend;
 
     char pm_test[32];
@@ -212,6 +213,42 @@ static int write_text_file(const char *path, const char *value) {
     return 0;
 }
 
+static void program_rtc_wakealarm(struct app_state *s) {
+    char value[64];
+    struct timespec ts;
+
+    if (s->wake_seconds <= 0) {
+        return;
+    }
+
+    if (write_text_file("/sys/class/rtc/rtc0/wakealarm", "0\n") != 0 && errno != ENOENT) {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "wakealarm_clear_failed=%d(%s)", errno, strerror(errno));
+        log_line(s, "error", msg);
+    }
+
+    if (clock_gettime(CLOCK_REALTIME, &ts) != 0) {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "clock_realtime_failed=%d(%s)", errno, strerror(errno));
+        log_line(s, "error", msg);
+        return;
+    }
+
+    snprintf(value, sizeof(value), "%" PRIu64 "\n", (uint64_t)ts.tv_sec + (uint64_t)s->wake_seconds);
+    if (write_text_file("/sys/class/rtc/rtc0/wakealarm", value) != 0) {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "wakealarm_program_failed=%d(%s)", errno, strerror(errno));
+        log_line(s, "error", msg);
+        return;
+    }
+
+    {
+        char msg[128];
+        snprintf(msg, sizeof(msg), "wakealarm_seconds=%d", s->wake_seconds);
+        log_line(s, "state", msg);
+    }
+}
+
 static void close_socket(struct app_state *s) {
     if (s->sock_fd >= 0) {
         epoll_ctl(s->epoll_fd, EPOLL_CTL_DEL, s->sock_fd, NULL);
@@ -256,12 +293,18 @@ static void attempt_connect(struct app_state *s) {
 
     fd = socket(AF_INET, SOCK_STREAM | SOCK_CLOEXEC, 0);
     if (fd < 0) {
-        schedule_reconnect(s, "socket_failed");
+        char reason[128];
+        snprintf(reason, sizeof(reason), "socket_failed errno=%d(%s)", errno, strerror(errno));
+        schedule_reconnect(s, reason);
         return;
     }
     if (set_nonblocking(fd) != 0) {
         close(fd);
-        schedule_reconnect(s, "nonblocking_failed");
+        {
+            char reason[128];
+            snprintf(reason, sizeof(reason), "nonblocking_failed errno=%d(%s)", errno, strerror(errno));
+            schedule_reconnect(s, reason);
+        }
         return;
     }
 
@@ -300,7 +343,11 @@ static void attempt_connect(struct app_state *s) {
         return;
     }
 
-    schedule_reconnect(s, "connect_failed");
+    {
+        char reason[128];
+        snprintf(reason, sizeof(reason), "connect_failed errno=%d(%s)", errno, strerror(errno));
+        schedule_reconnect(s, reason);
+    }
 }
 
 static void record_reconnect_metric_if_needed(struct app_state *s) {
@@ -439,6 +486,7 @@ static void enter_suspend_to_idle(struct app_state *s) {
 
     before_mono = mono_ns();
     before_boot = boot_ns();
+    program_rtc_wakealarm(s);
     s->last_suspend_mono_ns = before_mono;
     s->last_suspend_boot_ns = before_boot;
     snprintf(msg, sizeof(msg), "state=SUSPENDING cycle=%" PRIu64, s->suspend_cycles + 1);
@@ -574,13 +622,14 @@ static void init_state(struct app_state *s) {
     s->reconnect_ms = 1000;
     s->runtime_seconds = 0;
     s->max_suspend_cycles = 1;
+    s->wake_seconds = 5;
 }
 
 static void usage(const char *prog) {
     fprintf(stderr,
             "usage: %s [--host IP] [--port PORT] [--idle-seconds N] [--redraw-ms N]\n"
             "          [--reconnect-ms N] [--runtime-seconds N] [--pm-test MODE]\n"
-            "          [--max-suspend-cycles N] [--no-suspend]\n",
+            "          [--max-suspend-cycles N] [--wake-seconds N] [--no-suspend]\n",
             prog);
 }
 
@@ -603,6 +652,8 @@ static void parse_args(struct app_state *s, int argc, char **argv) {
             strncpy(s->pm_test, argv[++i], sizeof(s->pm_test) - 1);
         } else if (strcmp(argv[i], "--max-suspend-cycles") == 0 && i + 1 < argc) {
             s->max_suspend_cycles = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--wake-seconds") == 0 && i + 1 < argc) {
+            s->wake_seconds = atoi(argv[++i]);
         } else if (strcmp(argv[i], "--no-suspend") == 0) {
             s->no_suspend = true;
         } else {
@@ -699,4 +750,3 @@ int main(int argc, char **argv) {
 
     return 0;
 }
-

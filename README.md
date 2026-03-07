@@ -12,10 +12,37 @@ This repository implements the stage-1 single-process suspend/resume lab describ
 
 ## Current Workflow
 
-1. `make build`
-2. `make initramfs`
-3. `make run-qemu`
-4. `make measure`
+Build the guest binary and initramfs:
 
-The implementation is being built incrementally. See the ticket diary for the exact sequence and validation record.
+```sh
+make build initramfs
+```
 
+Run a simple smoke test with networking but no suspend:
+
+```sh
+python3 host/drip_server.py --host 0.0.0.0 --port 5555 --interval 0.25 --active-seconds 30 --pause-seconds 2 --stop-after 12
+RUNTIME_SECONDS=5 NO_SUSPEND=1 RESULTS_DIR=results guest/run-qemu.sh --kernel build/vmlinuz --initramfs build/initramfs.cpio.gz
+```
+
+Run an auto-resume suspend validation with `pm_test=freezer`:
+
+```sh
+python3 host/drip_server.py --host 0.0.0.0 --port 5555 --interval 0.25 --active-seconds 3 --pause-seconds 8 --disconnect-on-pause --stop-after 20
+RUNTIME_SECONDS=15 IDLE_SECONDS=3 WAKE_SECONDS=4 PM_TEST=freezer RESULTS_DIR=results guest/run-qemu.sh --kernel build/vmlinuz --initramfs build/initramfs.cpio.gz
+```
+
+Run a reconnect-after-resume validation with `pm_test=devices`:
+
+```sh
+python3 host/drip_server.py --host 0.0.0.0 --port 5555 --interval 0.25 --active-seconds 3 --pause-seconds 8 --disconnect-on-pause --stop-after 22
+RUNTIME_SECONDS=17 IDLE_SECONDS=3 RECONNECT_MS=7000 WAKE_SECONDS=4 PM_TEST=devices RESULTS_DIR=results guest/run-qemu.sh --kernel build/vmlinuz --initramfs build/initramfs.cpio.gz
+```
+
+Parse the resulting metrics:
+
+```sh
+python3 scripts/measure_run.py --serial-log results/guest-serial.log --json-out results/metrics.json
+```
+
+The implementation is being built incrementally. See the ticket diary for the exact sequence, findings, and caveats.

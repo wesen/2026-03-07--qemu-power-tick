@@ -11,6 +11,18 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: guest/init
+      Note: Initramfs bootstrap that now uses static QEMU networking
+    - Path: guest/run-qemu.sh
+      Note: QEMU launcher used for the measured runs
+    - Path: guest/sleepdemo.c
+      Note: Core guest runtime with suspend and measurement logic
+    - Path: host/drip_server.py
+      Note: Host traffic generator used to force idle and reconnect behavior
+    - Path: results/metrics.json
+      Note: Parsed measurement summary from the devices run
+    - Path: scripts/measure_run.py
+      Note: Metric parser used on the serial log
     - Path: ttmp/2026/03/07/QEMU-01-LAB-ONE--qemu-lab-one-analysis-and-implementation-guide/design-doc/01-lab-one-detailed-analysis-and-implementation-guide.md
       Note: Primary deliverable produced during this documentation step
     - Path: ttmp/2026/03/07/QEMU-01-LAB-ONE--qemu-lab-one-analysis-and-implementation-guide/sources/local/01-lab-assignment.md
@@ -22,6 +34,7 @@ LastUpdated: 2026-03-07T14:58:21.831611743-05:00
 WhatFor: Capture what was done for the QEMU stage-1 lab analysis ticket and how to review it.
 WhenToUse: Use when continuing or reviewing work on this ticket.
 ---
+
 
 
 
@@ -217,3 +230,186 @@ The host-side smoke test validated the core behavior of the guest binary without
   - byte counters increased
   - disconnect path triggered when the server stopped
   - runtime-limited exit succeeded
+
+## Step 3: Add The Bonus-Point Near-Single-Process Track
+
+I recorded an explicit bonus-point direction in the ticket: keep the current `busybox` bootstrap for the fastest path to a working suspend/resume prototype, but track a follow-up that pushes more early-boot and shutdown responsibilities into `sleepdemo` itself. That preserves momentum while making the stricter "sleepdemo does almost everything" interpretation visible in the documentation and task list.
+
+This step did not change runtime behavior. Its purpose was to clarify that the current initramfs design is a pragmatic bootstrap layer rather than the final philosophical endpoint of the lab.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok, let's start with busybox then. but make a \"bonus point\" section in the implementation guide and in the tasks to make sleepdemo do everything itself as much as possible.
+
+Then continue."
+
+**Assistant interpretation:** Keep the current busybox-based implementation path, but document a concrete stretch goal that reduces bootstrap dependencies and moves more work into `sleepdemo`.
+
+**Inferred user intent:** Preserve the fast path without losing sight of the cleaner near-single-process architecture.
+
+**Commit (code):** pending
+
+### What I did
+
+- Added a `Bonus Point` section to `tasks.md`.
+- Added a `Bonus Point: Move Toward A Near-Single-Process Guest` section to the primary design doc.
+- Framed the current busybox-based initramfs as a thin bootstrap layer, not a rejection of the more aggressive single-process idea.
+
+### Why
+
+- The current bootstrap is the fastest way to get real suspend/resume data.
+- The stricter near-single-process model is still valuable and should remain visible as an engineering target.
+
+### What worked
+
+- The documentation now distinguishes between the initial pragmatic implementation and the bonus-point refinement path.
+
+### What didn't work
+
+- No runtime changes were made in this step.
+
+### What I learned
+
+- The user’s preference is clear: the thin-init approach is acceptable as long as the stronger “sleepdemo does more itself” goal remains explicit.
+
+### What was tricky to build
+
+- The subtle part was framing the bonus-point work so it stays ambitious without derailing the primary milestone sequence.
+
+### What warrants a second pair of eyes
+
+- The eventual boundary between mandatory early-boot setup and what should move into `sleepdemo` will be worth revisiting after the end-to-end measurements are in place.
+
+### What should be done in the future
+
+- Resume QEMU bring-up and complete suspend/resume validation.
+- Revisit the bonus-point path once the baseline implementation is stable and measured.
+
+### Code review instructions
+
+- Read the `Bonus Point` section in `tasks.md`.
+- Read the corresponding bonus-point section in the primary design doc and verify that it aligns with the intended scope.
+
+### Technical details
+
+- Updated files:
+  - `ttmp/.../tasks.md`
+  - `ttmp/.../design-doc/01-lab-one-detailed-analysis-and-implementation-guide.md`
+
+## Step 4: Bring Up QEMU, Fix The Guest Harness, And Capture Suspend/Resume Measurements
+
+This step converted the scaffold into a working QEMU-based lab harness and produced the first real timing measurements. The guest now boots from the custom initramfs, configures networking for QEMU user mode, runs `sleepdemo`, reaches the suspend path, and successfully resumes under `pm_test` validation modes with parsed metric output.
+
+The work also surfaced two environment-specific constraints that matter for future readers. First, the original busybox install step created absolute symlinks back into the host build directory, which broke `/init` inside the guest. Second, the initial `udhcpc` approach obtained a lease message but did not actually configure the interface because there was no DHCP hook script in the initramfs. Both problems were fixed, and the resulting harness is now stable enough to measure `freezer` and `devices` suspend paths end to end.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1, plus the follow-up request to continue implementation and keep a detailed diary)
+
+**Assistant interpretation:** Continue through QEMU bring-up, runtime validation, measurement capture, and ticket-quality documentation while keeping the work traceable.
+
+**Inferred user intent:** Produce a functioning and measured prototype, not just a code scaffold.
+
+**Commit (code):** pending
+
+### What I did
+
+- Fixed the initramfs busybox applet installation to avoid absolute symlinks that were invalid inside the guest.
+- Changed guest network setup from `udhcpc`-only to explicit static QEMU user-net configuration:
+  - guest IP `10.0.2.15/24`
+  - default route via `10.0.2.2`
+- Verified a no-suspend QEMU smoke run:
+  - guest booted,
+  - `sleepdemo` connected to the host drip server,
+  - counters increased,
+  - periodic redraws happened,
+  - runtime-limited exit shut the VM down cleanly.
+- Attempted real `freeze` suspend-to-idle and confirmed entry into `s2idle`.
+- Tried wake strategies for real `freeze`:
+  - QEMU monitor `system_wakeup`
+  - QEMU `sendkey ret`
+  - guest-programmed RTC wakealarm
+- Determined that those did not wake this guest cleanly in the current VM environment.
+- Added `no_console_suspend` and RTC wakealarm support in `sleepdemo` so suspend/resume timing became visible when `pm_test` auto-resumed.
+- Ran and captured successful measurement passes for:
+  - `pm_test=freezer`
+  - `pm_test=devices`
+- Added a metric parser in `scripts/measure_run.py`.
+- Copied the implementation scripts into the ticket `scripts/` directory:
+  - `01-build-initramfs.sh`
+  - `02-run-qemu.sh`
+  - `03-init`
+  - `04-drip_server.py`
+  - `05-hmp-command.sh`
+  - `06-measure_run.py`
+  - `07-guestfwd-to-drip.sh`
+
+### Why
+
+- QEMU bring-up had to be stable before any suspend measurements were trustworthy.
+- `pm_test` provides a controlled auto-resume path even when true VM wake behavior is unreliable.
+- The ticket needed to include the exact scripts that shaped the runtime evidence, not just the narrative description.
+
+### What worked
+
+- Static binary + custom initramfs booted successfully in QEMU.
+- Explicit guest networking made the host server reachable through `10.0.2.2`.
+- `pm_test=freezer` resumed automatically and produced usable metrics.
+- `pm_test=devices` resumed automatically and produced usable metrics, including reconnect-after-resume timing.
+- The metric parser extracted the latest measurements from `results/guest-serial.log`.
+
+### What didn't work
+
+- Real `freeze` entered `s2idle` correctly but did not wake again in this QEMU environment with the wake methods tried so far.
+- QEMU monitor `system_wakeup` reported that the guest was not in a suspended QEMU power state, which is consistent with Linux guest `s2idle` not mapping to a QEMU-level suspend state.
+- The initial `busybox --install -s` strategy broke the guest because the generated symlinks were absolute host paths.
+- The initial DHCP-only setup looked successful in logs but did not configure a usable route inside the initramfs.
+
+### What I learned
+
+- For this guest, `pm_test` is the reliable way to exercise and measure the suspend/resume path.
+- The real `freeze` path can be validated for entry, but its wake path is currently a VM/platform issue rather than an application control-flow issue.
+- A custom initramfs must avoid assumptions about distro helper scripts; early-boot networking needs to be explicitly handled.
+
+### What was tricky to build
+
+- The networking bug was subtle because `udhcpc` printed a successful lease message, which initially looked like success even though the route never became active. I fixed that by using the known QEMU user-net addresses directly in `/init`.
+- The wake problem was also tricky because the guest clearly entered suspend, but the usual QEMU wake commands did not apply to the guest’s `s2idle` state. I worked around that by using `pm_test` to get controlled resumes and still collect the required latency data.
+
+### What warrants a second pair of eyes
+
+- The real `freeze` wake limitation should be reviewed with someone who has deeper QEMU/ACPI wake expertise; there may be a machine-model or wake-source detail still missing.
+- The current reconnect metric is excellent for the `pm_test=devices` case, but the real-freeze reconnect path remains blocked on wake reliability.
+
+### What should be done in the future
+
+- Investigate a reliable wake source for real guest `s2idle` in QEMU.
+- Refresh the ticket bundle and upload the updated version to reMarkable.
+- Consider whether the bonus-point near-single-process path should subsume more of `/init`.
+
+### Code review instructions
+
+- Review `guest/build-initramfs.sh`, `guest/init`, and `guest/run-qemu.sh` together as one boot path.
+- Review `guest/sleepdemo.c` around the suspend helper, reconnect scheduling, and metric emission.
+- Review `scripts/measure_run.py` against `results/guest-serial.log`.
+- Verify the successful measured runs with:
+  - `PM_TEST=freezer`
+  - `PM_TEST=devices`
+
+### Technical details
+
+- Successful measured metrics from the `pm_test=devices` reconnect run:
+  - `sleep_duration = 5028 ms`
+  - `suspend_resume_gap = 5028 ms`
+  - `resume_to_redraw = 3 ms`
+  - `resume_to_reconnect = 4 ms`
+- Successful measured metrics from the `pm_test=freezer` run:
+  - `sleep_duration = 5033 ms`
+  - `suspend_resume_gap = 5033 ms`
+  - `resume_to_redraw = 3 ms`
+- Key commands run:
+  - `make build initramfs`
+  - `python3 host/drip_server.py --host 0.0.0.0 --port 5555 --interval 0.25 --active-seconds 3 --pause-seconds 8 --disconnect-on-pause --stop-after 20`
+  - `RUNTIME_SECONDS=15 IDLE_SECONDS=3 WAKE_SECONDS=4 PM_TEST=freezer RESULTS_DIR=results guest/run-qemu.sh --kernel build/vmlinuz --initramfs build/initramfs.cpio.gz`
+  - `RUNTIME_SECONDS=17 IDLE_SECONDS=3 RECONNECT_MS=7000 WAKE_SECONDS=4 PM_TEST=devices RESULTS_DIR=results guest/run-qemu.sh --kernel build/vmlinuz --initramfs build/initramfs.cpio.gz`
+  - `python3 scripts/measure_run.py --serial-log results/guest-serial.log --json-out results/metrics.json`

@@ -623,6 +623,30 @@ WantedBy=multi-user.target
 
 This is better than ad hoc shell startup because it makes boot behavior consistent and logs easier to collect.
 
+## Bonus Point: Move Toward A Near-Single-Process Guest
+
+The current implementation path uses a tiny `busybox`-based initramfs because it is the fastest way to get a reproducible guest: `/init` mounts kernel filesystems, brings up networking, launches `sleepdemo`, and powers the VM off after the run. That still preserves the spirit of the lab because `sleepdemo` remains the only meaningful long-running user process, while the bootstrap layer is just early-boot glue.
+
+For a stronger interpretation of "single-process," a bonus-point follow-up can move more of that bootstrap behavior into `sleepdemo` itself. The target end state would be a very thin PID 1 shim that does as little as possible before `exec`-ing `sleepdemo`, with `sleepdemo` directly handling more of the environment setup and shutdown path.
+
+Possible bonus-point changes:
+
+- replace shell-driven networking setup with direct setup in `sleepdemo`
+- avoid `udhcpc` and either hardcode the QEMU user-net assumptions or implement minimal DHCP/client setup in C
+- move test-run shutdown logic from the shell bootstrap into `sleepdemo`
+- reduce the bootstrap layer to only the kernel-mandated early mounts that are awkward to avoid entirely
+
+Tradeoffs:
+
+- fewer helper tools and a cleaner single-binary story
+- more code inside `sleepdemo`, including bootstrapping concerns that are not central to the sleep/wake semantics lab
+- more implementation complexity earlier in the project
+
+Recommended position for this ticket:
+
+- keep the thin `busybox` bootstrap for the initial working prototype
+- record the near-single-process approach as a bonus-point refinement after the suspend/resume measurements are working end to end
+
 ## Testing And Validation Strategy
 
 ### Test Matrix
@@ -655,6 +679,28 @@ The lab should be considered successful only when:
 - The guest enters `freeze` through the documented sysfs path.
 - After wake, the process continues in the same PID and repairs the connection if needed.
 - The screen visibly reflects suspend/resume and reconnect state.
+
+## Current Validation Results
+
+The implementation work in this ticket has now progressed beyond planning. The initramfs guest boots in QEMU, reaches the host-side drip server over QEMU user networking, redraws continuously while awake, and records structured timing metrics on suspend/resume.
+
+Measured successful runs:
+
+- `pm_test=freezer`
+  - `sleep_duration`: about `5033 ms`
+  - `suspend_resume_gap`: about `5033 ms`
+  - `resume_to_redraw`: about `3 ms`
+- `pm_test=devices`
+  - `sleep_duration`: about `5028 ms`
+  - `suspend_resume_gap`: about `5028 ms`
+  - `resume_to_redraw`: about `3 ms`
+  - `resume_to_reconnect`: about `4 ms`
+
+Observed current limitation:
+
+- Real `freeze` suspend-to-idle entry works and the guest reaches the `s2idle` suspend path.
+- In this VM environment, the wake methods tried so far did not reliably resume the guest from real `freeze`.
+- Because of that, the measured end-to-end resume numbers currently come from `pm_test` validation modes rather than a successful real-freeze wake cycle.
 
 ## Risks, Failure Modes, And Mitigations
 
