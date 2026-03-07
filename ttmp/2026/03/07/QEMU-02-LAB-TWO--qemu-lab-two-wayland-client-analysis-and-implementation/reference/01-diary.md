@@ -185,3 +185,84 @@ This step produced the first concrete phase-2 proof point: the host can connect 
   `[init-phase2] wayland ready`
 - First successful screenshot artifact:
   `results-phase2-smoke5/01-weston-simple-shm.ppm`
+
+## Step 3: First Custom Wayland Client Integration
+
+With the platform layer stable, I replaced the packaged smoke client path with a first custom `wl_sleepdemo` client. This version owns its own Wayland surface, renders a status dashboard with a tiny built-in bitmap font, runs a network reconnect loop, and reports state transitions through the same `@@LOG` family as stage 1.
+
+The key outcome of this step is that the guest is no longer only “Weston can run.” It is now “our own Wayland client runs inside Weston, survives in the live guest, reconnects to the host drip server when it appears, and can be captured from the host with QMP screenshots.”
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 1)
+
+**Assistant interpretation:** Continue implementing the phase-2 tasks rather than stopping after the compositor smoke test.
+
+**Inferred user intent:** Move from platform bring-up into the actual application client that the later report can describe as our own work.
+
+**Commit (code):** N/A
+
+### What I did
+- Added [`guest/build-wl-sleepdemo.sh`](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-wl-sleepdemo.sh) to generate `xdg-shell` bindings and compile the custom client.
+- Added [`guest/wl_sleepdemo.c`](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_sleepdemo.c) with:
+  - registry/global binding,
+  - `xdg-shell` toplevel setup,
+  - `wl_shm` buffer allocation,
+  - custom pixel rendering,
+  - keyboard and pointer listeners,
+  - a small reconnecting network loop,
+  - timer-driven redraws,
+  - `@@LOG` state logging.
+- Rebuilt the phase-2 initramfs with `/bin/wl_sleepdemo` embedded so `init-phase2` launches it instead of `weston-simple-shm`.
+- Booted the custom-client guest and captured a screenshot artifact.
+- Started the host drip server after the guest was already running and verified the client eventually logged `connected`.
+
+### Why
+- The assignment is about a custom phase-2 Wayland client, not only compositor bring-up.
+- It was important to validate that the client could own the surface and network loop before layering in suspend behavior.
+
+### What worked
+- `wl_sleepdemo` compiled successfully from generated `xdg-shell` protocol sources.
+- The custom client booted under Weston and stayed alive.
+- QMP screenshot capture still worked with the custom client in place.
+- The client reconnected to the host drip server dynamically and logged `@@LOG kind=state connected` after the server came online.
+
+### What didn't work
+- The first custom-client run spammed `@@LOG kind=state socket-hup` because the drip server was not started yet; this was expected in hindsight, but it obscured the fact that the reconnect loop itself was fine.
+- Keyboard and pointer injection have not been validated end-to-end yet. I sent QMP `send-key` and `input-send-event` commands, but the guest log did not yet show matching input events.
+
+### What I learned
+- The reconnect loop works well enough that the host server can be attached after boot and the client will recover on its own.
+- The input-validation problem is likely in Wayland seat/focus handling or QMP device semantics, not in the basic client rendering path.
+
+### What was tricky to build
+- The hardest part of the client was avoiding a heavy dependency stack while still making the surface readable. I chose a tiny built-in 5x7 bitmap font and raw `wl_shm` drawing so the client could render text-like status without depending on Cairo text APIs, fontconfig setup, or additional guest font packages.
+- Another subtle point was Wayland seat setup. Listener registration order matters; I had to revisit the seat handshake and add an extra display roundtrip so seat capability events had a chance to arrive for the custom client.
+
+### What warrants a second pair of eyes
+- The client’s Wayland event-loop integration, especially seat/focus handling and whether it should use a stricter prepare-read/dispatch pattern.
+- The host pointer-event format in `host/qmp_harness.py`, because QMP pointer injection is still unverified.
+
+### What should be done in the future
+- Finish keyboard and pointer validation with screenshots and logs.
+- Integrate the suspend/resume state model from stage 1 into `wl_sleepdemo`.
+- Add measurement logging for redraw and reconnect timing in the custom client rather than only connection-state logs.
+
+### Code review instructions
+- Start with [`guest/wl_sleepdemo.c`](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_sleepdemo.c) and [`guest/build-wl-sleepdemo.sh`](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-wl-sleepdemo.sh).
+- Then inspect the interaction with [`guest/init-phase2`](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase2) and [`host/qmp_harness.py`](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/qmp_harness.py).
+- Validate with:
+  `guest/build-wl-sleepdemo.sh build build/wl_sleepdemo`
+  `guest/build-phase2-rootfs.sh build build/initramfs-phase2-client.cpio.gz build/wl_sleepdemo`
+  `guest/run-qemu-phase2.sh --kernel build/vmlinuz --initramfs build/initramfs-phase2-client.cpio.gz --results-dir results-phase2-client1`
+  `python3 host/drip_server.py --host 0.0.0.0 --port 5555 --interval 0.5 --active-seconds 30 --pause-seconds 5`
+  `host/qmp_harness.py --socket results-phase2-client1/qmp.sock screendump --file results-phase2-client1/01-client.ppm`
+
+### Technical details
+- Custom-client boot log marker:
+  `[init-phase2] launching client=/bin/wl_sleepdemo`
+- Reconnect proof marker:
+  `@@LOG kind=state connected`
+- Artifacts captured with the custom client:
+  `results-phase2-client1/01-client.ppm`
+  `results-phase2-client1/03-after-network.ppm`
