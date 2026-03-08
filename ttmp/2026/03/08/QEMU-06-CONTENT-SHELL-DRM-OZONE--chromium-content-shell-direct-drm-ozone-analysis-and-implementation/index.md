@@ -42,6 +42,8 @@ Current status:
 - guide uploaded to reMarkable
 - Chromium bootstrap helper added and mirrored into the ticket scripts archive
 - first live Chromium fetch started; solution config exists and `gclient sync` is in progress
+- phase-4 kms-only initramfs and runner created
+- first no-Weston phase-4 QMP smoke screenshot captured successfully at `1280x800`
 
 ## Key Links
 

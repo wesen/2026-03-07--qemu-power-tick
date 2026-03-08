@@ -18,6 +18,8 @@ RelatedFiles:
       Note: Existing Wayland launcher contrasted against the future DRM launcher
     - Path: host/bootstrap_chromium_checkout.sh
       Note: Reproducible bootstrap helper for the Chromium source/build prerequisite
+    - Path: host/capture_phase4_smoke.py
+      Note: First phase-4 QMP smoke capture helper for the no-Weston validation path
     - Path: guest/init-phase3
       Note: Current phase-3 runtime flow that phase 4 deliberately avoids reusing in place
     - Path: guest/kms_pattern.c
@@ -205,6 +207,14 @@ copy_or_select_local_test_page()
 exec /usr/bin/content-shell-drm-launcher file:///root/phase4-smoke.html
 ```
 
+The current implementation now also supports an earlier control mode:
+
+```text
+phase4_mode=kms-pattern
+```
+
+That mode bypasses Chromium and proves that the new phase-4 initramfs, module set, `virtio-gpu-pci` choice, and no-Weston QMP capture path are alive before the browser build lands.
+
 ## Design Decisions
 
 ### Decision: Start with `content_shell`, not full Chrome
@@ -269,6 +279,24 @@ The first real implementation slice established the Chromium bootstrap path:
 - the first `fetch --nohooks chromium` run already created `/home/manuel/chromium/.gclient`
 
 That means the ticket has moved past "missing local tooling" and into "long-running Chromium checkout/build execution." This distinction matters because it cleanly separates local setup bugs from remote sync latency and later build failures.
+
+## Current Validation Status
+
+The first local runtime validation for phase 4 is already complete even without Chromium:
+- [guest/build-phase4-rootfs.sh](../../../../../../guest/build-phase4-rootfs.sh) builds a kms-only initramfs when `CHROMIUM_PAYLOAD_DIR` is unset
+- [guest/init-phase4-drm](../../../../../../guest/init-phase4-drm) can boot in `phase4_mode=kms-pattern`
+- [guest/run-qemu-phase4.sh](../../../../../../guest/run-qemu-phase4.sh) boots QEMU with `-vga none` and `virtio-gpu-pci`
+- [host/capture_phase4_smoke.py](../../../../../../host/capture_phase4_smoke.py) captures a QMP screendump for the first visible frame
+
+Evidence from `results-phase4-kms1`:
+- guest serial log shows:
+  - `@@KMSPATTERN device=/dev/dri/card0 connector_id=36 crtc_id=35 fb_id=42 width=1280 height=800 pattern=pre`
+- the captured screenshot exists at:
+  - `results-phase4-kms1/00-smoke.png`
+- the screenshot size is:
+  - `1280x800`
+
+This matters because it proves the new phase-4 branch is already a valid no-Weston KMS/QMP environment. The remaining big dependency is the Chromium payload itself.
 - launcher env vars for Ozone DRM
 - no Weston packages in the minimal success path
 

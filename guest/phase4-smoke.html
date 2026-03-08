@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Phase 4 Smoke</title>
+  <style>
+    :root {
+      color-scheme: light;
+      --bg0: #07131f;
+      --bg1: #113250;
+      --ink: #f6f4ea;
+      --accent: #f05d23;
+      --accent-2: #9fe870;
+      --panel: rgba(255, 255, 255, 0.08);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      font-family: "DejaVu Sans", sans-serif;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(240, 93, 35, 0.38), transparent 24%),
+        radial-gradient(circle at 80% 28%, rgba(159, 232, 112, 0.30), transparent 22%),
+        linear-gradient(135deg, var(--bg0), var(--bg1));
+      color: var(--ink);
+    }
+
+    main {
+      width: min(960px, calc(100vw - 80px));
+      padding: 48px;
+      border: 2px solid rgba(255, 255, 255, 0.22);
+      border-radius: 28px;
+      background: var(--panel);
+      backdrop-filter: blur(6px);
+      box-shadow: 0 30px 90px rgba(0, 0, 0, 0.34);
+    }
+
+    h1 {
+      margin: 0 0 12px;
+      font-size: clamp(2rem, 6vw, 4.5rem);
+      line-height: 0.95;
+      letter-spacing: 0.02em;
+      text-transform: uppercase;
+    }
+
+    p {
+      margin: 0;
+      max-width: 48rem;
+      font-size: clamp(1rem, 2vw, 1.35rem);
+      line-height: 1.5;
+    }
+
+    .bar {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-top: 28px;
+    }
+
+    .swatch {
+      height: 52px;
+      border-radius: 999px;
+      border: 1px solid rgba(255, 255, 255, 0.2);
+    }
+
+    .swatch:nth-child(1) { background: #f05d23; }
+    .swatch:nth-child(2) { background: #9fe870; }
+    .swatch:nth-child(3) { background: #6dd3ce; }
+    .swatch:nth-child(4) { background: #f7b32b; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Content Shell DRM</h1>
+    <p>
+      This local smoke page is the first direct-DRM phase witness. If this page is visible in QEMU,
+      the phase-4 initramfs booted, Chromium launched, and Ozone DRM produced a host-visible frame
+      without Weston in the middle.
+    </p>
+    <div class="bar">
+      <div class="swatch"></div>
+      <div class="swatch"></div>
+      <div class="swatch"></div>
+      <div class="swatch"></div>
+    </div>
+  </main>
+</body>
+</html>

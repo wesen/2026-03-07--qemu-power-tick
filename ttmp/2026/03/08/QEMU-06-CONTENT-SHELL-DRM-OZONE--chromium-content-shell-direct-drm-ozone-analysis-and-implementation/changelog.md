@@ -9,3 +9,7 @@
 - Added a reusable Chromium checkout bootstrap helper at `host/bootstrap_chromium_checkout.sh` and mirrored it into the ticket `scripts/` folder.
 - Confirmed local disk headroom and successful access to the `depot_tools` remote.
 - Started the first live Chromium checkout via `fetch --nohooks chromium`; current state progressed through `.gclient` creation and into `gclient sync`.
+- Committed the bootstrap checkpoint as `3ce4f8b` (`Bootstrap Chromium checkout path`).
+- Added the first phase-4 runtime skeleton files: `init-phase4-drm`, `build-phase4-rootfs.sh`, `content-shell-drm-launcher.sh`, `run-qemu-phase4.sh`, and `phase4-smoke.html`.
+- Added `host/capture_phase4_smoke.py` and mirrored all new phase-4 helpers into the ticket `scripts/` folder.
+- Built a kms-only phase-4 initramfs and validated the no-Weston boot path with a successful `1280x800` QMP screenshot in `results-phase4-kms1/`.

@@ -14,12 +14,20 @@ Owners: []
 RelatedFiles:
     - Path: guest/build-phase3-rootfs.sh
       Note: Phase-3 baseline reviewed during the initial design step
+    - Path: guest/build-phase4-rootfs.sh
+      Note: Phase-4 initramfs builder added in Step 3
     - Path: guest/chromium-wayland-launcher.sh
       Note: Current Wayland launcher contrasted against the planned direct DRM launcher
     - Path: guest/init-phase3
       Note: Phase-3 baseline reviewed during the initial design step
+    - Path: guest/init-phase4-drm
+      Note: Phase-4 PID 1 implementation added in Step 3
+    - Path: guest/run-qemu-phase4.sh
+      Note: Phase-4 QEMU runner added in Step 3
     - Path: host/bootstrap_chromium_checkout.sh
       Note: Reusable Chromium checkout bootstrap helper created in Step 2
+    - Path: host/capture_phase4_smoke.py
+      Note: Phase-4 QMP smoke capture helper added in Step 3
     - Path: ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/scripts/bootstrap_chromium_checkout.sh
       Note: Ticket-local mirror of the bootstrap helper for review and reproduction
     - Path: ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/sources/local/01-drm-ozone.md
@@ -30,6 +38,7 @@ LastUpdated: 2026-03-08T12:13:43.22501215-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -158,6 +167,8 @@ I treated this as a real implementation step rather than "just environment setup
 
 **Inferred user intent:** Make the Chromium source/bootstrap path an explicit early task and start executing it now instead of deferring it as a later surprise.
 
+**Commit (code):** `3ce4f8b` - `Bootstrap Chromium checkout path`
+
 ### What I did
 - Added a reusable bootstrap helper at:
   - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/bootstrap_chromium_checkout.sh`
@@ -185,6 +196,12 @@ Filesystem                         Size  Used Avail Use% Mounted on
 ```text
 /home/manuel/chromium/.gclient
 ```
+- Continued watching the live sync until it advanced into the real Chromium source clone:
+```text
+Running: gclient sync --nohooks
+________ running 'git -c core.deltaBaseCacheLimit=2g clone --no-checkout --progress https://chromium.googlesource.com/chromium/src.git /home/manuel/chromium/_gclient_src_pf2wv8k_' in '/home/manuel/chromium'
+remote: Sending approximately 61.14 GiB ...
+```
 
 ### Why
 - Phase 4 needs a custom Chromium payload that the current repo does not have.
@@ -205,6 +222,10 @@ git -c color.ui=never ls-remote --symref https://chromium.googlesource.com/chrom
 /usr/lib/git-core/git-remote-https https://chromium.googlesource.com/chromium/src.git https://chromium.googlesource.com/chromium/src.git
 ```
 - So this step ended with a valid bootstrap path and an in-flight Chromium fetch, not a fully populated `src/` checkout yet.
+- The size of the first clone is substantial even before hooks:
+```text
+remote: Sending approximately 61.14 GiB ...
+```
 
 ### What I learned
 - The machine setup risk is now much narrower than before: local disk and `depot_tools` are fine.
@@ -214,6 +235,7 @@ git -c color.ui=never ls-remote --symref https://chromium.googlesource.com/chrom
 ### What was tricky to build
 - The tricky part was distinguishing "scriptable setup" from "long-running remote sync." Those are different failure domains, and the ticket needs to preserve that difference. The helper had to be idempotent so later reruns do not turn into a second undocumented workflow once `/home/manuel/chromium` exists.
 - Another subtlety is that the first `fetch chromium` path is quiet for long stretches. Without checking the live process tree and the appearance of `.gclient`, it would have been too easy to misclassify the command as hung.
+- After the remote probe completed, the next quiet interval was the transition into the full `src.git` clone. Watching for the temporary `_gclient_src_*` directory was the easiest way to confirm that the sync had actually crossed into bulk transfer.
 
 ### What warrants a second pair of eyes
 - The helper currently uses `fetch --nohooks chromium`, which is the conservative path. If the full checkout becomes too slow or too large for the workflow we want, it may be worth reviewing whether `--no-history` or a more constrained sync policy is acceptable for this ticket.
@@ -250,4 +272,124 @@ SYNC_FLAGS        default: --nohooks --with_branch_heads --with_tags
 - First stable checkout marker from this step:
 ```text
 /home/manuel/chromium/.gclient
+```
+- Current in-flight clone directory:
+```text
+/home/manuel/chromium/_gclient_src_pf2wv8k_
+```
+
+## Step 3: Build the Phase-4 Skeleton and Validate the No-Weston KMS Control
+
+Once the Chromium checkout moved into a long-running bulk transfer, the next productive move was to stop waiting on the network and build the local phase-4 branch itself. The goal of this step was not "fake progress while Chromium downloads." The goal was to prove that the new direct-DRM phase can already boot and render without Weston, using the existing `kms_pattern` witness as the first control.
+
+This step matters because it removes one future ambiguity. If direct DRM Chromium fails later, we now have a repo-local answer to "is the new phase-4 initramfs and QEMU shape valid at all?" The answer is yes.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Keep executing the ticket tasks rather than stopping after the design/write-up checkpoint.
+
+**Inferred user intent:** Maintain momentum by turning the design into real implementation slices with diary entries, scripts, and commits.
+
+### What I did
+- Added the phase-4 runtime files:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase4-drm`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-phase4-rootfs.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/content-shell-drm-launcher.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/run-qemu-phase4.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/phase4-smoke.html`
+- Designed the new init so that it supports:
+  - `phase4_mode=kms-pattern`
+  - `phase4_mode=content-shell`
+- Added a reusable phase-4 capture helper:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/capture_phase4_smoke.py`
+- Mirrored all of those files into the ticket script archive:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/scripts/`
+- Built the first phase-4 initramfs without a Chromium payload:
+```text
+./guest/build-phase4-rootfs.sh build/phase4 build/initramfs-phase4.cpio.gz
+warning: CHROMIUM_PAYLOAD_DIR is unset; building a kms-only phase-4 initramfs
+```
+- Booted the new phase under QEMU and captured the first screenshot:
+```text
+./host/capture_phase4_smoke.py \
+  --kernel build/vmlinuz \
+  --initramfs build/initramfs-phase4.cpio.gz \
+  --results-dir results-phase4-kms1 \
+  --append-extra 'phase4_runtime_seconds=12 phase4_mode=kms-pattern' \
+  --capture-delay 4 \
+  --timeout 40
+```
+- Verified the captured image size:
+```text
+{'size': (1280, 800), 'mode': 'RGB'}
+```
+- Verified the guest-side KMS witness:
+```text
+@@KMSPATTERN device=/dev/dri/card0 connector_id=36 crtc_id=35 fb_id=42 width=1280 height=800 pattern=pre
+```
+
+### Why
+- The direct-DRM ticket needed a local success path that does not depend on the Chromium build finishing first.
+- `kms_pattern` is already the cleanest low-level witness in this repo, so phase 4 should use it before blaming Chromium or Ozone.
+- A reusable capture helper makes the first no-Weston validation reviewable and repeatable.
+
+### What worked
+- The new phase-4 rootfs builder successfully produced `build/initramfs-phase4.cpio.gz`.
+- The phase-4 init loaded DRM/input modules, started `udevd`, and saw `/dev/dri/card0` and `/dev/input/event*`.
+- The `virtio-gpu-pci` + `-vga none` runner worked as intended for the no-Weston control.
+- QMP screendump captured a real `1280x800` frame in `results-phase4-kms1/00-smoke.png`.
+
+### What didn't work
+- This step did not attempt a real Chromium boot yet because the Chromium checkout is still in progress.
+- The rootfs builder warns when `CHROMIUM_PAYLOAD_DIR` is unset:
+```text
+warning: CHROMIUM_PAYLOAD_DIR is unset; building a kms-only phase-4 initramfs
+```
+- That warning is expected for this step, but it means `phase4_mode=content-shell` would still fail until the Chromium payload exists.
+
+### What I learned
+- The phase-4 branch is already valid as a KMS appliance even before Chromium arrives.
+- The split between `kms-pattern` and `content-shell` was the right design because it gives us a trustworthy control path.
+- `virtio-gpu-pci` with `-vga none` works cleanly for the first no-Weston validation and produces a host-visible `1280x800` capture.
+
+### What was tricky to build
+- The main tricky part was keeping the phase-4 files useful before Chromium exists. That required `build-phase4-rootfs.sh` and `init-phase4-drm` to degrade intentionally into a kms-only mode instead of pretending the browser payload is already there.
+- Another subtle point was choosing where to put the first screenshot automation. A small dedicated `capture_phase4_smoke.py` helper is better than burying one more QMP sequence in shell history because the ticket explicitly wants every helper preserved.
+
+### What warrants a second pair of eyes
+- The `content-shell-drm-launcher.sh` flags are an informed first pass, but they still need a real Chromium payload before they can be trusted.
+- The phase-4 rootfs builder currently copies the broad font/XKB/udev base but does not yet probe for all GBM/EGL/DRI runtime pieces; that still needs a dedicated dependency pass once the Chromium build outputs exist.
+
+### What should be done in the future
+- Finish the Chromium source checkout.
+- Verify the initial Chromium target set in the checkout.
+- Add the runtime dependency probe for the direct DRM payload.
+- Attempt the first `phase4_mode=content-shell` boot.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase4-drm`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-phase4-rootfs.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/run-qemu-phase4.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/capture_phase4_smoke.py`
+- Then validate with:
+```text
+./guest/build-phase4-rootfs.sh build/phase4 build/initramfs-phase4.cpio.gz
+./host/capture_phase4_smoke.py --kernel build/vmlinuz --initramfs build/initramfs-phase4.cpio.gz --results-dir results-phase4-kms1 --append-extra 'phase4_runtime_seconds=12 phase4_mode=kms-pattern' --capture-delay 4 --timeout 40
+tail -n 80 results-phase4-kms1/guest-serial.log
+```
+
+### Technical details
+- Current no-Weston phase-4 witness files:
+```text
+results-phase4-kms1/00-smoke.ppm
+results-phase4-kms1/00-smoke.png
+results-phase4-kms1/guest-serial.log
+```
+- Mode switch currently implemented in the new init:
+```text
+phase4_mode=kms-pattern
+phase4_mode=content-shell
 ```

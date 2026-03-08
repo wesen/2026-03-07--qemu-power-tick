@@ -1,0 +1,113 @@
+#!/bin/busybox sh
+set -eu
+
+export PATH=/bin:/usr/bin:/usr/sbin
+
+mount -t proc proc /proc
+mount -t sysfs sysfs /sys
+mount -t devtmpfs devtmpfs /dev
+mount -t tmpfs tmpfs /run
+mount -t tmpfs tmpfs /tmp
+mount -t debugfs debugfs /sys/kernel/debug 2>/dev/null || true
+mkdir -p /dev/pts /run/user/0 /run/udev /var/log /var/lib /root
+mount -t devpts devpts /dev/pts || true
+
+hostname qemu-lab-phase4
+echo 8 >/proc/sys/kernel/printk || true
+echo "[init-phase4] booted" >/dev/console
+
+chmod 0700 /run/user/0
+export XDG_RUNTIME_DIR=/run/user/0
+export HOME=/root
+export FONTCONFIG_PATH=/etc/fonts
+
+MODE=kms-pattern
+URL=file:///root/phase4-smoke.html
+RUNTIME_SECONDS=20
+UNBIND_FBCON=0
+
+for arg in $(cat /proc/cmdline); do
+  case "$arg" in
+    phase4_mode=*) MODE=${arg#phase4_mode=} ;;
+    phase4_url=*) URL=${arg#phase4_url=} ;;
+    phase4_runtime_seconds=*) RUNTIME_SECONDS=${arg#phase4_runtime_seconds=} ;;
+    phase4_unbind_fbcon=1) UNBIND_FBCON=1 ;;
+  esac
+done
+
+KERNEL_RELEASE=$(uname -r)
+for module in \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/virtio/virtio_dma_buf.ko" \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/gpu/drm/virtio/virtio-gpu.ko" \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/hid/hid.ko" \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/hid/hid-generic.ko" \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/hid/usbhid/usbhid.ko" \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/hid/usbhid/usbkbd.ko" \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/hid/usbhid/usbmouse.ko" \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/input/mouse/psmouse.ko" \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/usb/host/xhci-pci-renesas.ko" \
+  "/lib/modules/$KERNEL_RELEASE/kernel/drivers/usb/host/xhci-pci.ko"
+do
+  if [ -f "$module" ]; then
+    echo "[init-phase4] loading module=$module" >/dev/console
+    insmod "$module" >/dev/console 2>&1 || true
+  fi
+done
+
+/lib/systemd/systemd-udevd --daemon >/dev/console 2>&1 || true
+udevadm trigger --action=add --subsystem-match=input >/dev/console 2>&1 || true
+udevadm trigger --action=add --subsystem-match=drm >/dev/console 2>&1 || true
+udevadm settle >/dev/console 2>&1 || true
+
+ls -l /dev/dri >/dev/console 2>&1 || echo "[init-phase4] /dev/dri missing" >/dev/console
+ls -l /dev/input >/dev/console 2>&1 || echo "[init-phase4] /dev/input missing" >/dev/console
+
+if [ "$UNBIND_FBCON" = "1" ]; then
+  for vtcon in /sys/class/vtconsole/vtcon*; do
+    [ -r "$vtcon/name" ] || continue
+    case "$(cat "$vtcon/name" 2>/dev/null || true)" in
+      *frame\ buffer*)
+        if [ -w "$vtcon/bind" ]; then
+          echo 0 >"$vtcon/bind" 2>/dev/null || true
+          echo "[init-phase4] unbound $(basename "$vtcon") framebuffer console" >/dev/console
+        fi
+        ;;
+    esac
+  done
+fi
+
+if [ -n "$RUNTIME_SECONDS" ]; then
+  (
+    sleep "$RUNTIME_SECONDS"
+    echo "[init-phase4] runtime limit reached" >/dev/console
+    poweroff -f
+  ) &
+  RUNTIME_PID=$!
+else
+  RUNTIME_PID=
+fi
+
+echo "[init-phase4] mode=$MODE url=$URL runtime=$RUNTIME_SECONDS" >/dev/console
+
+case "$MODE" in
+  kms-pattern)
+    /usr/bin/kms_pattern --pattern pre >/var/log/kms-pattern.log 2>&1 || true
+    tail -f /var/log/kms-pattern.log >/dev/console 2>&1 &
+    TAIL_PID=$!
+    ;;
+  content-shell)
+    /usr/bin/content-shell-drm-launcher "$URL" >/var/log/content-shell.log 2>&1 &
+    APP_PID=$!
+    tail -f /var/log/content-shell.log >/dev/console 2>&1 &
+    TAIL_PID=$!
+    wait "$APP_PID" || true
+    ;;
+  *)
+    echo "[init-phase4] unknown phase4_mode=$MODE" >/dev/console
+    poweroff -f
+    ;;
+esac
+
+wait "${RUNTIME_PID:-}" || true
+wait "${TAIL_PID:-}" || true
+poweroff -f
