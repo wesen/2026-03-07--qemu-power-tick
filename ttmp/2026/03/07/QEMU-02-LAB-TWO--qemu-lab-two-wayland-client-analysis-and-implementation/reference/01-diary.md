@@ -1210,7 +1210,7 @@ This step therefore became more valuable than a pure cleanup pass. It tightened 
 
 **Inferred user intent:** Improve the actual system based on the review findings, keep the ticket current, and avoid letting the postmortem become shelfware.
 
-**Commit (code):** Pending at this step
+**Commit (code):** `1daaa74` — `Apply phase 2 postmortem cleanup`
 
 ### What I did
 - Removed the unconditional redraw tick from [guest/wl_sleepdemo.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_sleepdemo.c) so redraws are now driven by real state changes instead of a fixed timer.
@@ -1311,7 +1311,7 @@ This step took two iterations, which was useful. The first run captured boot, fi
 
 **Inferred user intent:** Prevent undocumented progress and keep the ticket useful as a real engineering record while implementation continues.
 
-**Commit (code):** Pending at this step
+**Commit (code):** `1a6e166` — `Finalize phase 2 report and suspend artifacts`
 
 ### What I did
 - Added [host/capture_phase2_checkpoints.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/capture_phase2_checkpoints.py).
@@ -1411,7 +1411,7 @@ This closed the remaining screenshot task without introducing more manual timing
 
 **Inferred user intent:** Finish the remaining implementation/reporting prerequisites methodically rather than leaving the ticket almost done but incomplete.
 
-**Commit (code):** Pending at this step
+**Commit (code):** `1a6e166` — `Finalize phase 2 report and suspend artifacts`
 
 ### What I did
 - Extended [host/capture_phase2_checkpoints.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/capture_phase2_checkpoints.py) with:
@@ -1497,7 +1497,7 @@ This report is intentionally different from the diary. The diary preserves chron
 
 **Inferred user intent:** Finish the phase in a way that is actually submittable, not just technically working.
 
-**Commit (code):** Pending at this step
+**Commit (code):** `1a6e166` — `Finalize phase 2 report and suspend artifacts`
 
 ### What I did
 - Added [03-phase-2-final-implementation-report.md](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/design-doc/03-phase-2-final-implementation-report.md).
