@@ -393,6 +393,48 @@ Interpretation:
   - but does not change the post-resume fallback.
 - That means the stage-3 difference is not generic to the whole stack. It is client-dependent.
 
+### Intervention I: Guest `/dev/fb0` Readback vs Host `screendump`
+
+Command:
+```bash
+bash host/run_phase3_suspend_capture.sh \
+  --results-dir results-phase3-fbshot-shm1 \
+  --pre-delay-seconds 8.0 \
+  --post-resume-delay-seconds 1.0 \
+  --append-extra 'phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices phase3_fb_capture=1 phase3_fb_capture_pre_delay_seconds=8 phase3_fb_capture_post_delay_seconds=17'
+
+python3 host/extract_fbshot_from_serial.py \
+  --serial-log results-phase3-fbshot-shm1/guest-serial.log \
+  --output-dir results-phase3-fbshot-shm1/fbshots
+```
+
+Observed:
+- guest-side `fb0` metadata before and after resume stayed:
+  - `name=virtio_gpudrmfb`
+  - `visible_width=1280`
+  - `visible_height=800`
+  - `stride=5120`
+  - `bpp=32`
+- guest-side framebuffer payload hashes were identical:
+  - `sha256_raw(pre)  = 2acef41c4128716e648faccbc5c40a24d53862c57037cd362f31c83fad2237cb`
+  - `sha256_raw(post) = 2acef41c4128716e648faccbc5c40a24d53862c57037cd362f31c83fad2237cb`
+- guest-side framebuffer image diff:
+  - `AE(fbshot-pre-bgrx, fbshot-post-bgrx) = 0`
+- host-side QMP screenshots in the same run still showed:
+  - `00-pre.png`: `1280x800`
+  - `01-post.png`: `720x400`
+  - `resume_ae = 1.024e+06`
+- guest-vs-host pre-suspend comparison:
+  - `AE(00-pre.png, fbshot-pre-bgrx.png) = 1023981`
+  - guest `fb0` image mean luminance: `0.59`
+  - host pre-suspend screenshot mean luminance: `137.4`
+
+Interpretation:
+- `/dev/fb0` is **not** the same visible plane that QMP `screendump` shows in the graphical pre-suspend state.
+- `/dev/fb0` also remains unchanged across the suspend/resume interval in this test, while host-visible output changes drastically.
+- That makes `/dev/fb0` a useful negative control, but not a valid guest-visible ground truth for this stack.
+- The next readback attempt needs to move below fbdev, toward a DRM/KMS-oriented capture path or another compositor-authorized capture route.
+
 ## What the Intern Should Conclude Right Now
 
 Do **not** conclude:
@@ -407,6 +449,8 @@ Do conclude:
 - corrected phase 3 shows client-dependent pre-suspend sensitivity to fbcon unbinding:
   - `weston-simple-shm`: yes
   - Chromium: no visible change in the current test page setup
+- `/dev/fb0` is not the same plane as the visible graphical scene in corrected stage 3, even before suspend,
+- a raw `fb0` readback therefore cannot be used as “what the guest is visibly showing” in this environment,
 - the stage-2 probe evidence points below simple `vtconsole` ownership,
 - the earlier phase-3 probe gap was a shell bug, not an inherent logging limitation.
 
@@ -454,13 +498,15 @@ Rejected because:
 
 1. Re-run stage-3 `display_unbind_fbcon=1` with capture attached concurrently, not post-hoc.
 2. Add one guest-visible screenshot or readback experiment to compare guest-side output with QMP `screendump` after resume.
-3. If that still points below QMP, add a tighter post-resume probe for DRM/scanout state during the narrow resume window.
+3. Since `/dev/fb0` turned out not to be the visible plane, add a lower-level DRM/KMS readback or plane-state experiment next.
+4. If that still points below QMP, add a tighter post-resume probe for DRM/scanout state during the narrow resume window.
 
 ### Likely follow-up experiments
 
 1. Compare `pm_test=freezer` vs `pm_test=devices` under the same probe instrumentation.
 2. Add a tiny post-resume DRM/fb state dumper that runs immediately after resume and before the main client redraw.
-3. If the shared fallback remains, investigate QEMU scanout ownership or `screendump` plane selection instead of staying at the app level.
+3. Add a guest-side DRM/KMS capture or state query path, because `fb0` is not sufficient.
+4. If the shared fallback remains, investigate QEMU scanout ownership or `screendump` plane selection instead of staying at the app level.
 
 Pseudo-code for the next disciplined loop:
 
@@ -479,10 +525,10 @@ for each hypothesis in [fbcon_ownership, drm_scanout_restore, client_resource_in
 
 ## Open Questions
 
-- Why does the stage-3 probe branch not visibly dump `@@DISPLAY` in the current serial logs?
-- Are the `virtio_gpu_dequeue_ctrl_func ... 0x1203` lines in `results-phase3-probe-shm1` caused by the same lower-layer issue as the screenshot fallback, or are they a second bug?
-- Is QMP `screendump` observing a different visible plane from the one Weston thinks it owns after resume?
-- Is there a resume-time fbcon or DRM event occurring in a narrower window than the one-second probe interval can capture?
+- Which guest-side API can capture the compositor-visible KMS plane without requiring Weston screenshot authorization?
+- Are the `virtio_gpu_dequeue_ctrl_func ... 0x1203` lines in `results-phase3-probe-shm1` caused by the same lower-layer issue as the screenshot fallback, or were they primarily tied to the earlier broken runs?
+- Is QMP `screendump` observing firmware text output after resume while `virtio_gpudrmfb` remains mapped but visually unused?
+- Is there a resume-time DRM or console handoff event occurring in a narrower window than the one-second probe interval can capture?
 
 ## References
 
@@ -499,4 +545,7 @@ for each hypothesis in [fbcon_ownership, drm_scanout_restore, client_resource_in
 - Linux framebuffer info: `/proc/fb`
 - Linux vtconsole state: `/sys/class/vtconsole/vtcon*/`
 - Linux DRM connector state: `/sys/class/drm/card*-*/`
+- Linux framebuffer device: `/dev/fb0`
 - QMP screenshot/input harness: [host/capture_phase3_suspend_checkpoints.py](../../../../../../host/capture_phase3_suspend_checkpoints.py)
+- Guest framebuffer dump helper: [guest/dump_fb0_snapshot.sh](../../../../../../guest/dump_fb0_snapshot.sh)
+- Host framebuffer extractor: [host/extract_fbshot_from_serial.py](../../../../../../host/extract_fbshot_from_serial.py)

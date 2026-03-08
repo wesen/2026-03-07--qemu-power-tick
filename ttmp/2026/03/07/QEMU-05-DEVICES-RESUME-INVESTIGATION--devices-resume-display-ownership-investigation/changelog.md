@@ -14,3 +14,4 @@
 - Confirmed that corrected phase-3 runs now emit `@@DISPLAY`, no longer reproduce the old `0x1203` DRM errors, and still show the same `1280x800 -> 720x400` post-resume fallback.
 - Backfilled the ticket-local `scripts/` archive with the new temporary helpers and uploaded `QEMU-05 Devices Resume Investigation Bundle Update` to reMarkable.
 - Ran corrected stage-3 `weston-simple-shm` with `display_unbind_fbcon=1` and showed that stage-3 pre-suspend sensitivity to fbcon unbinding is client-dependent, while the post-resume fallback remains shared.
+- Added a guest-side `/dev/fb0` readback path plus host extractor and proved that `fb0` stays a mostly black `1280x800` buffer that does not match the host-visible QMP pre-suspend frame and remains byte-identical across the `pm_test=devices` suspend/resume cycle.

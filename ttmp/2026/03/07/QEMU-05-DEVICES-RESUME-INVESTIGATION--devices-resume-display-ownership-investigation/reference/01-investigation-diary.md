@@ -22,6 +22,10 @@ RelatedFiles:
       Note: Diary evidence for the stage-3 probe and log-only unbind attempt
     - Path: host/run_phase3_suspend_capture.sh
       Note: Diary evidence for the corrected concurrent stage-3 capture runs
+    - Path: guest/dump_fb0_snapshot.sh
+      Note: Guest-side framebuffer readback helper used to test whether `/dev/fb0` matches the visible plane
+    - Path: host/extract_fbshot_from_serial.py
+      Note: Host-side extractor that reconstructs raw framebuffer dumps and PNG variants from the serial log
     - Path: ttmp/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/scripts/run_phase3_suspend_capture.sh
       Note: Archived copy of the concurrent capture wrapper used in this ticket
 ExternalSources: []
@@ -695,4 +699,147 @@ results-phase3-probe-shm-unbind1/01-post.png:  720 x 400
 ```text
 stage-3 pre-suspend sensitivity to fbcon unbinding is client-dependent
 stage-3 post-resume fallback is still client-independent
+```
+
+## Step 8: Prove That `/dev/fb0` Is Not the Visible Plane
+
+The next obvious experiment after the corrected stage-3 control runs was to try a guest-side readback path. `weston-screenshooter` had already failed with an authorization error, so the simplest fallback was a raw `/dev/fb0` dump. That looked promising as an engineering shortcut, but the result was more useful as a negative control than as a screenshot replacement.
+
+The important outcome is that the `fb0` path worked technically and failed conceptually. It round-tripped correctly through the serial log, but the reconstructed `fb0` images were nearly black and byte-identical before and after suspend, while the host-visible QMP screenshots remained graphical before suspend and still fell back to the firmware-looking `720x400` plane after resume. That means `/dev/fb0` is not the compositor-visible scene in this setup.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 6)
+
+**Assistant interpretation:** Continue the narrow investigation, keep the diary current, and add the next focused experiment without broadening the ticket.
+
+**Inferred user intent:** Replace guesswork with one more direct measurement of what the guest thinks it is showing versus what the host-side QMP screenshot path is actually capturing.
+
+### What I did
+- Added [guest/dump_fb0_snapshot.sh](../../../../../../guest/dump_fb0_snapshot.sh), which:
+  - reads `/sys/class/graphics/fb0/{name,virtual_size,bits_per_pixel,stride,modes}`
+  - dumps `visible_height * stride` bytes from `/dev/fb0`
+  - compresses the raw bytes with `gzip`
+  - emits them between `@@FBSHOT_BEGIN/END` markers on serial
+- Added [host/extract_fbshot_from_serial.py](../../../../../../host/extract_fbshot_from_serial.py), which:
+  - extracts `@@FBSHOT` blocks from the serial log
+  - reconstructs the raw framebuffer blob
+  - writes JSON metadata
+  - emits PNG variants for likely 32-bit framebuffer layouts
+- Wired the new helper into [guest/build-phase3-rootfs.sh](../../../../../../guest/build-phase3-rootfs.sh) and [guest/init-phase3](../../../../../../guest/init-phase3) with:
+  - `phase3_fb_capture=1`
+  - `phase3_fb_capture_pre_delay_seconds=...`
+  - `phase3_fb_capture_post_delay_seconds=...`
+- Ran a no-suspend smoke test first:
+```bash
+URL=$(python3 host/make_phase3_test_url.py)
+bash guest/run-qemu-phase3.sh \
+  --kernel build/vmlinuz \
+  --initramfs build/initramfs-phase3.img \
+  --results-dir results-phase3-fbshot-nosuspend1 \
+  --append-extra "phase3_runtime_seconds=14 phase3_fb_capture=1 phase3_fb_capture_pre_delay_seconds=6 phase3_url=$URL"
+python3 host/extract_fbshot_from_serial.py \
+  --serial-log results-phase3-fbshot-nosuspend1/guest-serial.log \
+  --output-dir results-phase3-fbshot-nosuspend1/fbshots
+```
+- Ran the real suspend control with `weston-simple-shm`:
+```bash
+bash host/run_phase3_suspend_capture.sh \
+  --results-dir results-phase3-fbshot-shm1 \
+  --pre-delay-seconds 8.0 \
+  --post-resume-delay-seconds 1.0 \
+  --append-extra 'phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices phase3_fb_capture=1 phase3_fb_capture_pre_delay_seconds=8 phase3_fb_capture_post_delay_seconds=17'
+
+python3 host/extract_fbshot_from_serial.py \
+  --serial-log results-phase3-fbshot-shm1/guest-serial.log \
+  --output-dir results-phase3-fbshot-shm1/fbshots
+```
+- Compared:
+  - `results-phase3-fbshot-shm1/00-pre.png`
+  - `results-phase3-fbshot-shm1/01-post.png`
+  - `results-phase3-fbshot-shm1/fbshots/fbshot-pre-bgrx.png`
+  - `results-phase3-fbshot-shm1/fbshots/fbshot-post-bgrx.png`
+
+### Why
+- The ticket still needed one guest-side output experiment.
+- `weston-screenshooter` was blocked by authorization, so `/dev/fb0` was the cheapest readback candidate.
+- Even a failed readback path can be useful if it proves a layer is not the visible truth source.
+
+### What worked
+- The guest emitted complete `fb0` dumps with consistent metadata:
+  - `visible_width=1280`
+  - `visible_height=800`
+  - `stride=5120`
+  - `bpp=32`
+  - `name=virtio_gpudrmfb`
+- The host extractor reconstructed both pre and post blobs and PNG variants successfully.
+- The suspend control showed:
+  - `sha256_raw(pre)  = 2acef41c4128716e648faccbc5c40a24d53862c57037cd362f31c83fad2237cb`
+  - `sha256_raw(post) = 2acef41c4128716e648faccbc5c40a24d53862c57037cd362f31c83fad2237cb`
+  - `AE(fbshot-pre-bgrx, fbshot-post-bgrx) = 0`
+- The host-visible QMP capture in the same run still showed:
+  - `00-pre.png`: `1280x800`
+  - `01-post.png`: `720x400`
+  - `resume_ae = 1.024e+06`
+- The guest `fb0` pre-image and host pre-screenshot were already far apart:
+  - `AE(00-pre.png, fbshot-pre-bgrx.png) = 1023981`
+
+### What didn't work
+- The initial host extractor revision failed with:
+```text
+OSError: cannot write mode RGBX as PNG
+```
+- Cause:
+  `Image.frombuffer(..., "raw", "RGBX", ...)` preserved the raw-mode-backed image mode, so Pillow refused to save it directly as PNG.
+- Fix:
+  convert the image to `RGB` before saving.
+- More importantly, the conceptual goal failed:
+  `/dev/fb0` was not a valid proxy for the visible compositor output.
+
+### What I learned
+- A technically correct framebuffer readback can still be the wrong plane.
+- In this setup, `/dev/fb0` is associated with `virtio_gpudrmfb`, but that does not mean it tracks the scene QMP `screendump` shows.
+- The shared resume fallback is now better framed as a plane-selection or scanout-ownership problem, not “whatever is in `fb0` must be what the user sees.”
+
+### What was tricky to build
+- The biggest trap here was assuming that “framebuffer device exists” implies “framebuffer device is the visible scene.”
+- The no-suspend smoke test was necessary to separate transport bugs from conceptual bugs.
+- The raw payload is large enough that silent truncation would have been easy to miss, so the extractor explicitly validates the byte count before writing outputs.
+
+### What warrants a second pair of eyes
+- Whether `virtio_gpudrmfb` is expected to remain a stale or mostly black console buffer while Weston renders through a different KMS path.
+- Whether there is a better guest-side DRM/KMS API to query active planes or capture scanout directly without depending on Weston authorization.
+
+### What should be done in the future
+- Add a lower-level DRM/KMS readback or state query experiment.
+- Do not spend more time trying to promote `/dev/fb0` into a screenshot equivalent for this stack.
+
+### Code review instructions
+- Start with:
+  - [guest/dump_fb0_snapshot.sh](../../../../../../guest/dump_fb0_snapshot.sh)
+  - [host/extract_fbshot_from_serial.py](../../../../../../host/extract_fbshot_from_serial.py)
+  - [guest/init-phase3](../../../../../../guest/init-phase3)
+  - [guest/build-phase3-rootfs.sh](../../../../../../guest/build-phase3-rootfs.sh)
+- Then inspect:
+  - `results-phase3-fbshot-nosuspend1/guest-serial.log`
+  - `results-phase3-fbshot-shm1/guest-serial.log`
+  - `results-phase3-fbshot-shm1/fbshots/fbshot-pre.json`
+  - `results-phase3-fbshot-shm1/fbshots/fbshot-post.json`
+
+### Technical details
+- Key serial markers:
+```text
+@@FBSHOT tag=pre ...
+@@FBSHOT_BEGIN tag=pre
+@@FBSHOT_END tag=pre
+@@FBSHOT tag=post ...
+@@FBSHOT_BEGIN tag=post
+@@FBSHOT_END tag=post
+```
+- Numeric summary:
+```text
+guest fb pre/post hash identical: yes
+guest fb pre/post AE: 0
+host pre/post screenshot AE: 1.024e+06
+guest-pre vs host-pre AE: 1023981
 ```
