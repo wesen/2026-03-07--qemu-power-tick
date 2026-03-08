@@ -1247,3 +1247,243 @@ guest compositor screenshots: healthy after resume
 host QMP screenshot: unhealthy after resume
 next debugging layer: QEMU screendump / virtio-vga capture path
 ```
+
+## Step 13: Add the QEMU-Facing Harness and Run the First Device and Schema Controls
+
+The next request was explicit about direction: stop circling the same guest-side question, add concrete tasks for the host/QEMU-facing tests, run them, keep the diary current, and archive every helper script in the ticket. I translated that into three immediate experiments: prove what `screendump` can target on this QEMU build, compare `virtio-vga` against `virtio-gpu-pci`, and add a bare-KMS helper that can take over scanout without Weston or Chromium.
+
+This step moved the investigation forward in a useful way even before the final corrected KMS result. It gave us a stronger harness, a clearer task list, and a first host-side split: `virtio-gpu-pci` does not behave like `virtio-vga`, but it also does not make the default post-resume host screenshot correct.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Alright, add tasks to do these tests, and then do them, keeping a frequent diary and comitting as you go, and storing scripts you write even small ones in the scripts/ folder"
+
+**Assistant interpretation:** Add the concrete QEMU-facing tasks to the ticket, implement the minimum harness needed to run them cleanly, mirror the helpers into the ticket `scripts/` folder, and then execute the control matrix with regular commit checkpoints.
+
+**Inferred user intent:** Turn the abstract “next steps” into a reproducible investigation package, not just another set of suggestions in chat.
+
+**Commit (code):** `87194bd` — `Add QEMU device and KMS probe harnesses`
+
+### What I did
+- Expanded `tasks.md` with explicit subtasks for:
+  - QMP `screendump` schema probing
+  - `virtio-vga` vs `virtio-gpu-pci`
+  - a guest-side KMS dumb-buffer control
+- Added display-device selection to:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/run-qemu-phase2.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/run-qemu-phase3.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/run_phase3_suspend_capture.sh`
+- Extended `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/qmp_harness.py` with:
+  - `query-commands`
+  - `query-qmp-schema`
+  - generic `execute`
+  - optional `screendump --device/--head`
+- Added `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/probe_screendump_support.py` to summarize the active QMP schema.
+- Added the bare-KMS helper:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/kms_pattern.c`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-kms-pattern.sh`
+- Updated `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-phase3-rootfs.sh` and `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase3` so `phase3_client=kms-pattern` is available in the guest.
+- Mirrored the new and changed helpers into:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/scripts`
+- Ran the QMP schema probe:
+  - `results-phase3-qmp-schema2`
+- Ran the `virtio-vga` control:
+  - `results-phase3-device-vga1`
+- Ran the `virtio-gpu-pci` control:
+  - `results-phase3-device-gpu-pci1`
+- Ran the first bare-KMS control:
+  - `results-phase3-kms-pattern1`
+
+### Why
+- The ticket needed concrete, executable tasks instead of one open “investigate QEMU” checkbox.
+- The QMP schema probe was the fastest way to stop guessing whether `screendump` can target specific heads.
+- The `virtio-vga` vs `virtio-gpu-pci` split was the fastest way to test whether legacy VGA compatibility fully explains the bad host capture.
+- The bare-KMS helper was needed to remove Weston and Chromium from the causal chain.
+
+### What worked
+- The QMP schema probe on QEMU `8.2.2` showed that `screendump` supports:
+  - `filename`
+  - optional `device`
+  - optional `head`
+  - optional `format`
+- The `virtio-vga` control reproduced the familiar bad host-visible result:
+  - pre: `1280x800`
+  - post: `720x400`
+  - post mean luminance: `2.12`
+- The `virtio-gpu-pci` control changed the failure shape:
+  - pre: `1280x800`
+  - post: `1280x800`
+  - post mean luminance: `0.11`
+  - nearly all-black post image
+- The first KMS helper build worked and was included in the phase-3 initramfs.
+
+### What didn't work
+- The first `virtio-gpu-pci` run failed immediately because `host/run_phase3_suspend_capture.sh` mangled the optional flag and passed:
+```text
+unknown arg: ----disable-default-vga
+```
+- The first KMS-pattern control (`results-phase3-kms-pattern1`) was not a valid post-resume control:
+  - the “post” KMS pattern fired before suspend
+  - the bare-KMS control therefore did not yet prove what I wanted it to prove
+
+### What I learned
+- QMP schema support is no longer a blocker. The next QEMU-facing experiments can use explicit `device/head` targeting once the display devices have stable ids.
+- `virtio-gpu-pci` is a useful diagnostic control, but not a complete fix. It removes the `720x400` text-looking frame and replaces it with an almost-black `1280x800` post-resume screenshot.
+- The first KMS control showed that “add the helper” and “schedule it correctly relative to suspend” are separate problems.
+
+### What was tricky to build
+- The display-device swap needed to avoid ad hoc shell edits. That meant teaching the launchers about `--display-device` and `--disable-default-vga` instead of manually tweaking each run command.
+- The new KMS control needed to bypass Weston cleanly without throwing away the existing suspend/test harness in `init-phase3`.
+
+### What warrants a second pair of eyes
+- The `virtio-gpu-pci` result should not be oversold as “fixed.” The geometry is preserved, but the host-visible post-resume frame is still wrong.
+- The first KMS-pattern result should not be cited as a valid post-resume proof because the post pattern fired before suspend.
+
+### What should be done in the future
+- Fix the `--disable-default-vga` forwarding bug in the host wrapper.
+- Correct the KMS-pattern timing and rerun the bare-KMS control.
+- Add a stable display-device id so the confirmed `screendump --device/--head` support can be exercised directly.
+
+### Code review instructions
+- Start with:
+  - [/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/probe_screendump_support.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/probe_screendump_support.py)
+  - [/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/kms_pattern.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/kms_pattern.c)
+  - [/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase3](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase3)
+- Then inspect:
+  - `results-phase3-qmp-schema2/screendump-support.json`
+  - `results-phase3-device-vga1/`
+  - `results-phase3-device-gpu-pci1/`
+  - `results-phase3-kms-pattern1/`
+
+### Technical details
+- QMP schema summary:
+```json
+{
+  "screendump_arg_type": {
+    "members": [
+      {"name": "filename", "type": "str"},
+      {"name": "device", "type": "str"},
+      {"name": "head", "type": "int"},
+      {"name": "format", "type": "397"}
+    ]
+  }
+}
+```
+- `virtio-gpu-pci` post image quick stats:
+```text
+size = 1280x800
+mean_luminance = 0.11
+dark_ratio = 0.9993
+```
+
+## Step 14: Fix the Harness Bugs and Get the Bare-KMS Smoking-Gun Result
+
+The initial controls did what good controls are supposed to do: they found the next bug in the investigation harness itself. Two of them mattered. The host wrapper was passing `----disable-default-vga` instead of `--disable-default-vga`, and `init-phase3` was scheduling guest-side capture helpers through command substitution, which meant the shell waited on background jobs that still held the substitution pipe open. That delayed suspend entry and made the first KMS-pattern timing look much stranger than it should have.
+
+Once those bugs were fixed and the KMS control was rerun, the result became much clearer. The corrected bare-KMS run now shows suspend starting at the intended time, resume completing, the guest programming a new `kms_pattern` framebuffer **after** resume, and QMP still returning the wrong post-resume image. That is the strongest current evidence in the whole ticket.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 13)
+
+**Assistant interpretation:** Keep going through the planned QEMU-facing tests, fix any harness bugs uncovered by the live runs, and preserve the corrected result in the diary rather than leaving the broken first attempt as the last word.
+
+**Inferred user intent:** Get to a trustworthy control result, not just a plausible story.
+
+**Commit (code):** `06aa5a0` — `Fix QEMU capture probe helpers`
+
+### What I did
+- Fixed the host wrapper flag bug in:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/run_phase3_suspend_capture.sh`
+- Deepened the QMP schema summary in:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/probe_screendump_support.py`
+- Committed those harness fixes in `06aa5a0`.
+- Investigated the strange KMS timing and found the real shell bug in `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase3`:
+  - background capture helpers were launched inside command substitutions
+  - the subshells waited because the background children inherited the substitution pipe
+- Fixed the capture scheduling bug in `init-phase3` and committed it in:
+  - `a76dfd9` — `Fix phase 3 capture scheduling`
+- Rebuilt the phase-3 initramfs after each `init-phase3` change.
+- Reran the corrected bare-KMS control:
+  - `results-phase3-kms-pattern4`
+- Extracted the corrected DRM state:
+  - `results-phase3-kms-pattern4/drmstate/`
+
+### Why
+- The first KMS-pattern control was not trustworthy enough to anchor the ticket’s conclusion.
+- A good postmortem needs to distinguish “the experiment disproved the hypothesis” from “the experiment was wired incorrectly.”
+
+### What worked
+- The corrected KMS run now has the right time ordering:
+  - suspend scheduling is logged before suspend starts
+  - suspend starts at about `13.0 s`
+  - resume completes at about `18.7 s`
+  - the post KMS pattern is programmed **after** resume
+- The corrected post-resume DRM state shows:
+  - `plane[31]`
+  - `fb=41`
+  - `allocated by = kms_pattern`
+  - mode still `1280x800`
+- The host-visible QMP result in the same corrected run is still:
+  - `00-pre.png`: `1280x800`
+  - `01-post.png`: `720x400`
+  - `size_mismatch (1280, 800) (720, 400)`
+- That means the host-visible post-resume divergence survives even with:
+  - no Weston
+  - no Chromium
+  - a direct post-resume KMS plane update from the guest
+
+### What didn't work
+- The first two KMS-pattern timing fixes were still wrong for different reasons:
+  - first I scheduled the post pattern too early
+  - then I discovered the bigger scheduling bug that delayed suspend entry itself
+- The QMP socket was often gone by the time I tried to do a post-hoc `screendump --head 0` capture after the corrected runs, so I do not yet have an explicit `head=0` comparison result.
+
+### What I learned
+- The capture-scheduling bug in `init-phase3` was materially affecting experiment timing, not just diary polish.
+- The corrected bare-KMS control is the strongest current witness:
+  - guest KMS says one thing after resume
+  - QMP says another
+- The `virtio-vga` problem is now demonstrably below compositor and browser level.
+
+### What was tricky to build
+- The most deceptive part was that the first broken KMS timing still produced superficially plausible logs. Without checking the exact order of `scheduling suspend`, `state=RESUMED`, and `@@KMSPATTERN pattern=post`, it would have been easy to cite an invalid control.
+- The shell-command-substitution bug is subtle: a background process started inside a command substitution can keep the substitution pipe open and make the parent wait unexpectedly.
+
+### What warrants a second pair of eyes
+- The corrected bare-KMS result is strong, but the next host-side step should still verify whether explicit `screendump --device/--head` targeting changes the outcome.
+- The `virtio-gpu-pci` path now looks like “less wrong, but still wrong.” That distinction matters for how we talk about any future workaround.
+
+### What should be done in the future
+- Add stable display-device ids and test explicit `screendump --device/--head` targeting after resume.
+- Decide whether stage 3 should move away from `virtio-vga`, or whether the capture divergence should be documented as a QEMU limitation.
+
+### Code review instructions
+- Start with:
+  - [/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase3](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase3)
+  - [/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/run_phase3_suspend_capture.sh](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/run_phase3_suspend_capture.sh)
+  - [/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/probe_screendump_support.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/probe_screendump_support.py)
+- Then review:
+  - `results-phase3-kms-pattern4/guest-serial.log`
+  - `results-phase3-kms-pattern4/drmstate/drmstate-post.txt`
+  - `results-phase3-kms-pattern4/00-pre.png`
+  - `results-phase3-kms-pattern4/01-post.png`
+
+### Technical details
+- Corrected ordering summary:
+```text
+[init-phase3] scheduling suspend args=--delay-seconds 10 --wake-seconds 5 --pm-test devices
+@@LOG kind=state state=SUSPENDING cycle=1
+@@LOG kind=state state=RESUMED cycle=1 sleep_ms=5665 resume_gap_ms=5665
+@@KMSPATTERN ... pattern=post
+```
+- Corrected post DRM state summary:
+```text
+plane[31]
+  fb=41
+  allocated by = kms_pattern
+crtc[35]
+  active=1
+mode: "1280x800"
+connector[36]: Virtual-1
+```

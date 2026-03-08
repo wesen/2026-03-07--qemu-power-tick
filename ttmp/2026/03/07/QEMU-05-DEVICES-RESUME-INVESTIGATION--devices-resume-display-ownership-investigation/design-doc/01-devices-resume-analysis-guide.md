@@ -18,12 +18,16 @@ RelatedFiles:
       Note: Phase-2 probe and fbcon-unbind wiring used in the shared-control runs
     - Path: guest/init-phase3
       Note: Phase-3 probe and fbcon-unbind wiring used in the stage-3 controls
+    - Path: guest/kms_pattern.c
+      Note: Bare-KMS dumb-buffer helper used to test post-resume scanout without Weston or Chromium
     - Path: host/capture_phase3_suspend_checkpoints.py
       Note: Host QMP screenshot harness used for pre/post suspend captures
     - Path: host/run_phase3_suspend_capture.sh
       Note: Concurrent stage-3 QEMU plus capture wrapper used for the corrected reruns
+    - Path: host/probe_screendump_support.py
+      Note: QMP schema probe used to confirm `screendump` device/head support on the active QEMU build
     - Path: ttmp/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/scripts/compare_image_ae.py
-      Note: Ticket-local image difference helper used to compare corrected baseline and unbind screenshots
+      Note: Ticket-local image difference helper used to compare corrected baseline and follow-on device-variant screenshots
 ExternalSources: []
 Summary: ""
 LastUpdated: 2026-03-07T22:12:20.785397822-05:00
@@ -40,9 +44,10 @@ WhenToUse: ""
 This ticket is a narrow continuation of the stage-2 and stage-3 suspend/resume work. The problem is not “Chromium suspend is broken” in a vague sense. The current evidence says something more specific:
 
 - Stage 2 and stage 3 both show a shared post-resume screenshot fallback after `pm_test=devices`.
-- The fallback looks like a firmware or early-console plane in QMP screenshots.
-- At least in stage 2, guest-side display ownership indicators stay stable while that fallback happens.
-- Chromium and even `weston-simple-shm` can additionally trigger `virtio_gpu_dequeue_ctrl_func ... response 0x1203` errors, which appear to be a separate but related resource/scanout problem.
+- On `virtio-vga`, that fallback still looks like a firmware or early-console plane in QMP screenshots.
+- On `virtio-gpu-pci` with default VGA disabled, the post-resume QMP screenshot no longer collapses to `720x400`, but it is still almost entirely black rather than showing the expected graphical scene.
+- In the corrected bare-KMS control, the guest programs a `kms_pattern`-owned `1280x800` framebuffer after resume and QMP still returns a `720x400` frame, which proves the divergence can happen even without Weston or Chromium.
+- QEMU 8.2.2 exposes `screendump` `device`, `head`, and `format` arguments in QMP schema, so the next debugging step can target explicit heads instead of assuming a single implicit surface.
 
 The goal of this guide is to let a new intern understand the whole stack quickly, reproduce the existing evidence, and continue with smaller experiments rather than starting over.
 
@@ -138,6 +143,15 @@ host helper
 
 This does **not** guarantee that the screenshot corresponds to the highest-level app surface. It only shows what QEMU believes is the current visible output. That distinction matters here, because the guest may still report a stable DRM/fb state while QEMU captures what looks like a fallback text plane.
 
+The newer QMP schema probe reduces one uncertainty. On this QEMU 8.2.2 build, `screendump` is not fixed to a single implicit target. Its schema exposes:
+
+- `filename`
+- optional `device`
+- optional `head`
+- optional `format`
+
+That means we can now plan explicit head/device-targeted follow-up runs instead of guessing whether QEMU can select among multiple scanout sources.
+
 ## Current Hypotheses
 
 ### Hypothesis 1: fbcon ownership fully explains the fallback
@@ -167,6 +181,15 @@ Prediction:
 Status:
 - partially supported.
 - phase-3 `weston-simple-shm` also showed `0x1203` in `results-phase3-probe-shm1`, which weakens the earlier “Chromium-only” framing.
+
+### Hypothesis 4: legacy VGA compatibility fully explains the bad post-resume capture
+
+Prediction:
+- switching from `virtio-vga` to `virtio-gpu-pci` with default VGA disabled should make the post-resume host screenshot correct.
+
+Status:
+- weakened, not confirmed.
+- `virtio-gpu-pci` avoids the `720x400` firmware-looking frame, but the default post-resume screenshot becomes an almost-black `1280x800` frame instead of the correct graphical scene.
 
 ### Correction: a phase-3 parser bug invalidated part of the earlier evidence
 
@@ -551,6 +574,108 @@ Interpretation:
 - The host QMP screenshot path still falls back to the firmware-looking `720x400` plane.
 - Combined with Intervention K, this is near-smoking-gun evidence that the post-resume QMP `screendump` path is the layer that is out of sync with the guest-visible scene.
 
+### Control M: Probe the Active QEMU Build for `screendump` Targeting Support
+
+Command:
+```bash
+bash guest/run-qemu-phase3.sh \
+  --kernel build/vmlinuz \
+  --initramfs build/initramfs-phase3.img \
+  --results-dir results-phase3-qmp-schema2 \
+  --append-extra 'phase3_client=weston-simple-shm phase3_runtime_seconds=12 phase3_no_suspend=1'
+
+python3 host/probe_screendump_support.py \
+  --socket results-phase3-qmp-schema2/qmp.sock \
+  --output results-phase3-qmp-schema2/screendump-support.json
+```
+
+Observed:
+- QEMU version: `8.2.2`
+- `query-qmp-schema` is available
+- `screendump` resolves to an argument object containing:
+  - `filename`
+  - optional `device`
+  - optional `head`
+  - optional `format`
+- `query-display-options` reports:
+  - `"type": "none"`
+
+Interpretation:
+- The current QEMU build can target explicit display heads.
+- The next host-side follow-up should use stable QEMU display ids and explicit `device/head` selection, not assume only one implicit surface exists.
+
+### Control N: Compare `virtio-vga` and `virtio-gpu-pci`
+
+Commands:
+```bash
+timeout 90 bash host/run_phase3_suspend_capture.sh \
+  --kernel build/vmlinuz \
+  --initramfs build/initramfs-phase3.img \
+  --results-dir results-phase3-device-vga1 \
+  --append-extra 'phase3_client=weston-simple-shm display_probe=1 phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices phase3_drm_state_capture=1 phase3_drm_state_capture_pre_delay_seconds=4 phase3_drm_state_capture_post_delay_seconds=11'
+
+timeout 90 bash host/run_phase3_suspend_capture.sh \
+  --kernel build/vmlinuz \
+  --initramfs build/initramfs-phase3.img \
+  --results-dir results-phase3-device-gpu-pci1 \
+  --display-device virtio-gpu-pci \
+  --disable-default-vga \
+  --append-extra 'phase3_client=weston-simple-shm display_probe=1 phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices phase3_drm_state_capture=1 phase3_drm_state_capture_pre_delay_seconds=4 phase3_drm_state_capture_post_delay_seconds=11'
+```
+
+Observed:
+- `virtio-vga`:
+  - `00-pre.png`: `1280x800`
+  - `01-post.png`: `720x400`
+  - post mean luminance: `2.12`
+  - post DRM state still points at a Weston-owned `1280x800` framebuffer
+- `virtio-gpu-pci` + `-vga none`:
+  - `00-pre.png`: `1280x800`
+  - `01-post.png`: `1280x800`
+  - post mean luminance: `0.11`
+  - post image is almost entirely black
+  - post DRM state still points at a Weston-owned `1280x800` framebuffer
+
+Interpretation:
+- Removing VGA compatibility changes the host-visible failure mode, so the legacy VGA path is part of the story.
+- It does **not** make the default post-resume capture correct.
+- The deeper problem is still that QEMU’s default `screendump` target is wrong or stale after resume.
+
+### Control O: Corrected Bare-KMS Post-Resume Control
+
+Commands:
+```bash
+timeout 90 bash host/run_phase3_suspend_capture.sh \
+  --kernel build/vmlinuz \
+  --initramfs build/initramfs-phase3.img \
+  --results-dir results-phase3-kms-pattern4 \
+  --append-extra 'phase3_client=kms-pattern display_probe=1 phase3_runtime_seconds=25 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices phase3_drm_state_capture=1 phase3_drm_state_capture_pre_delay_seconds=4 phase3_drm_state_capture_post_delay_seconds=17'
+
+python3 host/extract_drmstate_from_serial.py \
+  --serial-log results-phase3-kms-pattern4/guest-serial.log \
+  --output-dir results-phase3-kms-pattern4/drmstate
+```
+
+Observed:
+- suspend starts at about `13.0 s` uptime
+- resume completes at about `18.7 s` uptime
+- the post KMS pattern is programmed **after** resume:
+  - `@@KMSPATTERN ... pattern=post`
+- post DRM state shows:
+  - `plane[31]`
+  - `fb=41`
+  - `allocated by = kms_pattern`
+  - mode still `1280x800`
+- host QMP screenshots still show:
+  - pre: `1280x800`
+  - post: `720x400`
+  - `size_mismatch (1280, 800) (720, 400)`
+
+Interpretation:
+- This is the strongest control in the ticket so far.
+- It removes Weston and Chromium from the experiment.
+- Even after a direct post-resume KMS plane update owned by `kms_pattern`, QMP still captures the wrong post-resume image on `virtio-vga`.
+
 ## What the Intern Should Conclude Right Now
 
 Do **not** conclude:
@@ -572,6 +697,8 @@ Do conclude:
 - guest DRM debugfs state remains healthy across resume,
 - guest compositor screenshots remain healthy across resume under explicit debug capture,
 - the host QMP `screendump` path is now the leading suspect for the `720x400` fallback,
+- `virtio-gpu-pci` changes the failure shape, but does not make the default post-resume capture correct,
+- the corrected bare-KMS control proves that the divergence can happen below Weston and Chromium,
 - the stage-2 probe evidence points below simple `vtconsole` ownership,
 - the earlier phase-3 probe gap was a shell bug, not an inherent logging limitation.
 
@@ -606,6 +733,7 @@ Reason:
 Reason:
 - guest DRM debugfs state still shows an active Weston-owned `1280x800` XR24 plane after resume,
 - guest compositor screenshots still show a graphical `1280x800` scene after resume,
+- bare-KMS post-resume control now also shows an active `kms_pattern` framebuffer while QMP still captures the wrong frame,
 - so the strongest remaining inconsistency is in the host-visible capture path.
 
 ## Alternatives Considered
@@ -639,14 +767,15 @@ Rejected because:
 1. Re-run stage-3 `display_unbind_fbcon=1` with capture attached concurrently, not post-hoc.
 2. Use the DRM debugfs state dump as the primary guest-side KMS truth source.
 3. If a guest-visible screenshot comparison is needed, use the explicit investigation-only `phase3_weston_debug=1` knob instead of assuming kiosk shell prevents capture.
-4. Investigate QEMU `screendump` / `virtio-vga` plane selection next.
+4. Investigate QEMU `screendump` / display-head selection next, using explicit `device/head` arguments on a guest launched with stable display-device ids.
 
 ### Likely follow-up experiments
 
 1. Compare `pm_test=freezer` vs `pm_test=devices` under the same DRM debugfs and screenshot instrumentation.
 2. Add a tighter immediate-post-resume DRM state capture to reduce the blind window between wake and the scheduled post dump.
 3. Investigate QEMU scanout ownership or `screendump` plane selection directly.
-4. Only return to app-level hypotheses if the host capture path explanation fails.
+4. Compare `virtio-vga` against `virtio-gpu-pci` with explicit `device/head` selection, because the default post-resume capture source still appears wrong in both configurations.
+5. Only return to app-level hypotheses if the host capture path explanation fails.
 
 Pseudo-code for the next disciplined loop:
 
@@ -665,8 +794,10 @@ for each hypothesis in [fbcon_ownership, drm_scanout_restore, client_resource_in
 
 ## Open Questions
 
-- Why does QEMU `screendump` show a `720x400` firmware-looking plane when guest DRM debugfs still reports an active Weston-owned `1280x800` XR24 plane?
+- Why does QEMU `screendump` show a `720x400` firmware-looking plane when guest DRM debugfs reports an active `kms_pattern`-owned or Weston-owned `1280x800` framebuffer?
 - Is `virtio-vga` maintaining a legacy VGA text/firmware surface that QMP `screendump` prefers after `pm_test=devices` resume?
+- Why does `virtio-gpu-pci` avoid the `720x400` fallback but still produce an almost-black `1280x800` default post-resume screenshot?
+- Will explicit `screendump --device/--head` selection recover the correct scene once the QEMU display devices have stable ids?
 - Are the `virtio_gpu_dequeue_ctrl_func ... 0x1203` lines in `results-phase3-probe-shm1` caused by the same lower-layer issue as the screenshot fallback, or were they primarily tied to the earlier broken runs?
 - Is there a resume-time host-side display handoff event occurring in a narrower window than the current capture schedule can observe?
 
@@ -687,8 +818,10 @@ for each hypothesis in [fbcon_ownership, drm_scanout_restore, client_resource_in
 - Linux DRM connector state: `/sys/class/drm/card*-*/`
 - Linux framebuffer device: `/dev/fb0`
 - QMP screenshot/input harness: [host/capture_phase3_suspend_checkpoints.py](../../../../../../host/capture_phase3_suspend_checkpoints.py)
+- QMP schema probe: [host/probe_screendump_support.py](../../../../../../host/probe_screendump_support.py)
 - Guest framebuffer dump helper: [guest/dump_fb0_snapshot.sh](../../../../../../guest/dump_fb0_snapshot.sh)
 - Host framebuffer extractor: [host/extract_fbshot_from_serial.py](../../../../../../host/extract_fbshot_from_serial.py)
 - Guest DRM state dump helper: [guest/dump_drm_state.sh](../../../../../../guest/dump_drm_state.sh)
 - Host DRM state extractor: [host/extract_drmstate_from_serial.py](../../../../../../host/extract_drmstate_from_serial.py)
+- Guest bare-KMS helper: [guest/kms_pattern.c](../../../../../../guest/kms_pattern.c)
 - Weston manual for `--debug` and screenshot exposure: https://manpages.debian.org/testing/weston/weston.1.en.html
