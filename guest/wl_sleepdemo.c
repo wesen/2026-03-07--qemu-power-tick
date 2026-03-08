@@ -13,13 +13,15 @@
 #include "wl_app_core.h"
 #include "wl_net.h"
 #include "wl_render.h"
+#include "wl_suspend.h"
 #include "wl_wayland.h"
 
 enum {
     EV_WAYLAND = 1,
     EV_SOCKET = 2,
     EV_REDRAW = 3,
-    EV_SIGNAL = 4,
+    EV_IDLE = 4,
+    EV_SIGNAL = 5,
 };
 
 static void arm_redraw_timer(struct app *app, int first_ms, int interval_ms) {
@@ -65,6 +67,18 @@ static void setup_epoll(struct app *app) {
         exit(1);
     }
 
+    app->idle_timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_NONBLOCK | TFD_CLOEXEC);
+    if (app->idle_timer_fd < 0) {
+        perror("timerfd_create");
+        exit(1);
+    }
+    ev.events = EPOLLIN;
+    ev.data.u32 = EV_IDLE;
+    if (epoll_ctl(app->epoll_fd, EPOLL_CTL_ADD, app->idle_timer_fd, &ev) != 0) {
+        perror("epoll_ctl add idle");
+        exit(1);
+    }
+
     sigemptyset(&mask);
     sigaddset(&mask, SIGINT);
     sigaddset(&mask, SIGTERM);
@@ -85,12 +99,30 @@ static void setup_epoll(struct app *app) {
 static void parse_args(struct app *app, int argc, char **argv) {
     snprintf(app->host, sizeof(app->host), "%s", "10.0.2.2");
     app->port = 5555;
+    app->idle_seconds = 5;
+    app->runtime_seconds = 0;
+    app->max_suspend_cycles = 1;
+    app->wake_seconds = 5;
+    app->no_suspend = false;
+    snprintf(app->pm_test, sizeof(app->pm_test), "%s", "none");
 
     for (int i = 1; i < argc; ++i) {
         if (strcmp(argv[i], "--host") == 0 && i + 1 < argc) {
             snprintf(app->host, sizeof(app->host), "%s", argv[++i]);
         } else if (strcmp(argv[i], "--port") == 0 && i + 1 < argc) {
             app->port = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--idle-seconds") == 0 && i + 1 < argc) {
+            app->idle_seconds = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--runtime-seconds") == 0 && i + 1 < argc) {
+            app->runtime_seconds = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--pm-test") == 0 && i + 1 < argc) {
+            snprintf(app->pm_test, sizeof(app->pm_test), "%s", argv[++i]);
+        } else if (strcmp(argv[i], "--max-suspend-cycles") == 0 && i + 1 < argc) {
+            app->max_suspend_cycles = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--wake-seconds") == 0 && i + 1 < argc) {
+            app->wake_seconds = atoi(argv[++i]);
+        } else if (strcmp(argv[i], "--no-suspend") == 0) {
+            app->no_suspend = true;
         } else {
             fprintf(stderr, "unknown arg: %s\n", argv[i]);
             exit(1);
@@ -103,18 +135,22 @@ int main(int argc, char **argv) {
     struct epoll_event events[8];
 
     app.socket_fd = -1;
+    app.idle_timer_fd = -1;
     app.running = true;
     app.pointer_x = 640;
     app.pointer_y = 400;
     snprintf(app.last_redraw_reason, sizeof(app.last_redraw_reason), "%s", "boot");
     snprintf(app.last_key, sizeof(app.last_key), "%s", "NONE");
     snprintf(app.last_pointer, sizeof(app.last_pointer), "%s", "NONE");
+    app.started_mono_ns = mono_ns();
+    app.started_boot_ns = boot_ns();
     app.started_ms = now_ms();
 
     parse_args(&app, argc, argv);
     setup_wayland(&app);
     setup_epoll(&app);
     attempt_connect(&app);
+    reset_idle_timer(&app);
     set_redraw_reason(&app, "startup");
 
     while (app.running) {
@@ -151,6 +187,15 @@ int main(int argc, char **argv) {
 
                 if (read(app.redraw_timer_fd, &expirations, sizeof(expirations)) > 0) {
                     set_redraw_reason(&app, "timer");
+                }
+                maybe_exit_on_runtime_limit(&app);
+                break;
+            }
+            case EV_IDLE: {
+                uint64_t expirations;
+
+                if (read(app.idle_timer_fd, &expirations, sizeof(expirations)) > 0) {
+                    enter_suspend_to_idle(&app);
                 }
                 break;
             }

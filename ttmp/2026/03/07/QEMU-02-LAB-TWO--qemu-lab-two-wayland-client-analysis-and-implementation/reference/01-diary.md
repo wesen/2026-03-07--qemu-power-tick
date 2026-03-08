@@ -1000,3 +1000,117 @@ I also tightened the task list so it reflects reality instead of the earlier bri
 - The current stable working inputs are evidenced by:
   - `results-phase2-client10/guest-serial.log` for pointer button delivery
   - `results-phase2-client12/guest-serial.log` for USB keyboard enumeration and key delivery
+
+## Step 14: Ported Suspend And Metric Logging Into The Modularized Phase-2 Client
+
+After the cleanup ticket split the monolith into smaller modules, I returned to phase 2 and added the first real suspend-aware client path on top of that new structure. This was intentionally done as another modular step rather than shoving the stage-1 suspend logic back into a single large file. The result is a new `wl_suspend` module plus hook points in the render, networking, input, and init paths.
+
+The first outcome is real progress, not just structural work. The phase-2 guest now reaches `pm_test=devices` suspend, resumes, emits `@@METRIC` lines for sleep interval and redraw latency, and still accepts keyboard and pointer input after resume. The main thing still missing from this slice is a clean `resume_to_reconnect` measurement; the scenarios I ran either kept the socket alive across suspend or started the server too late to make the latency number meaningful.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue. keep diary and check tasks and commit at regular intervals"
+
+**Assistant interpretation:** Resume the phase-2 implementation from the modularized codebase, keep the phase-2 ticket updated, and make progress in coherent, committed increments.
+
+**Inferred user intent:** Move forward on the actual suspend/measurement requirements while keeping the work traceable and disciplined.
+
+**Commit (code):** Pending at this step
+
+### What I did
+- Added the new suspend module:
+  - [guest/wl_suspend.h](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_suspend.h)
+  - [guest/wl_suspend.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_suspend.c)
+- Expanded [guest/wl_app_core.h](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_app_core.h) and [guest/wl_app_core.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_app_core.c) with:
+  - suspend-cycle metrics state,
+  - monotonic and boottime helpers,
+  - `@@METRIC` emission.
+- Updated:
+  - [guest/wl_render.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_render.c)
+  - [guest/wl_net.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_net.c)
+  - [guest/wl_wayland.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_wayland.c)
+  - [guest/wl_sleepdemo.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_sleepdemo.c)
+  - [guest/build-wl-sleepdemo.sh](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-wl-sleepdemo.sh)
+  - [guest/init-phase2](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase2)
+- Mirrored all of those files into the phase-2 ticket `scripts/` directory.
+- Built and tested:
+  - `guest/build-wl-sleepdemo.sh build build/wl_sleepdemo`
+  - `guest/build-phase2-rootfs.sh build build/initramfs-phase2-suspend.cpio.gz build/wl_sleepdemo`
+  - `guest/run-qemu-phase2.sh --kernel build/vmlinuz --initramfs build/initramfs-phase2-suspend.cpio.gz --results-dir results-phase2-suspend1`
+  - `guest/run-qemu-phase2.sh --kernel build/vmlinuz --initramfs build/initramfs-phase2-suspend.cpio.gz --results-dir results-phase2-suspend3`
+- Re-ran post-resume input checks with QMP key and pointer injection.
+
+### Why
+- The phase-2 assignment is not complete until the Wayland client survives the suspend path and produces timing data, not just screenshots and input.
+- Doing the suspend work after the modularization pass keeps the complexity contained in one dedicated module instead of regrowing the earlier monolith.
+
+### What worked
+- `pm_test=devices` suspend/resume now works in the phase-2 guest.
+- The guest emits:
+  - `@@METRIC name=sleep_duration ...`
+  - `@@METRIC name=suspend_resume_gap ...`
+  - `@@METRIC name=resume_to_redraw ...`
+- On `results-phase2-suspend3`, post-resume input still works:
+  - `seat-capabilities=3`
+  - `pointer-rebound`
+  - `BUTTON 272 STATE 1`
+  - `BUTTON 272 STATE 0`
+  - `KEY=30 STATE=1`
+  - `KEY=30 STATE=0`
+
+### What didn't work
+- A clean `resume_to_reconnect` metric is still missing from the meaningful measurement runs.
+- The first reconnect attempt was invalid because I started the host server minutes after resume, which produced a meaningless latency number.
+- The first “server active before boot” attempt kept the guest awake because packet traffic continually reset the idle timer.
+- The delayed-server attempts were tricky to time cleanly enough to get both suspend and a short reconnect window in one run.
+
+### What I learned
+- The `pm_test=devices` path is stable enough to measure redraw and input continuity before attempting more ambitious suspend cases.
+- Reconnect measurement is much more about scenario control than raw code correctness. The client logic is there, but the host timing has to be shaped so the socket is actually absent at resume and then available shortly after.
+
+### What was tricky to build
+- The sharp edge here was that the networking and suspend logic interact indirectly through time, not through one obvious code path. If the host sends packets too long, the idle timer never fires and suspend does not happen. If the host comes back too late, the reconnect metric exists but is not meaningful. Getting a scientifically useful reconnect number requires a controlled host-side scenario, not just “turn the server on at some point.”
+
+### What warrants a second pair of eyes
+- Whether `pm_test=devices` is the right default checkpoint for phase 2, or whether I should now pivot directly to `pm_test=freezer` or a more realistic path once the reconnect scenario is nailed down.
+- Whether the reconnect timing scenario should become a dedicated host harness script instead of more ad hoc shell timing.
+
+### What should be done in the future
+- Commit this suspend-and-metrics slice.
+- Add a small host-side timing harness that starts the drip server in a controlled post-resume window.
+- Capture named screenshots around suspend/resume and parse the metrics into a summary file.
+
+### Code review instructions
+- Start with the new suspend module:
+  - [guest/wl_suspend.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_suspend.c)
+  - [guest/wl_suspend.h](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_suspend.h)
+- Then review the hook points in:
+  - [guest/wl_sleepdemo.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_sleepdemo.c)
+  - [guest/wl_net.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_net.c)
+  - [guest/wl_wayland.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_wayland.c)
+  - [guest/wl_render.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_render.c)
+- Validate with:
+  - `guest/build-wl-sleepdemo.sh build build/wl_sleepdemo`
+  - `guest/build-phase2-rootfs.sh build build/initramfs-phase2-suspend.cpio.gz build/wl_sleepdemo`
+  - `guest/run-qemu-phase2.sh --kernel build/vmlinuz --initramfs build/initramfs-phase2-suspend.cpio.gz --results-dir results-phase2-suspend3`
+  - `python3 host/qmp_harness.py --socket results-phase2-suspend3/qmp.sock send-key --key a`
+  - `python3 host/qmp_harness.py --socket results-phase2-suspend3/qmp.sock pointer-button --button left --down`
+  - `python3 host/qmp_harness.py --socket results-phase2-suspend3/qmp.sock pointer-button --button left`
+
+### Technical details
+- `results-phase2-suspend1/guest-serial.log` first proved the phase-2 suspend path:
+  - `state=SUSPENDING cycle=1`
+  - `state=RESUMED cycle=1 sleep_ms=5775 resume_gap_ms=5775`
+  - `@@METRIC name=sleep_duration value_ms=5775 cycle=1`
+  - `@@METRIC name=suspend_resume_gap value_ms=5775 cycle=1`
+  - `@@METRIC name=resume_to_redraw value_ms=4 cycle=1`
+- `results-phase2-suspend3/guest-serial.log` proved post-resume seat/input recovery:
+  - `seat-capabilities=0`
+  - `seat-capabilities=2`
+  - `keyboard-rebound`
+  - `seat-capabilities=3`
+  - `pointer-rebound`
+  - `BUTTON 272 STATE 1`
+  - `BUTTON 272 STATE 0`
+  - `KEY=30 STATE=1`
+  - `KEY=30 STATE=0`

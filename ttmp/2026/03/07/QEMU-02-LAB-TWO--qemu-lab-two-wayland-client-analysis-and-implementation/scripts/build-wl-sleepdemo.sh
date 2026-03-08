@@ -20,6 +20,11 @@ wayland-scanner private-code \
 
 cc -std=c11 -Wall -Wextra -O2 \
   -I"$BUILD_DIR" \
+  guest/wl_app_core.c \
+  guest/wl_render.c \
+  guest/wl_net.c \
+  guest/wl_suspend.c \
+  guest/wl_wayland.c \
   guest/wl_sleepdemo.c \
   "$BUILD_DIR/xdg-shell-protocol.c" \
   -o "$OUTPUT_BIN" \

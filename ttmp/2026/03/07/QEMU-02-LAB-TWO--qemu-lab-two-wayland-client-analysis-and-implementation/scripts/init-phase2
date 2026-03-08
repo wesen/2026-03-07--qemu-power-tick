@@ -96,5 +96,6 @@ if [ -x /bin/wl_sleepdemo ]; then
   CLIENT_BIN=/bin/wl_sleepdemo
 fi
 
-echo "[init-phase2] launching client=$CLIENT_BIN" >/dev/console
-exec "$CLIENT_BIN"
+CLIENT_ARGS="--idle-seconds 5 --max-suspend-cycles 1 --wake-seconds 5 --pm-test devices"
+echo "[init-phase2] launching client=$CLIENT_BIN args=$CLIENT_ARGS" >/dev/console
+exec "$CLIENT_BIN" $CLIENT_ARGS
