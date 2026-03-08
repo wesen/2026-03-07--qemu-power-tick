@@ -754,6 +754,8 @@ So this step did both. I ran the official dependency checks to see whether the h
 
 **Inferred user intent:** Make the path from "Chromium checkout exists" to "first direct DRM build command" as explicit and repeatable as the earlier phase-4 boot work.
 
+**Commit (code):** `1e915bc` - `Script phase 4 Chromium build path`
+
 ### What I did
 - Ran Chromium's quick dependency check:
 ```text
