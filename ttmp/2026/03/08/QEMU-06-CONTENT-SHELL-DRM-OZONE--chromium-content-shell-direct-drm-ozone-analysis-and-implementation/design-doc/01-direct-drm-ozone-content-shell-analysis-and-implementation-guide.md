@@ -22,6 +22,8 @@ RelatedFiles:
       Note: First phase-4 QMP smoke capture helper for the no-Weston validation path
     - Path: host/probe_phase4_chromium_payload.py
       Note: Phase-4 payload/runtime probe for Chromium artifacts and DRM runtime prerequisites
+    - Path: host/configure_phase4_chromium_build.sh
+      Note: Writes the first-pass direct DRM/Ozone args.gn and target list for the Chromium build
     - Path: guest/init-phase3
       Note: Current phase-3 runtime flow that phase 4 deliberately avoids reusing in place
     - Path: guest/kms_pattern.c
@@ -97,7 +99,7 @@ host -> QEMU -> guest kernel/initramfs
 
 ## Imported Note Synthesis
 
-The imported note in [drm-ozone.md](../sources/local/drm-ozone.md) points toward the right shape:
+The imported note in [01-drm-ozone.md](../sources/local/01-drm-ozone.md) points toward the right shape:
 - direct Ozone DRM/GBM is a distinct Chromium platform choice, not the same thing as Wayland Ozone
 - `content_shell` is the right first milestone before full Chrome
 - the runtime needs real Chromium assets and graphics dependencies, not just a compositor environment
@@ -226,6 +228,13 @@ Reason:
 - it reduces user-data/profile noise
 - it is the right first binary to validate before spending time on a fuller Chrome path
 
+Current verified target set from Chromium BUILD files:
+- `//content/shell:content_shell`
+- `//sandbox/linux:chrome_sandbox`
+- `//components/crash/core/app:chrome_crashpad_handler`
+
+Those targets are now reflected in [host/configure_phase4_chromium_build.sh](../../../../../../host/configure_phase4_chromium_build.sh), which writes the first-pass `args.gn` and prints the intended initial build list.
+
 ### Decision: Keep `virtio-gpu-pci` + `-vga none` as the default phase-4 device
 
 Reason:
@@ -289,6 +298,11 @@ The bootstrap helper has already been corrected once based on real execution evi
 Those changes came from two observed problems:
 - the first full-history Chromium fetch was on track to transfer the entire 61 GiB remote history, which is unnecessary for this ticket
 - the cloned `depot_tools` checkout ended up in detached HEAD state, so plain `git pull --ff-only` was not robust enough
+
+Now that the no-history checkout has materialized a real `src/` tree, the ticket is also past the "target names are speculative" stage. BUILD-file inspection confirms the first build focus should stay on:
+- `content_shell`
+- `chrome_sandbox`
+- `chrome_crashpad_handler`
 
 ## Current Validation Status
 
@@ -439,7 +453,7 @@ Rejected because:
 ## Intern Playbook
 
 When resuming this ticket, work in this order:
-- read [drm-ozone.md](../sources/local/drm-ozone.md)
+- read [01-drm-ozone.md](../sources/local/01-drm-ozone.md)
 - read [01-diary.md](../reference/01-diary.md)
 - inspect [guest/build-phase3-rootfs.sh](../../../../../../guest/build-phase3-rootfs.sh)
 - inspect [guest/init-phase3](../../../../../../guest/init-phase3)
@@ -471,7 +485,7 @@ New phase 4:
 
 ## Code Review Instructions
 
-- Start with the imported source note in [drm-ozone.md](../sources/local/drm-ozone.md).
+- Start with the imported source note in [01-drm-ozone.md](../sources/local/01-drm-ozone.md).
 - Then compare the current Wayland assumptions in:
   - [guest/build-phase3-rootfs.sh](../../../../../../guest/build-phase3-rootfs.sh)
   - [guest/init-phase3](../../../../../../guest/init-phase3)

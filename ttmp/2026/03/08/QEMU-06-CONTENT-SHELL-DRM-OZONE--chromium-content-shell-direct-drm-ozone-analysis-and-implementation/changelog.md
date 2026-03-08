@@ -17,3 +17,6 @@
 - Captured a baseline runtime probe in `results-phase4-runtime-probe1/probe.json`; current result is that host DRM/GBM/EGL prerequisites are present and the Chromium payload directory is still absent.
 - Updated `host/bootstrap_chromium_checkout.sh` to default to `--nohooks --no-history` and to refresh `depot_tools` safely from `origin/main` even when the local checkout is detached.
 - Aborted the wasteful full-history Chromium fetch after proving it was transferring the full 61 GiB history, then restarted the checkout on the reduced-history path.
+- Imported the official Chromium Linux build/Ozone references into the ticket for future reference.
+- Verified from Chromium BUILD files that the initial phase-4 target set is `content_shell`, `chrome_sandbox`, and `chrome_crashpad_handler`.
+- Added `host/configure_phase4_chromium_build.sh`, which writes `~/chromium/src/out/Phase4DRM/args.gn` with a direct DRM/Ozone baseline and prints the initial target list.

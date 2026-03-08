@@ -12,6 +12,12 @@ DocType: reference
 Intent: long-term
 Owners: []
 RelatedFiles:
+    - Path: ../../../../../../../../../chromium/src/components/crash/core/app/BUILD.gn
+      Note: Verified chrome_crashpad_handler target location for Step 6
+    - Path: ../../../../../../../../../chromium/src/content/shell/BUILD.gn
+      Note: Verified content_shell target location for Step 6
+    - Path: ../../../../../../../../../chromium/src/sandbox/linux/BUILD.gn
+      Note: Verified chrome_sandbox target location for Step 6
     - Path: guest/build-phase3-rootfs.sh
       Note: Phase-3 baseline reviewed during the initial design step
     - Path: guest/build-phase4-rootfs.sh
@@ -28,6 +34,8 @@ RelatedFiles:
       Note: Reusable Chromium checkout bootstrap helper created in Step 2
     - Path: host/capture_phase4_smoke.py
       Note: Phase-4 QMP smoke capture helper added in Step 3
+    - Path: host/configure_phase4_chromium_build.sh
+      Note: Phase-4 GN args and target helper added in Step 6
     - Path: host/probe_phase4_chromium_payload.py
       Note: Phase-4 payload/runtime boundary probe added in Step 4
     - Path: ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/scripts/bootstrap_chromium_checkout.sh
@@ -40,6 +48,7 @@ LastUpdated: 2026-03-08T12:13:43.22501215-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -606,4 +615,125 @@ git -C /home/manuel/depot_tools status --short --branch
 - Current intended fetch mode:
 ```text
 gclient sync --nohooks --no-history
+```
+
+## Step 6: Lock the First Chromium Targets and Write the Initial GN Args Baseline
+
+Once the no-history checkout exposed a real `src/` tree, the next high-value step was to stop speaking about Chromium targets abstractly and verify them directly from Chromium's own BUILD files. That matters because phase 4 only needs a small first build set, and the difference between "I think content_shell is enough" and "the tree actually defines these targets" is exactly the kind of detail that prevents wasted build experiments.
+
+I used that source visibility to add a small build helper rather than just another diary paragraph. The helper writes a first-pass `args.gn` into `~/chromium/src/out/Phase4DRM` and prints the initial target list so the next build command is obvious once `gclient sync` settles.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue converting the design into concrete, reviewable build steps as soon as the source tree makes them possible.
+
+**Inferred user intent:** Reduce future guesswork by turning the first Chromium build configuration into an explicit ticket artifact.
+
+### What I did
+- Confirmed that the no-history checkout had created a usable Chromium source tree:
+```text
+/home/manuel/chromium/src
+/home/manuel/chromium/src/.git
+```
+- Verified from Chromium BUILD files that the first relevant targets are real:
+  - `//content/shell:content_shell`
+  - `//sandbox/linux:chrome_sandbox`
+  - `//components/crash/core/app:chrome_crashpad_handler`
+- Evidence came from:
+  - `/home/manuel/chromium/src/content/shell/BUILD.gn`
+  - `/home/manuel/chromium/src/sandbox/linux/BUILD.gn`
+  - `/home/manuel/chromium/src/components/crash/core/app/BUILD.gn`
+- Checked the Ozone build flags in:
+  - `/home/manuel/chromium/src/build/config/ozone.gni`
+- Added the new helper:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/configure_phase4_chromium_build.sh`
+- Mirrored it into the ticket archive:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/scripts/configure_phase4_chromium_build.sh`
+- Ran it in write-only mode:
+```text
+./host/configure_phase4_chromium_build.sh --write-only
+```
+- Confirmed it wrote:
+```text
+/home/manuel/chromium/src/out/Phase4DRM/args.gn
+```
+- The helper currently writes a first-pass direct DRM/Ozone baseline:
+```text
+use_ozone = true
+ozone_auto_platforms = false
+ozone_platform_drm = true
+ozone_platform_headless = false
+ozone_platform_wayland = false
+ozone_platform_x11 = false
+ozone_platform = "drm"
+toolkit_views = false
+is_debug = false
+is_component_build = false
+symbol_level = 0
+```
+
+### Why
+- The ticket needed a verified initial build set before the first expensive GN/ninja attempt.
+- Writing `args.gn` through a helper is better than burying the first configuration in shell history.
+- The Ozone source/config files now available in `src/` are enough to justify a real first-pass build configuration.
+
+### What worked
+- BUILD-file inspection confirmed the intended target set instead of leaving it speculative.
+- The helper wrote the output config successfully.
+- The source tree already contains the Ozone build config we need to reason about `ozone_platform_drm`.
+
+### What didn't work
+- One probe used an old guessed path:
+```text
+rg: /home/manuel/chromium/src/components/crash/content/app/BUILD.gn: No such file or directory
+```
+- The correct crash target file is:
+```text
+/home/manuel/chromium/src/components/crash/core/app/BUILD.gn
+```
+- I corrected the path and kept going rather than treating that as a blocker.
+
+### What I learned
+- The tree confirms the exact target names we care about, which means future build failures can be discussed precisely.
+- `build/config/ozone.gni` shows why our helper needs to disable auto-platform selection and force DRM explicitly on Linux.
+- The first phase-4 Chromium build should stay narrowly focused on `content_shell` plus the Linux sandbox/crash helper targets, not a broader Chrome build.
+
+### What was tricky to build
+- The main tricky part was timing: enough of the source tree existed to inspect BUILD files, but the entire `gclient sync` was not done yet. That means the right move was a write-only configuration step, not a premature `gn gen` that might fail for reasons unrelated to the phase-4 configuration itself.
+- Another subtle point was Chromium path drift. The crash helper target lives under `components/crash/core/app`, not the path I first guessed. The source tree itself was the correction mechanism.
+
+### What warrants a second pair of eyes
+- The GN args in the helper are still a first pass. They are grounded in Chromium docs and source, but they have not yet survived a real `gn gen` + `autoninja` run.
+- Once sync finishes, the first reviewer should check whether `toolkit_views = false` is still the best choice for this direct DRM `content_shell` path on the current tree.
+
+### What should be done in the future
+- Let `gclient sync` complete enough that a real `gn gen` is meaningful.
+- Then run the helper without `--write-only`.
+- Build the initial target set and inspect the resulting payload directory with the phase-4 probe.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/configure_phase4_chromium_build.sh`
+  - `/home/manuel/chromium/src/content/shell/BUILD.gn`
+  - `/home/manuel/chromium/src/sandbox/linux/BUILD.gn`
+  - `/home/manuel/chromium/src/components/crash/core/app/BUILD.gn`
+- Validation commands:
+```text
+./host/configure_phase4_chromium_build.sh --write-only
+sed -n '1,120p' /home/manuel/chromium/src/out/Phase4DRM/args.gn
+rg -n 'executable\\(\"content_shell\"|chrome_sandbox|chrome_crashpad_handler' /home/manuel/chromium/src/content/shell/BUILD.gn /home/manuel/chromium/src/sandbox/linux/BUILD.gn /home/manuel/chromium/src/components/crash/core/app/BUILD.gn
+```
+
+### Technical details
+- First verified target set:
+```text
+//content/shell:content_shell
+//sandbox/linux:chrome_sandbox
+//components/crash/core/app:chrome_crashpad_handler
+```
+- Current generated config path:
+```text
+/home/manuel/chromium/src/out/Phase4DRM/args.gn
 ```

@@ -14,11 +14,13 @@ Owners: []
 RelatedFiles: []
 ExternalSources:
     - local:01-drm-ozone.md
+    - local:02-chromium-build-and-ozone-reference.md
 Summary: ""
-LastUpdated: 2026-03-08T12:13:18.677020784-04:00
+LastUpdated: 2026-03-08T12:53:17.280619465-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Chromium content_shell Direct DRM Ozone Analysis and Implementation
@@ -45,12 +47,16 @@ Current status:
 - phase-4 kms-only initramfs and runner created
 - first no-Weston phase-4 QMP smoke screenshot captured successfully at `1280x800`
 - phase-4 payload/runtime probe added; current baseline says host DRM runtime looks present and Chromium payload artifacts are still the missing piece
+- Chromium `src/` tree is now materialized enough to inspect BUILD files
+- initial verified target set is `content_shell`, `chrome_sandbox`, and `chrome_crashpad_handler`
+- a first-pass phase-4 `args.gn` writer now creates `~/chromium/src/out/Phase4DRM/args.gn`
 
 ## Key Links
 
 - Analysis guide: [design-doc/01-direct-drm-ozone-content-shell-analysis-and-implementation-guide.md](./design-doc/01-direct-drm-ozone-content-shell-analysis-and-implementation-guide.md)
 - Diary: [reference/01-diary.md](./reference/01-diary.md)
 - Imported note: [sources/local/01-drm-ozone.md](./sources/local/01-drm-ozone.md)
+- Imported Chromium refs: [sources/local/02-chromium-build-and-ozone-reference.md](./sources/local/02-chromium-build-and-ozone-reference.md)
 - Prior phase-3 ticket: [../QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/index.md](../QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/index.md)
 - Prior QEMU capture investigation: [../QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/index.md](../QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/index.md)
 
