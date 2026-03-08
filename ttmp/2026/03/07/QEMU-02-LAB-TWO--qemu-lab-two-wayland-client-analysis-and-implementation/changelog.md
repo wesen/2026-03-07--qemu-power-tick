@@ -10,3 +10,4 @@
 - Added a dedicated input bring-up playbook that documents the working keyboard/mouse path, required modules and userspace pieces, failure modes, and validation commands for future lab runs.
 - Reached an input-complete milestone: host screenshots, pointer injection, and keyboard injection now all work end-to-end with the custom Wayland client under Weston.
 - Added a suspend-aware modularized phase-2 client path with `pm_test=devices` measurements and verified post-resume redraw plus post-resume keyboard and pointer input, while leaving clean reconnect-latency measurement as the main remaining gap.
+- Added `host/resume_drip_server.py` to trigger a host drip server from the guest resume marker, and used it to capture a clean phase-2 reconnect metric alongside sleep, suspend-gap, and redraw timing.

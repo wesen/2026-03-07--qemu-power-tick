@@ -1114,3 +1114,84 @@ The first outcome is real progress, not just structural work. The phase-2 guest 
   - `BUTTON 272 STATE 0`
   - `KEY=30 STATE=1`
   - `KEY=30 STATE=0`
+
+## Step 15: Added A Resume-Triggered Host Server To Get A Clean Reconnect Metric
+
+The reconnect problem turned out not to be another guest bug. It was a measurement-orchestration bug. If the host drip server ran too long before suspend, packet traffic kept resetting the idle timer and the guest never slept. If the server started too late after resume, the reconnect metric existed but did not mean anything useful. The fix was to stop treating reconnect timing as an ad hoc shell timing problem and make it an explicit host-side scenario.
+
+I added a small watcher script that waits for `state=RESUMED` in the guest serial log and only then starts listening on the host port. That gave the guest a clean “disconnected during suspend, server appears after resume” case and finally produced a meaningful `resume_to_reconnect` value.
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 14)
+
+**Assistant interpretation:** Keep going on the phase-2 suspend/measurement work until the reconnect timing gap is closed and the ticket reflects the actual measured state.
+
+**Inferred user intent:** Finish the useful timing data, not just partial suspend plumbing.
+
+**Commit (code):** Pending at this step
+
+### What I did
+- Added [host/resume_drip_server.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/resume_drip_server.py).
+- Mirrored it into the phase-2 ticket scripts directory:
+  - [scripts/resume_drip_server.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/scripts/resume_drip_server.py)
+- Used it with:
+  - `python3 host/resume_drip_server.py --serial-log results-phase2-suspend6/guest-serial.log --runtime 12`
+  - `guest/run-qemu-phase2.sh --kernel build/vmlinuz --initramfs build/initramfs-phase2-suspend.cpio.gz --results-dir results-phase2-suspend6`
+- Parsed the resulting metrics with:
+  - `python3 scripts/measure_run.py --serial-log results-phase2-suspend6/guest-serial.log --json-out results-phase2-suspend6/metrics.json`
+- Captured a post-resume screenshot:
+  - `python3 host/qmp_harness.py --socket results-phase2-suspend6/qmp.sock screendump --file results-phase2-suspend6/02-post-resume.ppm`
+
+### Why
+- The remaining missing measurement was not in the guest anymore. It was in the way the host test scenario was being timed.
+- A host watcher script is cheaper and more repeatable than continuing to guess sleep offsets with shell `sleep` commands.
+
+### What worked
+- `results-phase2-suspend6/guest-serial.log` now contains:
+  - `@@METRIC name=sleep_duration value_ms=5755 cycle=1`
+  - `@@METRIC name=suspend_resume_gap value_ms=5755 cycle=1`
+  - `@@METRIC name=resume_to_redraw value_ms=5 cycle=1`
+  - `@@METRIC name=resume_to_reconnect value_ms=1243 cycle=1`
+- The measurement JSON at `results-phase2-suspend6/metrics.json` matches those values.
+- The post-resume screenshot was captured successfully.
+
+### What didn't work
+- The first reconnect attempts failed for measurement purposes:
+  - always-on server kept the guest awake,
+  - late-start server gave a meaningless reconnect latency,
+  - some delayed-start runs still raced with boot timing and connected too early.
+- Those failures are exactly why the dedicated watcher script was worth adding.
+
+### What I learned
+- For this lab, reconnect latency is fundamentally a scenario-definition problem. Once the host behavior is defined cleanly, the guest metric falls out naturally.
+- The best fix was not a more complicated guest state machine. It was a better host harness.
+
+### What was tricky to build
+- The tricky part was avoiding false confidence from bad numbers. A reconnect metric can exist and still be useless if the host server timing does not correspond to the scenario we claim to be measuring. The watcher script solves that by tying server start to an observable guest event instead of a guessed wall-clock delay.
+
+### What warrants a second pair of eyes
+- Whether the final report should treat `pm_test=devices` as the main measured baseline and keep “real freeze wake path” as a limitations section, which currently seems like the honest framing for this environment.
+
+### What should be done in the future
+- Record the final commit hash for this host harness slice.
+- Capture the remaining screenshot set around earlier checkpoints.
+- Write the phase-2 final report with the measured numbers and the reconnect-scenario explanation.
+
+### Code review instructions
+- Read [host/resume_drip_server.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/resume_drip_server.py).
+- Then inspect:
+  - `results-phase2-suspend6/guest-serial.log`
+  - `results-phase2-suspend6/metrics.json`
+  - `results-phase2-suspend6/02-post-resume.ppm`
+- Reproduce with:
+  - `python3 host/resume_drip_server.py --serial-log results-phase2-suspend6/guest-serial.log --runtime 12`
+  - `guest/run-qemu-phase2.sh --kernel build/vmlinuz --initramfs build/initramfs-phase2-suspend.cpio.gz --results-dir results-phase2-suspend6`
+  - `python3 scripts/measure_run.py --serial-log results-phase2-suspend6/guest-serial.log --json-out results-phase2-suspend6/metrics.json`
+
+### Technical details
+- Clean measured values from `results-phase2-suspend6/metrics.json`:
+  - `sleep_duration = 5755 ms`
+  - `suspend_resume_gap = 5755 ms`
+  - `resume_to_redraw = 5 ms`
+  - `resume_to_reconnect = 1243 ms`
