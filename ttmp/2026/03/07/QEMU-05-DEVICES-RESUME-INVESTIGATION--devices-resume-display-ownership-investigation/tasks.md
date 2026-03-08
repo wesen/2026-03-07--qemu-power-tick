@@ -28,6 +28,8 @@
 - [x] Add a guest-side KMS dumb-buffer pattern helper that can take over scanout without Weston or Chromium.
 - [x] Run a minimal post-resume KMS pattern test and compare guest KMS state to QMP `screendump`.
 - [x] Assign a stable QEMU display-device id and test explicit `screendump --device/--head` targeting after resume, because this QEMU build advertises those args and the default `virtio-gpu-pci` post-resume capture is black.
+- [x] Capture QEMU monitor-visible pre/post state around resume (`info pci`, `info qtree`, `x-query-virtio-status`) for both `virtio-vga` and `virtio-gpu-pci`.
 - [ ] Decide whether stage 3 should switch from `virtio-vga` to `virtio-gpu-pci`, or whether the host-capture divergence should be documented as a QEMU limitation instead.
 - [ ] Investigate QEMU capture behavior below target selection, because explicit `device/head` targeting produced the same bad post-resume surfaces as the default capture on both `virtio-vga` and `virtio-gpu-pci`.
+- [ ] Inspect QEMU display/capture internals or source-level implementation paths, because monitor-visible PCI/QOM/virtio state is effectively stable across resume and does not explain the capture divergence.
 - [x] Update the QEMU-05 guide, diary, and changelog with the device-variant, QMP-schema, and KMS-pattern results.

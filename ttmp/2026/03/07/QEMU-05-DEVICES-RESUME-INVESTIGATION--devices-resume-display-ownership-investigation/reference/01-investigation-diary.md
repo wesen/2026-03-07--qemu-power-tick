@@ -26,10 +26,14 @@ RelatedFiles:
       Note: Diary evidence for the stage-3 probe and log-only unbind attempt
     - Path: host/capture_qmp_screendump_variants.py
       Note: Explicit QMP screendump variant capture helper used in Step 15
+    - Path: host/capture_qmp_state_snapshots.py
+      Note: Pre/post QMP and HMP snapshot helper used in Step 16
     - Path: host/extract_drmstate_from_serial.py
       Note: Host-side extractor that reconstructs DRM debugfs state blocks from the serial log
     - Path: host/extract_fbshot_from_serial.py
       Note: Host-side extractor that reconstructs raw framebuffer dumps and PNG variants from the serial log
+    - Path: host/run_phase3_qmp_state_capture.sh
+      Note: Wrapper that launches phase 3 and collects QMP/HMP state around resume
     - Path: host/run_phase3_screendump_variant_capture.sh
       Note: Wrapper that launches phase 3 with stable display-device ids for Step 15
     - Path: host/run_phase3_suspend_capture.sh
@@ -42,6 +46,7 @@ LastUpdated: 2026-03-07T22:12:20.785209247-05:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1643,4 +1648,151 @@ post-device-labgpu-head-0     1280x800 mean=29.1836
 post-default                  720x400 mean=544.347
 post-device-labvga            720x400 mean=544.347
 post-device-labvga-head-0     720x400 mean=544.347
+```
+
+## Step 16: Capture QEMU Monitor and Virtio-GPU State Across Resume
+
+Once explicit `screendump --device/--head` failed to change the result, the next reasonable question was whether QEMU itself thought the display device changed across resume in some more subtle way. The obvious place to look was the monitor side: HMP `info pci`, HMP `info qtree`, and QMP’s unstable virtio debug queries. If those changed sharply across the suspend cycle, that would give a concrete host-side state transition to follow instead of treating the capture path as a black box.
+
+This step produced a narrower answer than I expected. The monitor-visible device tree is almost static across resume. For both `virtio-vga` and `virtio-gpu-pci`, `info pci` is identical before and after resume, `info qtree` only changes the re-enumerated USB device addresses, and `x-query-virtio-status` for the virtio-gpu backend changes only `isr` and `queue-sel` in the same way on both device types. That is useful precisely because it is not dramatic: it argues that the bad screenshots are not explained by an obvious PCI/topology change or a host-visible virtio-gpu reset that differs between the two device models.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Keep the QEMU-05 investigation moving forward from the latest result instead of stopping at the explicit `screendump` negative result.
+
+**Inferred user intent:** Narrow the remaining host-side bug with another disciplined experiment and record it cleanly in the ticket.
+
+**Commit (code):** `348f188` — `Add QMP monitor state snapshot harness`
+
+### What I did
+- Added `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/capture_qmp_state_snapshots.py`, which:
+  - waits for the QMP socket,
+  - captures selected QMP and HMP state before suspend,
+  - waits for `state=RESUMED`,
+  - captures the same state after resume,
+  - records `x-query-virtio` and `x-query-virtio-status` automatically when available.
+- Added `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/run_phase3_qmp_state_capture.sh`, which launches a phase-3 VM and attaches the new snapshot helper.
+- Mirrored both helpers into the ticket-local `scripts/` archive.
+- First ran a broad `virtio-vga` monitor snapshot with an HMP memory tree:
+```bash
+timeout 120 bash host/run_phase3_qmp_state_capture.sh \
+  --results-dir results-phase3-qmp-state-vga1 \
+  --display-device virtio-vga \
+  --display-device-id labvga \
+  --append-extra 'phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices' \
+  --hmp-command 'info pci' \
+  --hmp-command 'info qtree' \
+  --hmp-command 'info mtree -f'
+```
+- Learned that `info mtree -f` was too noisy, trimmed the helper to skip `query-qmp-schema` and `query-machines`, and reran the compact pair:
+```bash
+timeout 120 bash host/run_phase3_qmp_state_capture.sh \
+  --results-dir results-phase3-qmp-state-vga2 \
+  --display-device virtio-vga \
+  --display-device-id labvga \
+  --append-extra 'phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices' \
+  --hmp-command 'info pci' \
+  --hmp-command 'info qtree'
+
+timeout 120 bash host/run_phase3_qmp_state_capture.sh \
+  --results-dir results-phase3-qmp-state-gpu-pci2 \
+  --display-device virtio-gpu-pci \
+  --display-device-id labgpu \
+  --disable-default-vga \
+  --append-extra 'phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices' \
+  --hmp-command 'info pci' \
+  --hmp-command 'info qtree'
+```
+- Parsed the compact results to compare:
+  - pre vs post `info pci`
+  - pre vs post `info qtree`
+  - pre vs post `x-query-virtio-status` for the virtio-gpu backend
+
+### Why
+- The explicit `screendump` tests had already ruled out “wrong implicit device/head selection.”
+- The next best hypothesis was that QEMU’s own device state changes across resume in a way that the screenshot alone does not show.
+- If the monitor-visible state stayed stable, that would strengthen the case that the remaining bug is in QEMU’s capture/scanout path rather than in exposed device topology or virtio-gpu configuration.
+
+### What worked
+- `human-monitor-command` is available in this QEMU build, so HMP inspection is a viable investigation tool.
+- `x-query-virtio` and `x-query-virtio-status` are also available and gave a direct path to the virtio-gpu backend:
+  - VGA path: `/machine/peripheral/labvga/virtio-backend`
+  - GPU-PCI path: `/machine/peripheral/labgpu/virtio-backend`
+- For both `results-phase3-qmp-state-vga2` and `results-phase3-qmp-state-gpu-pci2`:
+  - `info pci` had no pre/post diff
+  - `info qtree` only changed the USB keyboard/tablet enumeration order
+- For both the VGA and GPU-PCI virtio-gpu backends:
+  - `status.statuses` remained the full driver-ready set
+  - `started` remained `true`
+  - `num-vqs` remained `2`
+  - the only pre/post diff was:
+```text
+isr: 1 -> 0
+queue-sel: 1 -> 0
+```
+- The virtio-net backend stayed fully unchanged across resume.
+
+### What didn't work
+- The first `info mtree -f` run (`results-phase3-qmp-state-vga1`) was too verbose to be useful as a default artifact.
+- The snapshot wrapper still inherits the same rough shutdown behavior as the other capture wrappers: the VM often needs to be terminated by the outer timeout once the evidence is already collected.
+- The monitor-side state captures did not reveal a dramatic “smoking gun” difference between VGA and GPU-PCI across resume.
+
+### What I learned
+- There is no obvious monitor-visible PCI or QOM topology change across `pm_test=devices` resume for the display device.
+- The only exposed virtio-gpu status changes are the same on both `virtio-vga` and `virtio-gpu-pci`, so they do not explain why one path falls to `720x400` and the other falls to a black `1280x800`.
+- The static difference between the two device models is still important:
+  - `virtio-vga` appears as a `VGA controller` and carries the legacy-facing BAR layout and ROM
+  - `virtio-gpu-pci` appears as a `Display controller` without the VGA legacy BAR layout
+- But that difference is structural, not a pre/post resume transition.
+
+### What was tricky to build
+- The first version of the snapshot helper was too eager and dragged in `query-qmp-schema` plus `info mtree -f`, which made the artifacts large enough to hide the actual diff.
+- I had to make the helper narrower before it became useful: the important thing was not “capture everything,” but “capture the smallest state that could falsify the next hypothesis.”
+- `x-query-virtio-status` is powerful but only once paired with `x-query-virtio` to discover the backend paths dynamically.
+
+### What warrants a second pair of eyes
+- The `isr` and `queue-sel` reset on the virtio-gpu backend may be harmless bookkeeping, but it would be good to confirm that from QEMU virtio semantics instead of assuming it.
+- The result now points even more strongly at the host display/capture path, but that conclusion is still indirect: QMP is telling us what does not change more than what does.
+
+### What should be done in the future
+- Move from QMP monitor state to QEMU display/capture implementation details:
+  - inspect whether `screendump` is reading from a stale surface or legacy VGA-visible region after resume,
+  - inspect whether `display-update` / `display-reload` or HMP display commands expose anything useful,
+  - or review the relevant QEMU source paths if runtime inspection stalls out.
+- Decide whether to keep `virtio-vga` for stage 3 or document host-capture limitations separately from guest correctness.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/capture_qmp_state_snapshots.py`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/run_phase3_qmp_state_capture.sh`
+- Then inspect:
+  - `results-phase3-qmp-state-vga2/qmp-state-snapshots.json`
+  - `results-phase3-qmp-state-gpu-pci2/qmp-state-snapshots.json`
+- Validate the key diffs with a short script:
+  - compare `pre.human-monitor-command["info pci"]` vs `post...`
+  - compare `pre.x-query-virtio-status["/machine/peripheral/.../virtio-backend"]` vs `post...`
+
+### Technical details
+- VGA virtio-gpu backend path:
+```text
+/machine/peripheral/labvga/virtio-backend
+```
+- GPU-PCI virtio-gpu backend path:
+```text
+/machine/peripheral/labgpu/virtio-backend
+```
+- Shared virtio-gpu pre/post diff:
+```text
+isr: 1 -> 0
+queue-sel: 1 -> 0
+status.statuses: unchanged
+started: true -> true
+num-vqs: 2 -> 2
+```
+- Shared HMP pre/post diff:
+```text
+info pci: no diff
+info qtree: USB tablet/keyboard address swap only
 ```

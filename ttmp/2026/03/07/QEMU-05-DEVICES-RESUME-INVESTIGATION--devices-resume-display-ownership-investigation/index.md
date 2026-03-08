@@ -49,7 +49,8 @@ Current strongest conclusion:
 - guest compositor screenshots also remain healthy after resume when explicitly captured,
 - the host-side QMP `screendump` path is therefore the leading suspect for the `720x400` fallback view,
 - the newer device-variant controls show that removing legacy VGA changes the failure shape but does not make the default post-resume capture correct,
-- and the newest explicit `screendump --device/--head` runs show that stable device targeting does not repair the capture on either `virtio-vga` or `virtio-gpu-pci`.
+- the newest explicit `screendump --device/--head` runs show that stable device targeting does not repair the capture on either `virtio-vga` or `virtio-gpu-pci`,
+- and the latest QMP/HMP state snapshots show no meaningful pre/post resume topology change inside QEMU beyond USB re-enumeration and a small virtio-gpu `isr`/`queue-sel` reset.
 
 ## Key Links
 

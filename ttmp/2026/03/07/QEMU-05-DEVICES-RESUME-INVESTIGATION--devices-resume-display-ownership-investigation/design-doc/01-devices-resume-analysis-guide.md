@@ -24,8 +24,12 @@ RelatedFiles:
       Note: Host QMP screenshot harness used for pre/post suspend captures
     - Path: host/capture_qmp_screendump_variants.py
       Note: Reusable capture harness for explicit QMP device/head selection experiments
+    - Path: host/capture_qmp_state_snapshots.py
+      Note: Reusable state snapshot harness for QEMU monitor-visible resume comparisons
     - Path: host/probe_screendump_support.py
       Note: QMP schema probe used to confirm `screendump` device/head support on the active QEMU build
+    - Path: host/run_phase3_qmp_state_capture.sh
+      Note: Wrapper used to reproduce the QEMU/HMP state capture experiments
     - Path: host/run_phase3_screendump_variant_capture.sh
       Note: Wrapper used to reproduce the explicit device/head experiment matrix
     - Path: host/run_phase3_suspend_capture.sh
@@ -42,6 +46,7 @@ WhenToUse: ""
 
 
 
+
 # Devices Resume Analysis Guide
 
 ## Executive Summary
@@ -53,6 +58,7 @@ This ticket is a narrow continuation of the stage-2 and stage-3 suspend/resume w
 - On `virtio-gpu-pci` with default VGA disabled, the post-resume QMP screenshot no longer collapses to `720x400`, but it is still almost entirely black rather than showing the expected graphical scene.
 - In the corrected bare-KMS control, the guest programs a `kms_pattern`-owned `1280x800` framebuffer after resume and QMP still returns a `720x400` frame, which proves the divergence can happen even without Weston or Chromium.
 - QEMU 8.2.2 exposes `screendump` `device`, `head`, and `format` arguments in QMP schema, and explicit targeting has now been tested with stable ids on both `virtio-vga` and `virtio-gpu-pci`. It does not repair the bad post-resume capture.
+- QEMU monitor-visible pre/post state is effectively stable across resume: `info pci` does not change, `info qtree` only changes USB enumeration order, and `x-query-virtio-status` for the virtio-gpu backend only resets `isr` and `queue-sel` in the same way on both display-device models.
 
 The goal of this guide is to let a new intern understand the whole stack quickly, reproduce the existing evidence, and continue with smaller experiments rather than starting over.
 
@@ -607,7 +613,7 @@ Observed:
 
 Interpretation:
 - The current QEMU build can target explicit display devices and heads, but that selector is not enough to recover the correct post-resume scene.
-- The next host-side follow-up should move below target selection and treat QEMU scanout/capture behavior as the primary suspect.
+- The next host-side follow-up should move below target selection and treat QEMU scanout/capture behavior as the primary suspect, because even monitor-visible device state stays effectively stable across resume.
 
 ### Control N: Compare `virtio-vga` and `virtio-gpu-pci`
 
@@ -802,7 +808,7 @@ for each hypothesis in [fbcon_ownership, drm_scanout_restore, client_resource_in
 - Why does QEMU `screendump` show a `720x400` firmware-looking plane when guest DRM debugfs reports an active `kms_pattern`-owned or Weston-owned `1280x800` framebuffer?
 - Is `virtio-vga` maintaining a legacy VGA text/firmware surface that QMP `screendump` prefers after `pm_test=devices` resume?
 - Why does `virtio-gpu-pci` avoid the `720x400` fallback but still produce an almost-black `1280x800` default post-resume screenshot?
-- Why do explicit `screendump --device/--head` captures land on the same bad post-resume surfaces as the default capture on both `virtio-vga` and `virtio-gpu-pci`?
+- Why do explicit `screendump --device/--head` captures land on the same bad post-resume surfaces as the default capture on both `virtio-vga` and `virtio-gpu-pci`, even though QEMU monitor-visible device state remains effectively unchanged across resume?
 - Are the `virtio_gpu_dequeue_ctrl_func ... 0x1203` lines in `results-phase3-probe-shm1` caused by the same lower-layer issue as the screenshot fallback, or were they primarily tied to the earlier broken runs?
 - Is there a resume-time host-side display handoff event occurring in a narrower window than the current capture schedule can observe?
 
