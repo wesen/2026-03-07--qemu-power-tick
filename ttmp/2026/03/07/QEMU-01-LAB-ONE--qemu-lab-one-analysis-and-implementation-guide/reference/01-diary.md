@@ -413,3 +413,75 @@ The work also surfaced two environment-specific constraints that matter for futu
   - `RUNTIME_SECONDS=15 IDLE_SECONDS=3 WAKE_SECONDS=4 PM_TEST=freezer RESULTS_DIR=results guest/run-qemu.sh --kernel build/vmlinuz --initramfs build/initramfs.cpio.gz`
   - `RUNTIME_SECONDS=17 IDLE_SECONDS=3 RECONNECT_MS=7000 WAKE_SECONDS=4 PM_TEST=devices RESULTS_DIR=results guest/run-qemu.sh --kernel build/vmlinuz --initramfs build/initramfs.cpio.gz`
   - `python3 scripts/measure_run.py --serial-log results/guest-serial.log --json-out results/metrics.json`
+
+## Step 5: Write The Final Submission Report
+
+I converted the implementation status, measured outcomes, and debugging history into a dedicated submission-oriented report. The existing diary is good for chronological review, but the user asked for a full end report that reads as a coherent explanation of the system, what was implemented, what was hard, and what was learned. That required a separate document with a more report-like structure.
+
+The final report synthesizes the assignment, the design, the implementation, the validation evidence, and the remaining limitations into one narrative. It explicitly calls out the successful `pm_test` measurements and the unresolved real-freeze wake issue so the submission stays technically honest.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Create a detailed end report to submit. It should be very detailed and explain everything, and also explain what you struggled with and learned. Basically a full report version of the diary + explanation / implementation of the system. upload to remarkable"
+
+**Assistant interpretation:** Create a standalone, submission-ready report that combines architecture, implementation explanation, measured outcomes, struggles, and lessons learned; store it in the ticket and upload the updated bundle to reMarkable.
+
+**Inferred user intent:** Produce a polished final artifact suitable for submission, not just internal working notes.
+
+**Commit (code):** pending
+
+### What I did
+
+- Created `design-doc/02-final-implementation-report.md`.
+- Wrote a detailed report covering:
+  - executive summary
+  - problem statement
+  - implemented system architecture
+  - key design decisions
+  - implementation walkthrough
+  - struggles and debugging outcomes
+  - lessons learned
+  - measurements and limitations
+- Anchored the report to the implementation files, diary, and parsed metric output.
+
+### Why
+
+- The diary is chronological and useful for continuation, but it is not the best submission format.
+- The final report needed to explain the whole system clearly in one document and make the measured results easy to understand.
+
+### What worked
+
+- The existing ticket materials provided enough evidence to write a submission-quality final report without inventing unsupported claims.
+- The measured `pm_test` results translated cleanly into a concise metrics section.
+
+### What didn't work
+
+- The unresolved real-freeze wake problem remains unresolved; the report therefore documents it as a limitation rather than trying to smooth it over.
+
+### What I learned
+
+- Writing the final report confirmed that the strongest part of the project is the measured `pm_test` validation path, while the weakest part is still the VM-specific real-freeze wake behavior.
+- Separating “working prototype report” from “chronological diary” materially improves handoff quality.
+
+### What was tricky to build
+
+- The tricky part was balancing completeness with honesty. The report needed to be detailed and confident where the implementation is validated, but explicit about the wake limitation so it remains credible.
+
+### What warrants a second pair of eyes
+
+- The final wording around the real-freeze wake limitation is worth review, because it is the most important unresolved technical caveat in the submission.
+
+### What should be done in the future
+
+- Continue investigation of a reliable real-freeze wake path in QEMU.
+- If needed, add a short appendix comparing the `pm_test` and real-freeze behaviors more formally.
+
+### Code review instructions
+
+- Read `design-doc/02-final-implementation-report.md` first as the submission artifact.
+- Cross-check the measurement claims against `results/metrics.json` and the diary entries for the underlying runs.
+
+### Technical details
+
+- New final report:
+  - `ttmp/.../design-doc/02-final-implementation-report.md`

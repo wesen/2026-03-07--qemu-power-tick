@@ -26,3 +26,13 @@ Brought the initramfs guest up in QEMU, validated pm_test freezer/devices suspen
 - /home/manuel/code/wesen/2026-03-07--qemu-power-tick/results/metrics.json — Current measured values for sleep and resume latencies
 - /home/manuel/code/wesen/2026-03-07--qemu-power-tick/scripts/measure_run.py — Parsed structured metrics from the serial log
 
+
+## 2026-03-07
+
+Added a detailed final submission report that consolidates the architecture, implementation, struggles, lessons learned, measurements, and current limitations.
+
+### Related Files
+
+- /home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-01-LAB-ONE--qemu-lab-one-analysis-and-implementation-guide/design-doc/02-final-implementation-report.md — Submission-ready final report
+- /home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-01-LAB-ONE--qemu-lab-one-analysis-and-implementation-guide/reference/01-diary.md — Updated to record creation of the final report
+
