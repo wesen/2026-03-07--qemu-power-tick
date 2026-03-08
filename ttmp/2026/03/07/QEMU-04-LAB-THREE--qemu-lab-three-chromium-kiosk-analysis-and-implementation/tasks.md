@@ -7,9 +7,9 @@
 - [x] Build a phase-3 guest rootfs/initramfs that packages Chromium on top of the working phase-2 Weston stack.
 - [x] Add a phase-3 init / launcher path that starts Chromium on Wayland under Weston `kiosk-shell`.
 - [x] Boot Chromium visibly under Weston and capture the first screenshot.
-- [ ] Validate host keyboard injection into Chromium.
-- [ ] Validate host pointer injection into Chromium.
-- [ ] Add a reproducible stage-3 checkpoint harness.
+- [x] Validate host keyboard injection into Chromium.
+- [x] Validate host pointer injection into Chromium.
+- [x] Add a reproducible stage-3 checkpoint harness.
 - [ ] Reintroduce suspend/resume and verify Chromium continuity after resume.
 - [ ] Validate startup-URL mode and typed-URL mode.
 - [ ] Record Chromium-specific wake/idle observations and likely wake sources for the later study track.

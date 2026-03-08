@@ -14,7 +14,7 @@ RelatedFiles: []
 ExternalSources:
     - local:01-lab2.md
 Summary: Chronological implementation diary for stage 3, including Chromium packaging, runtime bring-up, failures, measurements, and lessons learned.
-LastUpdated: 2026-03-07T21:35:00-05:00
+LastUpdated: 2026-03-07T22:20:00-05:00
 WhatFor: Preserve the stage-3 implementation trail and exact debugging outcomes while Chromium kiosk work is in progress.
 WhenToUse: Update this after every meaningful stage-3 design, packaging, implementation, or validation step.
 ---
@@ -43,7 +43,7 @@ That packaging fact changes the initial stage-3 plan. The practical first implem
 
 **Inferred user intent:** Maintain forward momentum into stage 3, while preserving the same diary/ticket discipline used in the earlier stages.
 
-**Commit (code):** Pending at this step
+**Commit (code):** `b88e9d9` `Bootstrap stage 3 chromium guest`
 
 ### What I did
 - Created ticket `QEMU-04-LAB-THREE`.
@@ -201,3 +201,107 @@ This step had one useful failure before the success. My first phase-3 image was 
   - missing `/run/dbus/system_bus_socket`
   - `MESA-LOADER: failed to open dri ... dri_gbm.so`
   - `g_settings_schema_source_lookup: assertion 'source != NULL' failed`
+
+## Step 3: Built A Deterministic Chromium Input Harness And Proved Keyboard Plus Pointer Delivery
+
+After the first visible Chromium render, the next real risk was validation quality. I did not want to judge stage-3 input behavior from ambiguous pages like `about:blank`, Google search, or `chrome://version`, because those pages leave too much room for false confidence. Instead, I switched to a deterministic browser-side test page and wrapped the whole sequence in a small host-side checkpoint harness.
+
+The deterministic page is a `data:` URL that renders three clear signals:
+- an autofocus text input for keyboard validation,
+- a large `CLICK` button for pointer validation,
+- a status line that flips from `idle` to `clicked` and changes the page background to lime when the button activates.
+
+That gave me a clean visual proof path. The first manual run showed the concept worked, but one repeated `l` key was dropped when the sequence was sent too aggressively. I treated that as a harness-quality problem rather than a Chromium/input failure and fixed it by adding per-key pacing in the new checkpoint helper. The final harness run produced the expected screenshots:
+- `results-phase3-checkpoints1/01-after-keyboard.png` showing `hello` in the input field
+- `results-phase3-checkpoints1/02-after-pointer.png` showing the green background and `clicked` status after the button press
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok continue"
+
+**Assistant interpretation:** Continue stage 3 with concrete engineering work and keep the diary current while doing it.
+
+**Inferred user intent:** Push through the next browser milestone, but keep it reproducible enough that later review and reporting stay easy.
+
+**Commit (code):** Pending at this step
+
+### What I did
+- Generated a deterministic stage-3 browser page as a `data:` URL.
+- Ran a manual validation pass in `results-phase3-input2` to verify that:
+  - keyboard input reaches Chromium,
+  - pointer movement reaches Chromium,
+  - button clicks trigger visible DOM changes.
+- Added:
+  - [host/make_phase3_test_url.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/make_phase3_test_url.py)
+  - [host/capture_phase3_checkpoints.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/capture_phase3_checkpoints.py)
+- Mirrored those scripts into the stage-3 ticket `scripts/` directory.
+- Ran a clean reproducible checkpoint pass in `results-phase3-checkpoints1` with:
+  - `URL=$(python3 host/make_phase3_test_url.py)`
+  - `guest/run-qemu-phase3.sh --kernel build/vmlinuz --initramfs build/initramfs-phase3.cpio.gz --results-dir results-phase3-checkpoints1 --append-extra "phase3_runtime_seconds=35 phase3_url=$URL"`
+  - `python3 host/capture_phase3_checkpoints.py --socket results-phase3-checkpoints1/qmp.sock --results-dir results-phase3-checkpoints1 --text hello --settle-seconds 9`
+
+### Why
+- Browser input validation is too easy to overclaim if the page itself is ambiguous.
+- A deterministic page plus a deterministic harness turns “I think input worked” into screenshot-backed evidence that can be rerun later.
+- The same harness can become the front end of a later stage-3 checkpoint and suspend/resume workflow.
+
+### What worked
+- Chromium rendered the deterministic page correctly.
+- Autofocus landed in the input field, so host key injection reached the expected element.
+- With paced key delivery, Chromium showed the full text `hello`.
+- Host pointer movement and click injection activated the button.
+- The visual state change was large and unambiguous:
+  - white background plus `idle` before click,
+  - lime background plus `clicked` after click.
+- The new checkpoint helper produced distinct image deltas:
+  - `keyboard_ae=3275`
+  - `pointer_ae=872308`
+
+### What didn't work
+- The first manual key burst in `results-phase3-input2` produced `helo` instead of `hello`.
+- That failure mode strongly suggests that repeated characters sent too quickly via sequential `send-key` calls can be dropped by the current harness cadence.
+
+### What I learned
+- Stage-3 input does work end-to-end through QMP, QEMU USB input devices, Weston/libinput, and Chromium.
+- The harder problem was not browser support but test quality and pacing.
+- A deterministic browser page is much more useful than relying on third-party pages or internal browser pages for UI/input validation.
+
+### What was tricky to build
+- The page URL had to be safe to pass through the kernel command line, so base64 `data:` encoding was the cleanest route.
+- The validation target needed to be visually obvious enough that a screenshot alone could prove success.
+- Repeated-character reliability depended on adding small inter-key delays in the harness.
+
+### What warrants a second pair of eyes
+- Whether `send-key` pacing should be moved into the lower-level QMP harness rather than living in the stage-3 checkpoint helper.
+- Whether the eventual stage-3 suspend workflow should reuse this exact deterministic page or switch to a real hosted kiosk page before resume testing.
+
+### What should be done in the future
+- Commit this stage-3 input-validation milestone.
+- Reintroduce suspend/resume on top of the now-proven Chromium input path.
+- Use the deterministic page again if suspend/resume debugging needs a minimal browser surface with obvious redraw state.
+
+### Code review instructions
+- Review:
+  - [host/make_phase3_test_url.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/make_phase3_test_url.py)
+  - [host/capture_phase3_checkpoints.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/capture_phase3_checkpoints.py)
+  - [scripts/make_phase3_test_url.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/scripts/make_phase3_test_url.py)
+  - [scripts/capture_phase3_checkpoints.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/scripts/capture_phase3_checkpoints.py)
+- Inspect:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-checkpoints1/00-before-input.png`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-checkpoints1/01-after-keyboard.png`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-checkpoints1/02-after-pointer.png`
+- Re-run:
+  - `URL=$(python3 host/make_phase3_test_url.py)`
+  - `guest/run-qemu-phase3.sh --kernel build/vmlinuz --initramfs build/initramfs-phase3.cpio.gz --results-dir results-phase3-checkpoints1 --append-extra "phase3_runtime_seconds=35 phase3_url=$URL"`
+  - `python3 host/capture_phase3_checkpoints.py --socket results-phase3-checkpoints1/qmp.sock --results-dir results-phase3-checkpoints1 --text hello --settle-seconds 9`
+
+### Technical details
+- Manual proof run:
+  - `results-phase3-input2/01-before.png`
+  - `results-phase3-input2/02-after.png`
+- Reproducible harness proof run:
+  - `results-phase3-checkpoints1/00-before-input.png`
+  - `results-phase3-checkpoints1/01-after-keyboard.png`
+  - `results-phase3-checkpoints1/02-after-pointer.png`
+- Current QMP-reported active absolute mouse during the run:
+  - `QEMU HID Tablet`
