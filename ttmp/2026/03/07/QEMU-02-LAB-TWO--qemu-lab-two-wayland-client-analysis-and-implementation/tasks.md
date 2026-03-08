@@ -2,7 +2,7 @@
 
 ## Phase 2 Plan
 
-- [ ] Normalize the imported `lab2.md` source, update ticket metadata, and relate the source brief to the phase-2 design doc.
+- [x] Normalize the imported `lab2.md` source, update ticket metadata, and relate the source brief to the phase-2 design doc.
 - [x] Write the phase-2 analysis and implementation guide with architecture, APIs, pseudocode, validation plan, and a bonus path for making the client own more of early boot responsibilities later.
 - [x] Create a ticket-local `scripts/` directory and copy every new helper script there as phase-2 work proceeds.
 - [x] Decide the guest packaging strategy for Weston and its runtime dependencies, document the tradeoffs, and implement the chosen path.

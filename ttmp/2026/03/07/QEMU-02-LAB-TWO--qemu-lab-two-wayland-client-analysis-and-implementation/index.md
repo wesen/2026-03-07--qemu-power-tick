@@ -12,7 +12,7 @@ Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources:
-    - local:lab2.md
+    - local:01-lab2.md
 Summary: Phase-2 ticket for a Weston-based guest Wayland stack, a custom Wayland client, a QMP harness, measurements, and the report artifacts.
 LastUpdated: 2026-03-07T17:05:00-05:00
 WhatFor: Track the phase-2 Weston plus Wayland client implementation, supporting docs, tasks, diary, and final report.
@@ -30,10 +30,11 @@ The implementation goal is to preserve the stage-1 state machine and suspend/res
 ## Key Links
 
 - **Primary design doc**: [design-doc/01-phase-2-wayland-client-analysis-and-implementation-guide.md](./design-doc/01-phase-2-wayland-client-analysis-and-implementation-guide.md)
+- **Postmortem and review guide**: [design-doc/02-postmortem-and-review-guide.md](./design-doc/02-postmortem-and-review-guide.md)
 - **Diary**: [reference/01-diary.md](./reference/01-diary.md)
 - **Input playbook**: [reference/02-input-bring-up-playbook.md](./reference/02-input-bring-up-playbook.md)
 - **Tasks**: [tasks.md](./tasks.md)
-- **Imported source**: [sources/local/lab2.md](./sources/local/lab2.md)
+- **Imported source**: [sources/local/01-lab2.md](./sources/local/01-lab2.md)
 
 ## Status
 

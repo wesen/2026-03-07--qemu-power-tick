@@ -12,7 +12,7 @@ Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources:
-    - local:lab2.md
+    - local:01-lab2.md
 Summary: Chronological implementation diary for phase 2, including decisions, commands, failures, validation notes, and lessons learned.
 LastUpdated: 2026-03-07T18:00:00-05:00
 WhatFor: Maintain a step-by-step implementation diary for phase 2, including failures, commands, lessons, and validation notes.
@@ -33,7 +33,7 @@ Phase 2 extends the stage-1 QEMU sleep lab into a graphical guest environment. T
 
 - Ticket: `QEMU-02-LAB-TWO`
 - Phase focus: Weston plus custom Wayland client, no Chromium yet
-- Imported source: `sources/local/lab2.md`
+- Imported source: `sources/local/01-lab2.md`
 - Prior implementation base: `guest/sleepdemo.c`, `guest/init`, `host/drip_server.py`
 - External session reference: `019cc9de-fbce-7bc3-91dc-30a36f28f3ec`
 
@@ -101,7 +101,7 @@ I then translated that reading into an implementation baseline. The ticket now h
 - Then inspect the stage-1 files in `guest/` and `host/` to verify the planned reuse points.
 
 ### Technical details
-- Imported brief location: `ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/sources/local/lab2.md`
+- Imported brief location: `ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/sources/local/01-lab2.md`
 - Existing reusable code: `guest/sleepdemo.c`, `guest/init`, `guest/build-initramfs.sh`, `guest/run-qemu.sh`, `host/drip_server.py`, `scripts/measure_run.py`
 
 ## Step 2: Weston Guest Bring-Up And First Host Screenshot

@@ -12,7 +12,7 @@ Intent: long-term
 Owners: []
 RelatedFiles: []
 ExternalSources:
-    - local:lab2.md
+    - local:01-lab2.md
 Summary: Detailed phase-2 guide for a Weston-based guest Wayland stack, a custom client, a QMP harness, and measurement-driven suspend/resume validation.
 LastUpdated: 2026-03-07T17:05:00-05:00
 WhatFor: Explain the full phase-2 architecture, constraints, implementation plan, and validation strategy.
@@ -448,5 +448,5 @@ That bonus path should not block the first correct Weston-based implementation.
 
 ## References
 
-- Imported brief: [../sources/local/lab2.md](../sources/local/lab2.md)
+- Imported brief: [../sources/local/01-lab2.md](../sources/local/01-lab2.md)
 - Diary: [../reference/01-diary.md](../reference/01-diary.md)
