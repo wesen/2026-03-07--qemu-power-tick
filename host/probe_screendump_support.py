@@ -17,7 +17,7 @@ def parse_args() -> argparse.Namespace:
 
 def find_schema_entry(schema: list[dict[str, Any]], name: str) -> dict[str, Any] | None:
     for entry in schema:
-        if entry.get("meta-type") == "command" and entry.get("name") == name:
+        if entry.get("name") == name:
             return entry
     return None
 
@@ -37,12 +37,19 @@ def main() -> int:
 
         schema_supported = "query-qmp-schema" in command_names
         screendump_schema = None
+        screendump_arg_type = None
+        display_options = None
         interesting_commands = [name for name in command_names if any(token in name for token in ("screen", "display", "console", "vga"))]
 
         if schema_supported:
             schema_response = client.execute("query-qmp-schema")
             schema = schema_response.get("return", [])
             screendump_schema = find_schema_entry(schema, "screendump")
+            if screendump_schema is not None and "arg-type" in screendump_schema:
+                screendump_arg_type = find_schema_entry(schema, str(screendump_schema["arg-type"]))
+
+        if "query-display-options" in command_names:
+            display_options = client.execute("query-display-options").get("return")
 
         summary = {
             "query_commands_supported": True,
@@ -50,6 +57,8 @@ def main() -> int:
             "screendump_command_present": "screendump" in command_names,
             "interesting_commands": interesting_commands,
             "screendump_schema": screendump_schema,
+            "screendump_arg_type": screendump_arg_type,
+            "query_display_options": display_options,
         }
         output_path = pathlib.Path(args.output)
         output_path.write_text(json.dumps(summary, indent=2) + "\n", encoding="utf-8")

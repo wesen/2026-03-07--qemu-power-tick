@@ -66,13 +66,19 @@ if [[ -z "$RESULTS_DIR" || -z "$APPEND_EXTRA" ]]; then
   exit 1
 fi
 
+RUN_QEMU_ARGS=(
+  --kernel "$KERNEL"
+  --initramfs "$INITRAMFS"
+  --results-dir "$RESULTS_DIR"
+  --display-device "$DISPLAY_DEVICE"
+  --append-extra "$APPEND_EXTRA"
+)
+if [[ "$DISABLE_DEFAULT_VGA" == "1" ]]; then
+  RUN_QEMU_ARGS+=(--disable-default-vga)
+fi
+
 bash guest/run-qemu-phase3.sh \
-  --kernel "$KERNEL" \
-  --initramfs "$INITRAMFS" \
-  --results-dir "$RESULTS_DIR" \
-  --display-device "$DISPLAY_DEVICE" \
-  $([[ "$DISABLE_DEFAULT_VGA" == "1" ]] && printf '%s' -- '--disable-default-vga') \
-  --append-extra "$APPEND_EXTRA" &
+  "${RUN_QEMU_ARGS[@]}" &
 QEMU_PID=$!
 
 cleanup() {
