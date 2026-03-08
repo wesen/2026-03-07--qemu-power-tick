@@ -9,6 +9,8 @@ PRE_DELAY_SECONDS=4.0
 POST_RESUME_DELAY_SECONDS=1.0
 PRE_NAME=00-pre
 POST_NAME=01-post
+DISPLAY_DEVICE=virtio-vga
+DISABLE_DEFAULT_VGA=0
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -44,6 +46,14 @@ while [[ $# -gt 0 ]]; do
       POST_NAME=$2
       shift 2
       ;;
+    --display-device)
+      DISPLAY_DEVICE=$2
+      shift 2
+      ;;
+    --disable-default-vga)
+      DISABLE_DEFAULT_VGA=1
+      shift
+      ;;
     *)
       echo "unknown argument: $1" >&2
       exit 1
@@ -60,6 +70,8 @@ bash guest/run-qemu-phase3.sh \
   --kernel "$KERNEL" \
   --initramfs "$INITRAMFS" \
   --results-dir "$RESULTS_DIR" \
+  --display-device "$DISPLAY_DEVICE" \
+  $([[ "$DISABLE_DEFAULT_VGA" == "1" ]] && printf '%s' -- '--disable-default-vga') \
   --append-extra "$APPEND_EXTRA" &
 QEMU_PID=$!
 

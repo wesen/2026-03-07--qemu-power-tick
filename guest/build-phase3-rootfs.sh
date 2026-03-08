@@ -44,7 +44,9 @@ cp "$SCRIPT_DIR/weston.ini" "$ROOTFS/etc/xdg/weston/weston.ini"
 cp "$SCRIPT_DIR/chromium-wayland-launcher.sh" "$ROOTFS/usr/bin/chromium-wayland-launcher"
 "$SCRIPT_DIR/build-suspendctl.sh" "$BUILD_DIR" "$BUILD_DIR/suspendctl"
 cp "$BUILD_DIR/suspendctl" "$ROOTFS/usr/bin/suspendctl"
-chmod +x "$ROOTFS/init" "$ROOTFS/usr/bin/display_probe.sh" "$ROOTFS/usr/bin/dump_wayland_screenshot.sh" "$ROOTFS/usr/bin/dump_fb0_snapshot.sh" "$ROOTFS/usr/bin/dump_drm_state.sh" "$ROOTFS/usr/bin/chromium-wayland-launcher" "$ROOTFS/usr/bin/suspendctl"
+"$SCRIPT_DIR/build-kms-pattern.sh" "$BUILD_DIR" "$BUILD_DIR/kms_pattern"
+cp "$BUILD_DIR/kms_pattern" "$ROOTFS/usr/bin/kms_pattern"
+chmod +x "$ROOTFS/init" "$ROOTFS/usr/bin/display_probe.sh" "$ROOTFS/usr/bin/dump_wayland_screenshot.sh" "$ROOTFS/usr/bin/dump_fb0_snapshot.sh" "$ROOTFS/usr/bin/dump_drm_state.sh" "$ROOTFS/usr/bin/chromium-wayland-launcher" "$ROOTFS/usr/bin/suspendctl" "$ROOTFS/usr/bin/kms_pattern"
 
 cp -a /usr/share/X11/xkb "$ROOTFS/usr/share/X11/xkb"
 cp -a /etc/fonts "$ROOTFS/etc/fonts"
@@ -127,6 +129,7 @@ python3 "$REPO_ROOT/scripts/copy-runtime-deps.py" \
   --binary "$ROOTFS/usr/sbin/seatd" \
   --binary "$ROOTFS/usr/bin/udevadm" \
   --binary "$ROOTFS/usr/bin/suspendctl" \
+  --binary "$ROOTFS/usr/bin/kms_pattern" \
   --binary "$ROOTFS/usr/lib/x86_64-linux-gnu/libweston-13/drm-backend.so" \
   --binary "$ROOTFS/usr/lib/x86_64-linux-gnu/weston/kiosk-shell.so" \
   --binary "$ROOTFS/usr/lib/chromium-browser/chrome" \

@@ -50,6 +50,30 @@ DRM_STATE_CAPTURE_PRE_DELAY=
 DRM_STATE_CAPTURE_POST_DELAY=
 WESTON_DEBUG=
 
+for arg in $(cat /proc/cmdline); do
+  case "$arg" in
+    display_probe=1) DISPLAY_PROBE=1 ;;
+    display_unbind_fbcon=1) UNBIND_FBCON=1 ;;
+    phase3_client=*) CLIENT=${arg#phase3_client=} ;;
+    phase3_url=*) URL=${arg#phase3_url=} ;;
+    phase3_runtime_seconds=*) RUNTIME_SECONDS=${arg#phase3_runtime_seconds=} ;;
+    phase3_suspend_delay_seconds=*) SUSPEND_DELAY_SECONDS=${arg#phase3_suspend_delay_seconds=} ;;
+    phase3_wake_seconds=*) WAKE_SECONDS=${arg#phase3_wake_seconds=} ;;
+    phase3_pm_test=*) PM_TEST=${arg#phase3_pm_test=} ;;
+    phase3_no_suspend=1) NO_SUSPEND=1 ;;
+    phase3_guest_capture=1) GUEST_CAPTURE=1 ;;
+    phase3_guest_capture_pre_delay_seconds=*) GUEST_CAPTURE_PRE_DELAY=${arg#phase3_guest_capture_pre_delay_seconds=} ;;
+    phase3_guest_capture_post_delay_seconds=*) GUEST_CAPTURE_POST_DELAY=${arg#phase3_guest_capture_post_delay_seconds=} ;;
+    phase3_fb_capture=1) FB_CAPTURE=1 ;;
+    phase3_fb_capture_pre_delay_seconds=*) FB_CAPTURE_PRE_DELAY=${arg#phase3_fb_capture_pre_delay_seconds=} ;;
+    phase3_fb_capture_post_delay_seconds=*) FB_CAPTURE_POST_DELAY=${arg#phase3_fb_capture_post_delay_seconds=} ;;
+    phase3_drm_state_capture=1) DRM_STATE_CAPTURE=1 ;;
+    phase3_drm_state_capture_pre_delay_seconds=*) DRM_STATE_CAPTURE_PRE_DELAY=${arg#phase3_drm_state_capture_pre_delay_seconds=} ;;
+    phase3_drm_state_capture_post_delay_seconds=*) DRM_STATE_CAPTURE_POST_DELAY=${arg#phase3_drm_state_capture_post_delay_seconds=} ;;
+    phase3_weston_debug=1) WESTON_DEBUG=1 ;;
+  esac
+done
+
 KERNEL_RELEASE=$(uname -r)
 for module in \
   "/lib/modules/$KERNEL_RELEASE/kernel/drivers/virtio/virtio_dma_buf.ko" \
@@ -77,65 +101,41 @@ udevadm settle >/dev/console 2>&1 || true
 ls -l /dev/dri >/dev/console 2>&1 || echo "[init-phase3] /dev/dri missing" >/dev/console
 ls -l /dev/input >/dev/console 2>&1 || echo "[init-phase3] /dev/input missing" >/dev/console
 
-for arg in $(cat /proc/cmdline); do
-  case "$arg" in
-    phase3_weston_debug=1) WESTON_DEBUG=1 ;;
-  esac
-done
+SEATD_PID=
+WESTON_PID=
+if [ "$CLIENT" != "kms-pattern" ]; then
+  /usr/sbin/seatd >/var/log/seatd.log 2>&1 &
+  SEATD_PID=$!
+  echo "[init-phase3] seatd pid=$SEATD_PID" >/dev/console
 
-/usr/sbin/seatd >/var/log/seatd.log 2>&1 &
-SEATD_PID=$!
-echo "[init-phase3] seatd pid=$SEATD_PID" >/dev/console
+  /usr/bin/weston \
+    --backend=drm \
+    --renderer=pixman \
+    --shell=kiosk-shell.so \
+    --socket="$WAYLAND_DISPLAY" \
+    --continue-without-input \
+    ${WESTON_DEBUG:+--debug} \
+    --log=/var/log/weston.log >/dev/console 2>&1 &
+  WESTON_PID=$!
+  echo "[init-phase3] weston pid=$WESTON_PID" >/dev/console
 
-/usr/bin/weston \
-  --backend=drm \
-  --renderer=pixman \
-  --shell=kiosk-shell.so \
-  --socket="$WAYLAND_DISPLAY" \
-  --continue-without-input \
-  ${WESTON_DEBUG:+--debug} \
-  --log=/var/log/weston.log >/dev/console 2>&1 &
-WESTON_PID=$!
-echo "[init-phase3] weston pid=$WESTON_PID" >/dev/console
+  tries=0
+  while [ ! -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && [ $tries -lt 100 ]; do
+    tries=$((tries + 1))
+    sleep 0.1
+  done
 
-tries=0
-while [ ! -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ] && [ $tries -lt 100 ]; do
-  tries=$((tries + 1))
-  sleep 0.1
-done
+  if [ ! -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
+    echo "[init-phase3] wayland socket did not appear" >/dev/console
+    sed -n '1,200p' /var/log/weston.log >/dev/console 2>&1 || true
+    poweroff -f
+  fi
 
-if [ ! -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
-  echo "[init-phase3] wayland socket did not appear" >/dev/console
-  sed -n '1,200p' /var/log/weston.log >/dev/console 2>&1 || true
-  poweroff -f
+  echo "[init-phase3] wayland ready" >/dev/console
+  sed -n '1,160p' /var/log/weston.log >/dev/console 2>&1 || true
+else
+  echo "[init-phase3] skipping weston for client=$CLIENT" >/dev/console
 fi
-
-for arg in $(cat /proc/cmdline); do
-  case "$arg" in
-    display_probe=1) DISPLAY_PROBE=1 ;;
-    display_unbind_fbcon=1) UNBIND_FBCON=1 ;;
-    phase3_client=*) CLIENT=${arg#phase3_client=} ;;
-    phase3_url=*) URL=${arg#phase3_url=} ;;
-    phase3_runtime_seconds=*) RUNTIME_SECONDS=${arg#phase3_runtime_seconds=} ;;
-    phase3_suspend_delay_seconds=*) SUSPEND_DELAY_SECONDS=${arg#phase3_suspend_delay_seconds=} ;;
-    phase3_wake_seconds=*) WAKE_SECONDS=${arg#phase3_wake_seconds=} ;;
-    phase3_pm_test=*) PM_TEST=${arg#phase3_pm_test=} ;;
-    phase3_no_suspend=1) NO_SUSPEND=1 ;;
-    phase3_guest_capture=1) GUEST_CAPTURE=1 ;;
-    phase3_guest_capture_pre_delay_seconds=*) GUEST_CAPTURE_PRE_DELAY=${arg#phase3_guest_capture_pre_delay_seconds=} ;;
-    phase3_guest_capture_post_delay_seconds=*) GUEST_CAPTURE_POST_DELAY=${arg#phase3_guest_capture_post_delay_seconds=} ;;
-    phase3_fb_capture=1) FB_CAPTURE=1 ;;
-    phase3_fb_capture_pre_delay_seconds=*) FB_CAPTURE_PRE_DELAY=${arg#phase3_fb_capture_pre_delay_seconds=} ;;
-    phase3_fb_capture_post_delay_seconds=*) FB_CAPTURE_POST_DELAY=${arg#phase3_fb_capture_post_delay_seconds=} ;;
-    phase3_drm_state_capture=1) DRM_STATE_CAPTURE=1 ;;
-    phase3_drm_state_capture_pre_delay_seconds=*) DRM_STATE_CAPTURE_PRE_DELAY=${arg#phase3_drm_state_capture_pre_delay_seconds=} ;;
-    phase3_drm_state_capture_post_delay_seconds=*) DRM_STATE_CAPTURE_POST_DELAY=${arg#phase3_drm_state_capture_post_delay_seconds=} ;;
-    phase3_weston_debug=1) WESTON_DEBUG=1 ;;
-  esac
-done
-
-echo "[init-phase3] wayland ready" >/dev/console
-sed -n '1,160p' /var/log/weston.log >/dev/console 2>&1 || true
 
 if [ "$UNBIND_FBCON" = "1" ]; then
   for vtcon in /sys/class/vtconsole/vtcon*; do
@@ -163,6 +163,8 @@ fi
 echo "[init-phase3] launching client=$CLIENT url=$URL runtime=$RUNTIME_SECONDS suspend_delay=$SUSPEND_DELAY_SECONDS wake=$WAKE_SECONDS pm_test=$PM_TEST no_suspend=$NO_SUSPEND" >/dev/console
 
 APP_LOG=
+APP_TAIL_PID=
+KMS_PATTERN_POST_PID=
 case "$CLIENT" in
   chromium)
     APP_LOG=/var/log/chromium.log
@@ -172,6 +174,20 @@ case "$CLIENT" in
     APP_LOG=/var/log/weston-simple-shm.log
     /usr/bin/weston-simple-shm >"$APP_LOG" 2>&1 &
     ;;
+  kms-pattern)
+    APP_LOG=/var/log/kms-pattern.log
+    /usr/bin/kms_pattern --pattern pre >"$APP_LOG" 2>&1 || true
+    if [ -n "$SUSPEND_DELAY_SECONDS" ]; then
+      POST_DELAY_SECONDS=$((SUSPEND_DELAY_SECONDS + 1))
+      (
+        sleep "$POST_DELAY_SECONDS"
+        echo "[init-phase3] kms-pattern post delay=$POST_DELAY_SECONDS" >/dev/console
+        /usr/bin/kms_pattern --pattern post >>"$APP_LOG" 2>&1 || true
+      ) &
+      KMS_PATTERN_POST_PID=$!
+    fi
+    /bin/sh -c 'while :; do sleep 3600; done' >>"$APP_LOG" 2>&1 &
+    ;;
   *)
     echo "[init-phase3] unknown phase3_client=$CLIENT" >/dev/console
     poweroff -f
@@ -179,7 +195,10 @@ case "$CLIENT" in
 esac
 APP_PID=$!
 echo "[init-phase3] app pid=$APP_PID client=$CLIENT" >/dev/console
-[ -n "$APP_LOG" ] && tail -f "$APP_LOG" >/dev/console 2>&1 &
+if [ -n "$APP_LOG" ]; then
+  tail -f "$APP_LOG" >/dev/console 2>&1 &
+  APP_TAIL_PID=$!
+fi
 
 schedule_guest_capture() {
   tag=$1
@@ -283,8 +302,12 @@ wait "$APP_PID" || true
 [ -n "${FB_CAPTURE_POST_PID:-}" ] && wait "$FB_CAPTURE_POST_PID" || true
 [ -n "${DRM_STATE_CAPTURE_PRE_PID:-}" ] && wait "$DRM_STATE_CAPTURE_PRE_PID" || true
 [ -n "${DRM_STATE_CAPTURE_POST_PID:-}" ] && wait "$DRM_STATE_CAPTURE_POST_PID" || true
+[ -n "${KMS_PATTERN_POST_PID:-}" ] && wait "$KMS_PATTERN_POST_PID" || true
 [ -n "${SUSPEND_PID:-}" ] && wait "$SUSPEND_PID" || true
+[ -n "${APP_TAIL_PID:-}" ] && kill "$APP_TAIL_PID" 2>/dev/null || true
 [ -n "${DISPLAY_PROBE_PID:-}" ] && kill "$DISPLAY_PROBE_PID" 2>/dev/null || true
+[ -n "${WESTON_PID:-}" ] && kill "$WESTON_PID" 2>/dev/null || true
+[ -n "${SEATD_PID:-}" ] && kill "$SEATD_PID" 2>/dev/null || true
 [ -f /var/log/display_probe.log ] && tail -n 120 /var/log/display_probe.log >/dev/console 2>&1 || true
 echo "[init-phase3] client exited client=$CLIENT" >/dev/console
 poweroff -f
