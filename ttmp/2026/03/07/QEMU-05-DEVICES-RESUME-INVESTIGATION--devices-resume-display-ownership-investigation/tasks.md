@@ -16,4 +16,4 @@
 - [x] Run a stage-3 `display_unbind_fbcon=1` experiment with concurrent screenshot capture, not just a log-only run.
 - [x] Validate the new ticket with `docmgr doctor`.
 - [x] Upload the investigation bundle to reMarkable.
-- [ ] Refresh the intern guide and bundle after the corrected phase-3 reruns.
+- [x] Refresh the intern guide and bundle after the corrected phase-3 reruns.

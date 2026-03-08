@@ -543,3 +543,70 @@ results-phase3-probe-chromium-unbind2/01-post.png:  720 x 400
 corrected Chromium baseline == corrected Chromium unbind in screenshots
 but both still fall back after resume
 ```
+
+## Step 6: Backfill the Ticket Script Archive and Refresh the Bundle
+
+The user explicitly asked that even temporary scripts be preserved in the ticket-local `scripts/` folder. That mattered here because the investigation had started to rely on one-off helpers again: the concurrent stage-3 capture wrapper and the image-difference helper were both new pieces of logic that would have been easy to lose in shell history.
+
+I backfilled those scripts into the ticket, refreshed the archived `init-phase3` copy, revalidated the ticket, and uploaded a second bundle that contains the corrected phase-3 interpretation. That closes the loop between the code, the diary, and the handoff package.
+
+### Prompt Context
+
+**User prompt (verbatim):** "save all scripts even temporary in the ticket scirpts/ folder, retroactively too"
+
+**Assistant interpretation:** Ensure the ticket-local `scripts/` archive contains every meaningful helper written during this investigation, including the recent temporary ones.
+
+**Inferred user intent:** Preserve reproducibility and avoid losing debugging logic in chat history or shell snippets.
+
+### What I did
+- Added these scripts to the ticket-local archive:
+  - `scripts/run_phase3_suspend_capture.sh`
+  - `scripts/compare_image_ae.py`
+  - refreshed `scripts/init-phase3`
+- Re-ran `docmgr doctor` to confirm the ticket still passed.
+- Uploaded `QEMU-05 Devices Resume Investigation Bundle Update` to reMarkable.
+
+### Why
+- The ticket should be usable as a standalone continuation point.
+- The recent phase-3 reruns are only reproducible if the wrapper and comparison helpers are stored with the ticket.
+
+### What worked
+- The ticket-local script archive now contains both the long-lived and temporary helpers used in this investigation.
+- The reMarkable folder now contains:
+```text
+QEMU-05 Devices Resume Investigation Bundle
+QEMU-05 Devices Resume Investigation Bundle Update
+```
+
+### What didn't work
+- N/A
+
+### What I learned
+- Temporary scripts become permanent evidence very quickly in this style of debugging.
+- Archiving them immediately is cheaper than reconstructing them later.
+
+### What was tricky to build
+- The main issue was not code complexity but remembering to keep the ticket-local archive synchronized with the live repo files as the investigation moved quickly.
+
+### What warrants a second pair of eyes
+- The archive itself is now in good shape; the remaining technical review should focus on the corrected phase-2 vs phase-3 unbind difference.
+
+### What should be done in the future
+- Keep using the ticket-local `scripts/` directory as the canonical archive for every new helper used in this investigation.
+
+### Code review instructions
+- Check the contents of `ttmp/.../QEMU-05.../scripts/`.
+- Confirm the updated bundle exists on reMarkable under `/ai/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION`.
+
+### Technical details
+- Archived scripts now include:
+```text
+build-phase2-rootfs.sh
+build-phase3-rootfs.sh
+capture_phase3_suspend_checkpoints.py
+compare_image_ae.py
+display_probe.sh
+init-phase2
+init-phase3
+run_phase3_suspend_capture.sh
+```
