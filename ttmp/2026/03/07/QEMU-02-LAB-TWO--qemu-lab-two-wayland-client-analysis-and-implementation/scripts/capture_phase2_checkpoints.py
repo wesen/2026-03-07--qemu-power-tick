@@ -116,9 +116,84 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--kernel", required=True)
     parser.add_argument("--initramfs", required=True)
     parser.add_argument("--results-dir", required=True)
+    parser.add_argument("--mode", choices=["interactive", "suspend"], default="interactive")
     parser.add_argument("--runtime-seconds", type=int, default=30)
     parser.add_argument("--timeout", type=float, default=30.0)
     return parser.parse_args()
+
+
+def run_interactive_capture(
+    repo_root: pathlib.Path,
+    client: QMPClient,
+    serial_log: pathlib.Path,
+    results_dir: pathlib.Path,
+    timeout: float,
+) -> subprocess.Popen[bytes]:
+    wait_for_log(serial_log, "[init-phase2] wayland ready", timeout)
+    time.sleep(1.0)
+    screendump(client, results_dir / "00-boot.ppm")
+
+    wait_for_log(serial_log, "seat-listener-added", timeout)
+    time.sleep(0.5)
+    screendump(client, results_dir / "01-first-frame.ppm")
+
+    drip_proc = subprocess.Popen(
+        [
+            "python3",
+            str(repo_root / "host" / "drip_server.py"),
+            "--host",
+            "0.0.0.0",
+            "--port",
+            "5555",
+            "--interval",
+            "0.5",
+            "--active-seconds",
+            "20",
+            "--pause-seconds",
+            "1",
+        ],
+        cwd=repo_root,
+    )
+    wait_for_log(serial_log, "kind=state connected", timeout)
+    time.sleep(0.2)
+    screendump(client, results_dir / "02-network.ppm")
+
+    send_key(client, "a")
+    wait_for_log(serial_log, "kind=input KEY=30 STATE=1", timeout)
+    time.sleep(0.2)
+    screendump(client, results_dir / "03-keyboard.ppm")
+
+    pointer_seen = False
+    for _ in range(5):
+        pointer_move(client, 0.5, 0.5)
+        time.sleep(0.2)
+        pointer_click(client)
+        time.sleep(0.5)
+        if log_contains(serial_log, "kind=input BUTTON 272 STATE 1"):
+            pointer_seen = True
+            break
+    if not pointer_seen:
+        raise RuntimeError(f"timed out waiting for pointer button event in {serial_log}")
+    time.sleep(0.2)
+    screendump(client, results_dir / "04-pointer.ppm")
+    return drip_proc
+
+
+def run_suspend_capture(client: QMPClient, serial_log: pathlib.Path, results_dir: pathlib.Path, timeout: float) -> None:
+    wait_for_log(serial_log, "[init-phase2] wayland ready", timeout)
+    time.sleep(1.0)
+    screendump(client, results_dir / "00-boot.ppm")
+
+    wait_for_log(serial_log, "seat-listener-added", timeout)
+    time.sleep(0.5)
+    screendump(client, results_dir / "01-first-frame.ppm")
+
+    time.sleep(1.0)
+    screendump(client, results_dir / "05-pre-suspend.ppm")
+
+    wait_for_log(serial_log, "state=RESUMED cycle=1", timeout + 15)
+    time.sleep(0.5)
+    screendump(client, results_dir / "06-post-resume.ppm")
 
 
 def main() -> int:
@@ -129,10 +204,17 @@ def main() -> int:
     serial_log = results_dir / "guest-serial.log"
     qmp_socket = results_dir / "qmp.sock"
 
-    append_extra = (
-        f"phase2_no_suspend=1 phase2_runtime_seconds={args.runtime_seconds} "
-        "phase2_idle_seconds=60 phase2_max_suspend_cycles=0"
-    )
+    if args.mode == "interactive":
+        append_extra = (
+            f"phase2_no_suspend=1 phase2_runtime_seconds={args.runtime_seconds} "
+            "phase2_idle_seconds=60 phase2_max_suspend_cycles=0"
+        )
+    else:
+        append_extra = (
+            f"phase2_idle_seconds=3 phase2_max_suspend_cycles=1 phase2_wake_seconds=5 "
+            f"phase2_pm_test=devices phase2_runtime_seconds={args.runtime_seconds}"
+        )
+
     qemu_cmd = [
         str(repo_root / "guest" / "run-qemu-phase2.sh"),
         "--kernel",
@@ -152,55 +234,10 @@ def main() -> int:
         client = QMPClient(qmp_socket)
         try:
             client.handshake()
-            wait_for_log(serial_log, "[init-phase2] wayland ready", args.timeout)
-            time.sleep(1.0)
-            screendump(client, results_dir / "00-boot.ppm")
-
-            wait_for_log(serial_log, "seat-listener-added", args.timeout)
-            time.sleep(0.5)
-            screendump(client, results_dir / "01-first-frame.ppm")
-
-            drip_proc = subprocess.Popen(
-                [
-                    "python3",
-                    str(repo_root / "host" / "drip_server.py"),
-                    "--host",
-                    "0.0.0.0",
-                    "--port",
-                    "5555",
-                    "--interval",
-                    "0.5",
-                    "--active-seconds",
-                    "20",
-                    "--pause-seconds",
-                    "1",
-                ],
-                cwd=repo_root,
-            )
-            wait_for_log(serial_log, "kind=state connected", args.timeout)
-            time.sleep(0.2)
-            screendump(client, results_dir / "02-network.ppm")
-
-            send_key(client, "a")
-            wait_for_log(serial_log, "kind=input KEY=30 STATE=1", args.timeout)
-            time.sleep(0.2)
-            screendump(client, results_dir / "03-keyboard.ppm")
-
-            pointer_seen = False
-            for _ in range(5):
-                pointer_move(client, 0.5, 0.5)
-                time.sleep(0.2)
-                pointer_click(client)
-                time.sleep(0.5)
-                if log_contains(serial_log, "kind=input BUTTON 272 STATE 1"):
-                    pointer_seen = True
-                    break
-            if not pointer_seen:
-                raise RuntimeError(
-                    f"timed out waiting for pointer button event in {serial_log}"
-                )
-            time.sleep(0.2)
-            screendump(client, results_dir / "04-pointer.ppm")
+            if args.mode == "interactive":
+                drip_proc = run_interactive_capture(repo_root, client, serial_log, results_dir, args.timeout)
+            else:
+                run_suspend_capture(client, serial_log, results_dir, args.timeout)
         finally:
             client.close()
 

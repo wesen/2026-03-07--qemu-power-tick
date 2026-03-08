@@ -14,3 +14,5 @@
 - Added a postmortem and review guide that evaluates the work quality, identifies the main remaining risks, and explains the system and review order for the next engineer.
 - Applied the first postmortem-driven cleanup pass: removed the unconditional redraw tick, moved phase-2 suspend scenario parameters onto the kernel command line via the host launcher, and fixed the runtime-limit path so PID 1 powers off cleanly instead of panicking the guest.
 - Added `host/capture_phase2_checkpoints.py` and used it to capture a reproducible no-suspend screenshot set for boot, first frame, network, keyboard, and pointer checkpoints under the phase-2 Wayland client.
+- Extended `host/capture_phase2_checkpoints.py` with a suspend mode and used it to capture pre-suspend and post-resume framebuffer artifacts for the `pm_test=devices` phase-2 suspend path.
+- Added the dedicated phase-2 final implementation report summarizing the architecture, implementation, debugging process, artifacts, measurements, and lessons learned for submission.

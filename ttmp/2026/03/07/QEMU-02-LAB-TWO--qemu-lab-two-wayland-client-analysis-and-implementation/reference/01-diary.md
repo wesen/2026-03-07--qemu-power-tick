@@ -14,7 +14,7 @@ RelatedFiles: []
 ExternalSources:
     - local:01-lab2.md
 Summary: Chronological implementation diary for phase 2, including decisions, commands, failures, validation notes, and lessons learned.
-LastUpdated: 2026-03-07T19:55:00-05:00
+LastUpdated: 2026-03-07T21:10:00-05:00
 WhatFor: Maintain a step-by-step implementation diary for phase 2, including failures, commands, lessons, and validation notes.
 WhenToUse: Update this whenever a meaningful design, implementation, or validation step completes during the phase-2 work.
 ---
@@ -1129,7 +1129,7 @@ I added a small watcher script that waits for `state=RESUMED` in the guest seria
 
 **Inferred user intent:** Finish the useful timing data, not just partial suspend plumbing.
 
-**Commit (code):** Pending at this step
+**Commit (code):** `1a49c12` — `Add phase 2 checkpoint capture harness`
 
 ### What I did
 - Added [host/resume_drip_server.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/resume_drip_server.py).
@@ -1396,3 +1396,161 @@ This step took two iterations, which was useful. The first run captured boot, fi
   - `@@LOG kind=state seat-capabilities=3`
   - `@@LOG kind=state pointer-rebound`
   - `@@LOG kind=input BUTTON 272 STATE 1`
+
+## Step 18: Extended The Checkpoint Harness To Capture Suspend Artifacts Too
+
+With the normal interactive screenshot set working, I reused the same harness instead of creating a second ad hoc flow for suspend. The extension was small but important: add a suspend mode that boots the guest with the existing `pm_test=devices` scenario, captures a pre-suspend screen before the idle timer fires, waits for the real `RESUMED` marker in the serial log, and then captures the post-resume screen from QMP.
+
+This closed the remaining screenshot task without introducing more manual timing steps. The resulting artifact set is not just “we resumed.” It now includes framebuffer evidence from both sides of the suspend interval and keeps the same clean runtime-limited shutdown path at the end.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 17)
+
+**Assistant interpretation:** Keep going on the open phase-2 tasks while continuing to document the work in detail.
+
+**Inferred user intent:** Finish the remaining implementation/reporting prerequisites methodically rather than leaving the ticket almost done but incomplete.
+
+**Commit (code):** Pending at this step
+
+### What I did
+- Extended [host/capture_phase2_checkpoints.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/capture_phase2_checkpoints.py) with:
+  - `--mode interactive`
+  - `--mode suspend`
+- In suspend mode, the script now:
+  - boots the guest with `phase2_idle_seconds=3 phase2_max_suspend_cycles=1 phase2_wake_seconds=5 phase2_pm_test=devices`,
+  - captures `00-boot.ppm`,
+  - captures `01-first-frame.ppm`,
+  - captures `05-pre-suspend.ppm`,
+  - waits for `state=RESUMED cycle=1`,
+  - captures `06-post-resume.ppm`,
+  - waits for the runtime-limited guest to power off.
+- Mirrored the updated script into the ticket-local scripts directory.
+- Ran:
+  - `python3 host/capture_phase2_checkpoints.py --mode suspend --kernel build/vmlinuz --initramfs build/initramfs-phase2-client.cpio.gz --results-dir results-phase2-suspend-checkpoints1 --runtime-seconds 20`
+- Verified the generated artifacts and guest serial log.
+
+### Why
+- The remaining screenshot task explicitly called for pre-suspend and post-resume artifacts.
+- Reusing the same host harness keeps the artifact pipeline simpler for the eventual report and for whoever reruns the lab later.
+
+### What worked
+- `results-phase2-suspend-checkpoints1/` now contains:
+  - `00-boot.ppm`
+  - `01-first-frame.ppm`
+  - `05-pre-suspend.ppm`
+  - `06-post-resume.ppm`
+  - `guest-serial.log`
+- The guest serial log confirms a real suspend/resume cycle:
+  - `@@LOG kind=state state=SUSPENDING cycle=1`
+  - `@@LOG kind=state state=RESUMED cycle=1 sleep_ms=5774 resume_gap_ms=5774`
+  - `@@METRIC name=resume_to_redraw value_ms=10 cycle=1`
+- The guest still powers off cleanly at the runtime limit.
+
+### What didn't work
+- N/A
+
+### What I learned
+- The checkpoint harness was worth making generic on the first pass. Extending one reusable runner was easier and cleaner than maintaining parallel ad hoc scripts for normal and suspend scenarios.
+- The `pm_test=devices` path remains the most practical measurement/reporting baseline in this environment because it gives repeatable suspend/resume timing and predictable wake behavior.
+
+### What was tricky to build
+- The only subtle part was choosing when to capture the pre-suspend frame. It needs to be late enough that the client is fully up, but early enough that the idle timer has not yet pushed the guest into suspend. Using a short fixed delay after the first frame works well with the current `idle_seconds=3` scenario and keeps the capture deterministic.
+
+### What warrants a second pair of eyes
+- Whether the suspend-mode harness should later also incorporate a controlled post-resume reconnect server so the screenshot path and reconnect metric path can be captured in one run instead of two distinct scenarios.
+
+### What should be done in the future
+- Commit this suspend-checkpoint harness update.
+- Write the dedicated phase-2 final report using the measurement runs and screenshot artifacts now present in the ticket.
+
+### Code review instructions
+- Review [host/capture_phase2_checkpoints.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/capture_phase2_checkpoints.py).
+- Then inspect:
+  - `results-phase2-suspend-checkpoints1/guest-serial.log`
+  - `results-phase2-suspend-checkpoints1/05-pre-suspend.ppm`
+  - `results-phase2-suspend-checkpoints1/06-post-resume.ppm`
+- Reproduce with:
+  - `python3 host/capture_phase2_checkpoints.py --mode suspend --kernel build/vmlinuz --initramfs build/initramfs-phase2-client.cpio.gz --results-dir results-phase2-suspend-checkpoints1 --runtime-seconds 20`
+
+### Technical details
+- The suspend-mode launch line in the guest log is:
+  - `[init-phase2] launching client=/bin/wl_sleepdemo args= --idle-seconds 3 --max-suspend-cycles 1 --wake-seconds 5 --pm-test devices --runtime-seconds 20`
+- The key suspend markers in `results-phase2-suspend-checkpoints1/guest-serial.log` are:
+  - `@@LOG kind=state state=SUSPENDING cycle=1`
+  - `@@LOG kind=state state=RESUMED cycle=1 sleep_ms=5774 resume_gap_ms=5774`
+  - `@@METRIC name=sleep_duration value_ms=5774 cycle=1`
+  - `@@METRIC name=suspend_resume_gap value_ms=5774 cycle=1`
+  - `@@METRIC name=resume_to_redraw value_ms=10 cycle=1`
+
+## Step 19: Wrote The Phase-2 Final Report
+
+With the implementation, measurements, checkpoint scripts, and artifact sets all present, I wrote the actual submission-style report for phase 2. The goal was to synthesize the whole phase into one document that explains the system, the final architecture, the debugging path, the measurements, the artifact evidence, and the remaining limitations without forcing the reviewer to reconstruct everything from raw diary entries.
+
+This report is intentionally different from the diary. The diary preserves chronology and exact debugging steps. The final report reorganizes the same work into a narrative a reviewer or grader can follow quickly: goals, architecture, implementation, measurements, struggles, lessons learned, and what remains for phase 3.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 17)
+
+**Assistant interpretation:** Keep progressing through the remaining phase-2 deliverables and keep the ticket complete enough that the final report can be produced without backtracking.
+
+**Inferred user intent:** Finish the phase in a way that is actually submittable, not just technically working.
+
+**Commit (code):** Pending at this step
+
+### What I did
+- Added [03-phase-2-final-implementation-report.md](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/design-doc/03-phase-2-final-implementation-report.md).
+- Linked it from [index.md](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/index.md).
+- Updated the ticket tasks and changelog to reflect report completion.
+- Structured the report around:
+  - system architecture,
+  - component responsibilities,
+  - build/packaging strategy,
+  - input bring-up,
+  - suspend/resume implementation,
+  - measurements,
+  - artifacts,
+  - what went well,
+  - what was hard,
+  - mistakes and fixes,
+  - lessons learned,
+  - remaining limitations,
+  - next steps.
+
+### Why
+- The user explicitly wanted another report for this phase.
+- The phase is now mature enough that a real final report is more useful than continuing to rely only on diary entries.
+
+### What worked
+- The report could now be written from evidence instead of memory because the diary, artifacts, scripts, and measurements were already in the ticket.
+- The report cleanly incorporates the postmortem feedback and the later cleanup/fix work rather than freezing the system at an older checkpoint.
+
+### What didn't work
+- N/A
+
+### What I learned
+- The report-writing step becomes dramatically easier when the scripts, logs, tasks, and diary are all maintained during implementation instead of reconstructed afterward.
+
+### What was tricky to build
+- The difficult part was deciding what belongs in the report versus what should remain in the diary. The right split was: report for synthesis, diary for chronology. That keeps the report readable without throwing away the detailed implementation history.
+
+### What warrants a second pair of eyes
+- The framing around measurement limitations, especially the honest characterization of `resume_to_reconnect` as partly harness-shaped, is worth preserving because it is accurate even if it is less flattering than a cleaner but less honest story.
+
+### What should be done in the future
+- Commit the report and ticket updates.
+- Upload the refreshed document bundle to reMarkable.
+
+### Code review instructions
+- Read [03-phase-2-final-implementation-report.md](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/design-doc/03-phase-2-final-implementation-report.md).
+- Then compare it against:
+  - [01-diary.md](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/reference/01-diary.md)
+  - [02-postmortem-and-review-guide.md](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/design-doc/02-postmortem-and-review-guide.md)
+- Confirm that the report’s measurements and artifact references match the recorded runs.
+
+### Technical details
+- The report references the key artifact directories:
+  - `results-phase2-suspend6/`
+  - `results-phase2-checkpoints3/`
+  - `results-phase2-suspend-checkpoints1/`
