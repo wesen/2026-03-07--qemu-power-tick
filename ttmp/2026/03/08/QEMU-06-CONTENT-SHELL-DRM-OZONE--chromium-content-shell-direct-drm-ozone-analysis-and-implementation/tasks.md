@@ -11,6 +11,7 @@
 - [x] Clone `depot_tools` and a Chromium source checkout because this machine does not currently have `gn`, `gclient`, or a usable Chromium tree.
 - [x] Verify which Chromium target set we need first for this phase (`content_shell` plus required runtime assets and helpers).
 - [x] Add an initial phase-4 GN args helper that writes a direct DRM/Ozone `args.gn` baseline and expected target list.
+- [x] Extend the phase-4 build config so the same Chromium build includes both Ozone DRM and Ozone headless backends.
 - [x] Add an end-to-end phase-4 Chromium build driver helper for `runhooks -> gn gen -> autoninja`.
 - [x] Run `gclient runhooks` and generate the first `out/Phase4DRM` build directory.
 - [x] Add a payload staging helper that can copy the first built Chromium artifacts into `build/phase4/chromium-direct`.

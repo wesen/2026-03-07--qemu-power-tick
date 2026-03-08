@@ -54,6 +54,7 @@ Current status:
 - official Chromium build-deps installer has now been run with sudo help from the user
 - `gclient sync --nohooks --no-history` and `gclient runhooks` are complete
 - `out/Phase4DRM/build.ninja` exists and the first `autoninja` build is in flight
+- the phase-4 GN config now compiles both Ozone DRM and Ozone headless backends so we can pivot to headless validation if direct KMS bring-up gets blocked
 
 ## Key Links
 

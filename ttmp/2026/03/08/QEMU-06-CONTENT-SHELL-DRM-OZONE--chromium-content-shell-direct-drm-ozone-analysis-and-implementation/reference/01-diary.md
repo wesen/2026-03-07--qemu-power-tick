@@ -1112,3 +1112,103 @@ So I used the build time to add the staging helper before the build produced art
 ```text
 /home/manuel/chromium/src/out/Phase4DRM
 ```
+
+## Step 11: Add Ozone Headless to the Same Build Before Spending More Compile Time
+
+This was a good intervention point. The first `autoninja` run had already proven that the Chromium tree, hooks, and GN configuration were fundamentally viable, but it was still far from producing a finished browser payload. Since the user wants a fallback path for non-graphical validation too, it was worth stopping that build and broadening the compiled backend set before we sink more hours into the wrong configuration.
+
+The key point from Chromium's own build files is that the runtime default backend and the compiled backend set are separate concerns. `ozone_platform = "drm"` controls the default runtime choice, while `ozone_platform_drm = true` and `ozone_platform_headless = true` decide which backends are built into the binary. That means we can keep DRM as the default path and still compile headless support into the same `content_shell` build.
+
+### Prompt Context
+
+**User prompt (verbatim):** "can we add headless too? so we have support for both? stop the current build and add it before it's too late. That way we can do headless tests as well if we struggle with the graphics."
+
+**Assistant interpretation:** Stop the in-progress Chromium build, confirm whether Chromium can compile both Ozone DRM and Ozone headless support at once, and if so update the build config before restarting.
+
+**Inferred user intent:** Avoid wasting more build time on a one-backend binary when a dual-backend binary would give us a safer debugging path later.
+
+### What I did
+- Stopped the long-running `autoninja` session with `Ctrl-C`.
+- Read Chromium's checked-in Ozone configuration logic:
+  - `/home/manuel/chromium/src/build/config/ozone.gni`
+  - `/home/manuel/chromium/src/build/args/headless.gn`
+- Confirmed from `ozone.gni` that:
+  - `ozone_platform` is the default runtime backend
+  - `ozone_platform_drm` controls whether DRM is compiled
+  - `ozone_platform_headless` controls whether headless is compiled
+- Updated:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/configure_phase4_chromium_build.sh`
+  - ticket mirror of the same script
+- Changed the generated GN args from:
+```text
+ozone_platform_headless = false
+```
+to:
+```text
+ozone_platform_headless = true
+```
+- Re-generated the build directory:
+```text
+PATH=/home/manuel/depot_tools:$PATH ./host/configure_phase4_chromium_build.sh --src /home/manuel/chromium/src --out /home/manuel/chromium/src/out/Phase4DRM
+```
+- Verified the output config now contains:
+```text
+ozone_platform_headless = true
+```
+
+### Why
+- The user is right that headless is a useful fallback lane if DRM/KMS bring-up becomes the bottleneck.
+- The cheapest time to add that support is before the first full Chromium build completes.
+- Chromium's own build graph allows both backends to be compiled into one binary, so there is no need to maintain two separate output trees yet.
+
+### What worked
+- The checked-in Chromium files were enough to answer the question without guessing.
+- The `out/Phase4DRM/args.gn` regeneration succeeded cleanly.
+- The final configuration keeps DRM as the default runtime backend while adding headless as a selectable backend.
+
+### What didn't work
+- The stopped build had already run much longer than the CLI progress samples suggested. When I finally interrupted it, the output showed it had continued far deeper into the graph than the earlier short polls made obvious.
+- That was not a correctness problem, but it is a reminder that long-running `autoninja` sessions need occasional hard checkpoints rather than assuming the last visible progress line is current.
+
+### What I learned
+- For Chromium Ozone, "build both backends" and "default to one backend" are separate knobs.
+- That is exactly what we want here: one binary that can run `--ozone-platform=drm` for the real QEMU target and `--ozone-platform=headless` for fallback validation.
+
+### What was tricky to build
+- The tricky part was not the GN edit itself; it was validating the semantics from Chromium's own files instead of assuming that `ozone_platform = "drm"` would exclude headless entirely. `build/config/ozone.gni` made the distinction explicit and prevented a bad guess.
+- The other sharp edge was stopping the build cleanly. The session had much more buffered progress than the earlier short polls showed, so the interrupt only became visible after a large delayed flush.
+
+### What warrants a second pair of eyes
+- Once the restarted build finishes, we should confirm the resulting `content_shell` really accepts both runtime flags:
+  - `--ozone-platform=drm`
+  - `--ozone-platform=headless`
+- The eventual payload probe should also compare the runtime asset set for both modes, especially if headless ends up wanting fewer external files than the DRM path.
+
+### What should be done in the future
+- Restart `autoninja` from the regenerated `out/Phase4DRM`.
+- When artifacts exist, probe and stage the payload.
+- Use the same built binary for:
+  - direct DRM/Ozone testing in QEMU
+  - headless fallback testing if graphics debugging blocks progress
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/chromium/src/build/config/ozone.gni`
+  - `/home/manuel/chromium/src/build/args/headless.gn`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/configure_phase4_chromium_build.sh`
+- Validation commands:
+```text
+grep -n "ozone_platform_headless" /home/manuel/chromium/src/out/Phase4DRM/args.gn
+sed -n '1,120p' /home/manuel/chromium/src/build/config/ozone.gni
+```
+
+### Technical details
+- Current dual-backend Ozone settings:
+```text
+ozone_auto_platforms = false
+ozone_platform_drm = true
+ozone_platform_headless = true
+ozone_platform_wayland = false
+ozone_platform_x11 = false
+ozone_platform = "drm"
+```
