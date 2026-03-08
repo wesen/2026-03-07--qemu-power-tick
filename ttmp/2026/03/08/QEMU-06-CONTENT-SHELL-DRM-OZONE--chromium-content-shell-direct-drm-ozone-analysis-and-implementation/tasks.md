@@ -7,6 +7,7 @@
 - [x] Write the initial analysis/design/implementation guide for the direct DRM/Ozone `content_shell` phase.
 - [x] Start the new ticket diary and capture the initial design/setup step.
 - [x] Upload the initial QEMU-06 documentation bundle to reMarkable.
+- [x] Add a reproducible Chromium bootstrap helper and mirror it into the ticket `scripts/` folder before running the checkout.
 - [ ] Clone `depot_tools` and a Chromium source checkout because this machine does not currently have `gn`, `gclient`, or a usable Chromium tree.
 - [ ] Verify which Chromium target set we need first for this phase (`content_shell` plus required runtime assets and helpers).
 - [ ] Add phase-4 runtime files:

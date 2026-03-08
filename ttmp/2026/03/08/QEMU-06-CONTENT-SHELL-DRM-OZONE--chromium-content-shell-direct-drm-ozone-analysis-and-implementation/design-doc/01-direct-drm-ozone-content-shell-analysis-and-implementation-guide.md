@@ -16,6 +16,8 @@ RelatedFiles:
       Note: Current phase-3 rootfs builder used as the baseline to split out phase 4
     - Path: guest/chromium-wayland-launcher.sh
       Note: Existing Wayland launcher contrasted against the future DRM launcher
+    - Path: host/bootstrap_chromium_checkout.sh
+      Note: Reproducible bootstrap helper for the Chromium source/build prerequisite
     - Path: guest/init-phase3
       Note: Current phase-3 runtime flow that phase 4 deliberately avoids reusing in place
     - Path: guest/kms_pattern.c
@@ -258,6 +260,15 @@ Reason:
   - `v8_context_snapshot.bin`
   - locales
 - graphics runtime pieces needed by DRM/GBM/EGL path
+
+## Current Bootstrap Status
+
+The first real implementation slice established the Chromium bootstrap path:
+- `/home/manuel/depot_tools` now exists and cloned cleanly from the official `chromium/tools/depot_tools` remote
+- [host/bootstrap_chromium_checkout.sh](../../../../../../host/bootstrap_chromium_checkout.sh) provides the repeatable entry point for later sync reruns
+- the first `fetch --nohooks chromium` run already created `/home/manuel/chromium/.gclient`
+
+That means the ticket has moved past "missing local tooling" and into "long-running Chromium checkout/build execution." This distinction matters because it cleanly separates local setup bugs from remote sync latency and later build failures.
 - launcher env vars for Ozone DRM
 - no Weston packages in the minimal success path
 

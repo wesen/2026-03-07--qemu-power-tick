@@ -39,7 +39,9 @@ Current status:
 - initial intern-facing implementation guide written
 - implementation tasks defined
 - diary started
-- first implementation slice about to begin
+- guide uploaded to reMarkable
+- Chromium bootstrap helper added and mirrored into the ticket scripts archive
+- first live Chromium fetch started; solution config exists and `gclient sync` is in progress
 
 ## Key Links
 

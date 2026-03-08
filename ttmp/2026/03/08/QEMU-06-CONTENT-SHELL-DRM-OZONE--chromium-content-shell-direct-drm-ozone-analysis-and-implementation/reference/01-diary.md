@@ -18,6 +18,10 @@ RelatedFiles:
       Note: Current Wayland launcher contrasted against the planned direct DRM launcher
     - Path: guest/init-phase3
       Note: Phase-3 baseline reviewed during the initial design step
+    - Path: host/bootstrap_chromium_checkout.sh
+      Note: Reusable Chromium checkout bootstrap helper created in Step 2
+    - Path: ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/scripts/bootstrap_chromium_checkout.sh
+      Note: Ticket-local mirror of the bootstrap helper for review and reproduction
     - Path: ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/sources/local/01-drm-ozone.md
       Note: Imported direct DRM/Ozone research note that shaped the first diary step
 ExternalSources: []
@@ -26,6 +30,7 @@ LastUpdated: 2026-03-08T12:13:43.22501215-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Diary
@@ -137,4 +142,112 @@ guest/build-phase4-rootfs.sh
 guest/content-shell-drm-launcher.sh
 guest/run-qemu-phase4.sh
 guest/phase4-smoke.html
+```
+
+## Step 2: Bootstrap the Chromium Checkout Path and Start the Real Fetch
+
+The first hard blocker for this ticket is not a kernel or QEMU problem. It is build availability. The machine did not have `depot_tools`, `gclient`, `gn`, or any Chromium checkout, so the first implementation slice had to turn that absence into a repeatable bootstrap path instead of a one-off shell session.
+
+I treated this as a real implementation step rather than "just environment setup" because phase 4 depends on a custom Chromium payload, and if the checkout process is not scripted early then the diary and the ticket scripts stop being trustworthy. The result of this step is a reusable bootstrap helper, mirrored into the ticket, plus the first live Chromium fetch attempt.
+
+### Prompt Context
+
+**User prompt (verbatim):** "we will need to clone and build."
+
+**Assistant interpretation:** The user is confirming that the ticket should assume a real Chromium source checkout and build, not a distro or snap-provided browser payload.
+
+**Inferred user intent:** Make the Chromium source/bootstrap path an explicit early task and start executing it now instead of deferring it as a later surprise.
+
+### What I did
+- Added a reusable bootstrap helper at:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/bootstrap_chromium_checkout.sh`
+- Mirrored the helper into the ticket archive at:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/scripts/bootstrap_chromium_checkout.sh`
+- Confirmed enough local disk exists for a full Chromium tree:
+```text
+Filesystem                         Size  Used Avail Use% Mounted on
+/dev/mapper/ubuntu--vg-ubuntu--lv  1.8T  1.2T  578G  67% /
+```
+- Confirmed access to the `depot_tools` remote:
+```text
+4ce8ba39a3488397a2d1494f167020f21de502f3	HEAD
+```
+- Ran the bootstrap helper from the repo root:
+```text
+./host/bootstrap_chromium_checkout.sh
+```
+- Observed the bootstrap path progress through:
+  - `git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git /home/manuel/depot_tools`
+  - `fetch.py --nohooks chromium`
+  - `gclient config`
+  - `gclient sync --nohooks`
+- Verified that the first stable Chromium checkout state exists:
+```text
+/home/manuel/chromium/.gclient
+```
+
+### Why
+- Phase 4 needs a custom Chromium payload that the current repo does not have.
+- A scripted bootstrap path is much easier to review and repeat than ad hoc `fetch` and `gclient` commands hidden in shell history.
+- The ticket needed a concrete answer to "how are we actually going to get Chromium onto this machine?"
+
+### What worked
+- `depot_tools` cloned cleanly into `/home/manuel/depot_tools`.
+- The bootstrap helper is idempotent and can update `depot_tools` or resume an existing checkout later.
+- `fetch chromium` progressed far enough to create the Chromium solution config, so the machine is past the "missing toolchain" stage and into the "real checkout latency" stage.
+
+### What didn't work
+- The first Chromium fetch did not materialize `/home/manuel/chromium/src` immediately. The current bottleneck is the remote probe/sync stage against `https://chromium.googlesource.com/chromium/src.git`, which is much slower than the `depot_tools` clone.
+- While waiting, the active process tree looked like:
+```text
+git -c color.ui=never ls-remote --symref https://chromium.googlesource.com/chromium/src.git HEAD
+/usr/lib/git-core/git remote-https https://chromium.googlesource.com/chromium/src.git https://chromium.googlesource.com/chromium/src.git
+/usr/lib/git-core/git-remote-https https://chromium.googlesource.com/chromium/src.git https://chromium.googlesource.com/chromium/src.git
+```
+- So this step ended with a valid bootstrap path and an in-flight Chromium fetch, not a fully populated `src/` checkout yet.
+
+### What I learned
+- The machine setup risk is now much narrower than before: local disk and `depot_tools` are fine.
+- The first real external bottleneck is Chromium remote checkout latency, not local packaging or missing helper tooling.
+- Creating the helper before running the fetch was the right move because it turned the environment work into a reviewable artifact immediately.
+
+### What was tricky to build
+- The tricky part was distinguishing "scriptable setup" from "long-running remote sync." Those are different failure domains, and the ticket needs to preserve that difference. The helper had to be idempotent so later reruns do not turn into a second undocumented workflow once `/home/manuel/chromium` exists.
+- Another subtlety is that the first `fetch chromium` path is quiet for long stretches. Without checking the live process tree and the appearance of `.gclient`, it would have been too easy to misclassify the command as hung.
+
+### What warrants a second pair of eyes
+- The helper currently uses `fetch --nohooks chromium`, which is the conservative path. If the full checkout becomes too slow or too large for the workflow we want, it may be worth reviewing whether `--no-history` or a more constrained sync policy is acceptable for this ticket.
+- The next reviewer should check whether the intended direct-DRM targets really require the full Chrome tree, or whether the ticket should bias earlier toward a narrower `content_shell`-only development path once `src/` exists.
+
+### What should be done in the future
+- Let the first Chromium sync reach a real `src/` tree or rerun it with adjusted flags if the current remote probe remains the dominant blocker.
+- Once `src/` exists, verify the exact initial target set for phase 4.
+- Then create the phase-4 runtime file skeletons.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/bootstrap_chromium_checkout.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/scripts/bootstrap_chromium_checkout.sh`
+- Then review this step against the live checkout paths:
+  - `/home/manuel/depot_tools`
+  - `/home/manuel/chromium`
+- Validation commands:
+```text
+git ls-remote https://chromium.googlesource.com/chromium/tools/depot_tools.git HEAD
+ls -la /home/manuel/chromium
+ps -ef | rg 'fetch.py --nohooks chromium|gclient sync|chromium/src.git'
+```
+
+### Technical details
+- Bootstrap helper contract:
+```text
+DEPOT_TOOLS_DIR   default: $HOME/depot_tools
+CHECKOUT_DIR      default: $HOME/chromium
+FETCH_TARGET      default: chromium
+FETCH_FLAGS       default: --nohooks
+SYNC_FLAGS        default: --nohooks --with_branch_heads --with_tags
+```
+- First stable checkout marker from this step:
+```text
+/home/manuel/chromium/.gclient
 ```
