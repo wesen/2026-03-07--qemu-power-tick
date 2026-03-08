@@ -13,3 +13,5 @@
 - Added the first phase-4 runtime skeleton files: `init-phase4-drm`, `build-phase4-rootfs.sh`, `content-shell-drm-launcher.sh`, `run-qemu-phase4.sh`, and `phase4-smoke.html`.
 - Added `host/capture_phase4_smoke.py` and mirrored all new phase-4 helpers into the ticket `scripts/` folder.
 - Built a kms-only phase-4 initramfs and validated the no-Weston boot path with a successful `1280x800` QMP screenshot in `results-phase4-kms1/`.
+- Added `host/probe_phase4_chromium_payload.py` and mirrored it into the ticket `scripts/` folder.
+- Captured a baseline runtime probe in `results-phase4-runtime-probe1/probe.json`; current result is that host DRM/GBM/EGL prerequisites are present and the Chromium payload directory is still absent.

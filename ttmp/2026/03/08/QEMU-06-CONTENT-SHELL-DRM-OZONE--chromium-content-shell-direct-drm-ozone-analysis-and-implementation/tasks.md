@@ -19,7 +19,7 @@
 - [x] Reuse the existing direct KMS controls to validate the new phase-4 QEMU/device assumptions before adding Chromium.
 - [x] Add a phase-4 local HTML smoke page so the first `content_shell` test is file-backed, not network-backed.
 - [x] Add a phase-4 QMP smoke capture helper and mirror it into the ticket `scripts/` folder.
-- [ ] Add a phase-4 rootfs/runtime dependency probe for Chromium DRM assets (`content_shell`, `icudtl.dat`, `resources.pak`, locales, GBM/EGL/DRI pieces).
+- [x] Add a phase-4 rootfs/runtime dependency probe for Chromium DRM assets (`content_shell`, `icudtl.dat`, `resources.pak`, locales, GBM/EGL/DRI pieces).
 - [ ] Attempt the first direct DRM/Ozone `content_shell` boot with `virtio-gpu-pci` and `-vga none`.
 - [ ] Record the first failure mode or the first successful frame with screenshots, serial logs, and a diary step.
 - [ ] Add a minimal phase-4 suspend harness only after no-suspend rendering works.

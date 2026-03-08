@@ -44,6 +44,7 @@ Current status:
 - first live Chromium fetch started; solution config exists and `gclient sync` is in progress
 - phase-4 kms-only initramfs and runner created
 - first no-Weston phase-4 QMP smoke screenshot captured successfully at `1280x800`
+- phase-4 payload/runtime probe added; current baseline says host DRM runtime looks present and Chromium payload artifacts are still the missing piece
 
 ## Key Links
 

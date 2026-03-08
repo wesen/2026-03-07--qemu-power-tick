@@ -28,6 +28,8 @@ RelatedFiles:
       Note: Reusable Chromium checkout bootstrap helper created in Step 2
     - Path: host/capture_phase4_smoke.py
       Note: Phase-4 QMP smoke capture helper added in Step 3
+    - Path: host/probe_phase4_chromium_payload.py
+      Note: Phase-4 payload/runtime boundary probe added in Step 4
     - Path: ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/scripts/bootstrap_chromium_checkout.sh
       Note: Ticket-local mirror of the bootstrap helper for review and reproduction
     - Path: ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/sources/local/01-drm-ozone.md
@@ -38,6 +40,7 @@ LastUpdated: 2026-03-08T12:13:43.22501215-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -392,4 +395,100 @@ results-phase4-kms1/guest-serial.log
 ```text
 phase4_mode=kms-pattern
 phase4_mode=content-shell
+```
+
+## Step 4: Add a Payload Probe So the Chromium Failure Boundary Is Obvious
+
+After the kms-only phase-4 control succeeded, the next useful local task was not another boot attempt. It was a boundary tool: something that can tell us whether a future direct-DRM failure is because the Chromium payload is incomplete or because the system runtime is missing DRM/GBM prerequisites. Without that split, the first `content_shell` failure would be noisier than it needs to be.
+
+This step therefore adds a dedicated payload/runtime probe. Its first run is intentionally against an empty payload directory, because that baseline is still informative: it tells us which prerequisites already exist on the host and which artifacts still depend on the Chromium build finishing.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Continue working through the next useful implementation tasks while the Chromium checkout is still running.
+
+**Inferred user intent:** Use the waiting time to eliminate local ambiguity and leave the next direct-DRM Chromium failure mode easier to diagnose.
+
+### What I did
+- Added the probe helper:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/probe_phase4_chromium_payload.py`
+- Mirrored it into the ticket archive:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/scripts/probe_phase4_chromium_payload.py`
+- Ran the baseline probe against the intended payload location, allowing the payload to be absent for now:
+```text
+mkdir -p results-phase4-runtime-probe1
+./host/probe_phase4_chromium_payload.py \
+  --payload-dir build/phase4/chromium-direct \
+  --allow-missing-payload \
+  --output results-phase4-runtime-probe1/probe.json
+```
+- Recorded the baseline JSON result at:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-runtime-probe1/probe.json`
+
+### Why
+- The ticket needs a fast answer to "is the problem the Chromium payload or the runtime base?"
+- The rootfs builder will eventually need the exact Chromium artifact set, and a dedicated probe makes that contract explicit.
+- Running the probe before Chromium exists is still useful because it establishes the host graphics/runtime baseline now.
+
+### What worked
+- The probe correctly identified that the payload directory does not exist yet.
+- It also confirmed that the expected host-side runtime libraries already exist:
+```text
+/lib/x86_64-linux-gnu/libdrm.so.2
+/lib/x86_64-linux-gnu/libgbm.so.1
+/lib/x86_64-linux-gnu/libEGL.so.1
+/lib/x86_64-linux-gnu/libGLESv2.so.2
+/lib/x86_64-linux-gnu/libxkbcommon.so.0
+```
+- The probe also found populated DRI driver directories including `virtio_gpu_dri.so` and `swrast_dri.so`.
+
+### What didn't work
+- There is still no Chromium payload to validate, so every required browser artifact is currently missing:
+```text
+content_shell
+chrome_sandbox
+icudtl.dat
+resources.pak
+v8_context_snapshot.bin
+chrome_100_percent.pak
+chrome_200_percent.pak
+```
+- That is expected for now, but it means the next meaningful run of this tool depends on the Chromium checkout/build completing.
+
+### What I learned
+- The build gate is becoming cleaner: the host DRM runtime is not the first suspect anymore.
+- The first future `content_shell` failure should now be interpreted against this baseline. If the payload is present and the probe still passes on runtime libs, the investigation should move to launch flags or browser runtime behavior, not missing host graphics packages.
+
+### What was tricky to build
+- The tricky part was making the tool useful before the payload exists. That required an explicit `--allow-missing-payload` mode so the baseline can still be captured without turning the current state into a hard failure.
+- I also caught one small bug immediately: the first version serialized file-presence booleans as strings, which would have made downstream automation more awkward. That was fixed before the baseline run.
+
+### What warrants a second pair of eyes
+- The list of "required" payload files is a first-pass contract based on the imported note and the existing phase-3 packaging assumptions. Once the real Chromium build exists, this list should be checked against the actual `content_shell` output directory.
+- The probe currently checks common host runtime libraries and DRI directories, but it does not yet inspect a built rootfs image directly. That may be worth adding later if rootfs-only failures appear.
+
+### What should be done in the future
+- Re-run this probe against the real Chromium output directory once `content_shell` is built.
+- Fold its results into the phase-4 rootfs copy step so missing payload artifacts fail early and readably.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/probe_phase4_chromium_payload.py`
+- Then validate with:
+```text
+./host/probe_phase4_chromium_payload.py --payload-dir build/phase4/chromium-direct --allow-missing-payload --output results-phase4-runtime-probe1/probe.json
+cat results-phase4-runtime-probe1/probe.json
+```
+
+### Technical details
+- Current baseline conclusion:
+```text
+host DRM/GBM/EGL runtime looks present
+Chromium payload directory is still absent
+```
+- Probe output file:
+```text
+results-phase4-runtime-probe1/probe.json
 ```

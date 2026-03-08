@@ -20,6 +20,8 @@ RelatedFiles:
       Note: Reproducible bootstrap helper for the Chromium source/build prerequisite
     - Path: host/capture_phase4_smoke.py
       Note: First phase-4 QMP smoke capture helper for the no-Weston validation path
+    - Path: host/probe_phase4_chromium_payload.py
+      Note: Phase-4 payload/runtime probe for Chromium artifacts and DRM runtime prerequisites
     - Path: guest/init-phase3
       Note: Current phase-3 runtime flow that phase 4 deliberately avoids reusing in place
     - Path: guest/kms_pattern.c
@@ -297,6 +299,20 @@ Evidence from `results-phase4-kms1`:
   - `1280x800`
 
 This matters because it proves the new phase-4 branch is already a valid no-Weston KMS/QMP environment. The remaining big dependency is the Chromium payload itself.
+
+The new payload/runtime probe reinforces that split. Baseline output in `results-phase4-runtime-probe1/probe.json` currently shows:
+- required host runtime libraries present:
+  - `libdrm.so.2`
+  - `libgbm.so.1`
+  - `libEGL.so.1`
+  - `libGLESv2.so.2`
+  - `libxkbcommon.so.0`
+- DRI driver directories populated, including:
+  - `virtio_gpu_dri.so`
+  - `swrast_dri.so`
+- Chromium payload directory absent
+
+So the immediate gating item for the first real `content_shell` boot is no longer "is the host graphics runtime missing?" It is "finish the Chromium checkout/build and point phase 4 at a real payload directory."
 - launcher env vars for Ozone DRM
 - no Weston packages in the minimal success path
 
