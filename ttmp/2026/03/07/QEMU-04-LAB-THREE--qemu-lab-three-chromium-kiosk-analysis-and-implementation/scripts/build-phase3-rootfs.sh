@@ -38,7 +38,9 @@ dpkg-deb -x "$PKG_CACHE"/seatd_*_amd64.deb "$ROOTFS"
 cp "$SCRIPT_DIR/init-phase3" "$ROOTFS/init"
 cp "$SCRIPT_DIR/weston.ini" "$ROOTFS/etc/xdg/weston/weston.ini"
 cp "$SCRIPT_DIR/chromium-wayland-launcher.sh" "$ROOTFS/usr/bin/chromium-wayland-launcher"
-chmod +x "$ROOTFS/init" "$ROOTFS/usr/bin/chromium-wayland-launcher"
+"$SCRIPT_DIR/build-suspendctl.sh" "$BUILD_DIR" "$BUILD_DIR/suspendctl"
+cp "$BUILD_DIR/suspendctl" "$ROOTFS/usr/bin/suspendctl"
+chmod +x "$ROOTFS/init" "$ROOTFS/usr/bin/chromium-wayland-launcher" "$ROOTFS/usr/bin/suspendctl"
 
 cp -a /usr/share/X11/xkb "$ROOTFS/usr/share/X11/xkb"
 cp -a /etc/fonts "$ROOTFS/etc/fonts"
@@ -117,8 +119,10 @@ python3 "$REPO_ROOT/scripts/copy-runtime-deps.py" \
   --rootfs "$ROOTFS" \
   --ld-library-path "$ROOTFS/usr/lib/chromium-browser:$ROOTFS/usr/lib/x86_64-linux-gnu:$ROOTFS/usr/lib/x86_64-linux-gnu/weston" \
   --binary "$ROOTFS/usr/bin/weston" \
+  --binary "$ROOTFS/usr/bin/weston-simple-shm" \
   --binary "$ROOTFS/usr/sbin/seatd" \
   --binary "$ROOTFS/usr/bin/udevadm" \
+  --binary "$ROOTFS/usr/bin/suspendctl" \
   --binary "$ROOTFS/usr/lib/x86_64-linux-gnu/libweston-13/drm-backend.so" \
   --binary "$ROOTFS/usr/lib/x86_64-linux-gnu/weston/kiosk-shell.so" \
   --binary "$ROOTFS/usr/lib/chromium-browser/chrome" \

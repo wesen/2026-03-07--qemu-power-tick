@@ -522,3 +522,394 @@ Create a detailed analysis / and review guide that is very detailed for the brot
   - `results-phase3-checkpoints1/02-after-pointer.png`
   - `results-phase3-suspend2/guest-serial.log`
   - `results-phase3-suspend-freezer1/guest-serial.log`
+
+## Step 6: Narrowed The `devices` Resume Failure Further By Comparing Stage 2 And Rejecting A Plain `virtio-gpu-pci` Swap
+
+After the review document was written, I went back to the actual blocker: the stage-3 `pm_test=devices` continuity failure. This step was about getting a better negative result, not yet a final fix. I wanted to answer two questions cleanly:
+
+1. Is the resume noise just generic QEMU USB churn that was already present in stage 2?
+2. Could I sidestep the bad post-resume screen state by replacing `virtio-vga` with plain `virtio-gpu-pci`?
+
+The answers were useful:
+
+- Stage 2 does show the same xHCI/root-hub resume noise, but it does **not** show the stage-3-specific `virtio_gpu_dequeue_ctrl_func` DRM errors.
+- A plain `virtio-gpu-pci` swap is not a good immediate fix, because it lost the visible Chromium surface even in a normal non-suspend smoke run.
+
+So the strongest current interpretation is that the stage-3 regression is more likely tied to Chromium plus the stage-3 graphics stack on top of the shared QEMU resume noise, not to the shared xHCI behavior by itself.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Keep pushing on the main unresolved stage-3 blocker instead of stopping at the review document.
+
+**Inferred user intent:** Continue the stage-3 technical investigation and keep the diary current while doing it.
+
+**Commit (code):** Pending at this step
+
+### What I did
+- Compared the stage-2 `devices` resume log in `results-phase2-suspend6/guest-serial.log` against the stage-3 `devices` resume log in `results-phase3-suspend2/guest-serial.log`.
+- Verified:
+  - stage 2 has the xHCI/root-hub reset path too,
+  - stage 2 does not show the stage-3 `virtio_gpu_dequeue_ctrl_func` DRM errors.
+- Temporarily made the stage-3 QEMU GPU device selectable and tested `virtio-gpu-pci` in:
+  - `results-phase3-gpu-alt-smoke1`
+- Rejected that branch after the non-suspend smoke screenshot showed only the legacy firmware text screen instead of the Chromium page.
+- Reverted the temporary `virtio-gpu-pci` experiment hook to avoid leaving low-value debug scaffolding in the main script.
+
+### Why
+- Shared resume noise can lead to the wrong diagnosis if it is not compared against a known-good earlier stage.
+- A bad workaround is still useful if it rules out an attractive but incorrect direction quickly.
+
+### What worked
+- The stage-2 comparison gave a cleaner boundary:
+  - xHCI/root-hub resets are not new,
+  - stage-3-specific DRM errors are new.
+- The failed `virtio-gpu-pci` smoke test ruled out one plausible “easy fix” path quickly.
+
+### What didn't work
+- `virtio-gpu-pci` did not preserve normal visible rendering in `results-phase3-gpu-alt-smoke1`, so it is not a viable drop-in replacement for the current stage-3 workflow.
+
+### What I learned
+- The `devices` resume failure is more likely related to stage-3 graphics/client state than to shared USB resume noise alone.
+- The plain-GPU-device swap is not the right next fix path.
+
+### What was tricky to build
+- The temptation was to overread the shared xHCI errors as the root cause, but the stage-2 comparison showed that this would be too simplistic.
+- The GPU-device experiment had to be reverted once it stopped increasing confidence and started adding clutter.
+
+### What warrants a second pair of eyes
+- Whether the next best experiment is:
+  - gathering more post-resume Weston-side evidence,
+  - or trying to reduce Chromium’s graphics-path complexity with different browser flags.
+
+### What should be done in the future
+- Keep debugging the stage-3 `devices` path specifically.
+- Treat stage 2 as the “same QEMU base, simpler client” control case during further comparisons.
+
+### Code review instructions
+- Compare:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase2-suspend6/guest-serial.log`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-suspend2/guest-serial.log`
+- Inspect the failed GPU-device experiment screenshot:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-gpu-alt-smoke1/00-smoke.png`
+
+### Technical details
+- Stage-2 shared resume noise:
+  - xHCI reinit
+  - root hub reset
+- Stage-3 new resume signal:
+  - `virtio_gpu_dequeue_ctrl_func ... *ERROR* response 0x1203`
+
+## Step 7: Switched To Smaller Isolation Experiments And Discovered That My Debug Console Writes Were Polluting The Resume Investigation
+
+At this point the big “Chromium resume is broken” framing had become too coarse, so I switched to smaller experiments. The goal was to shrink the moving pieces until I could tell which failures were real and which ones I had accidentally introduced while gathering more logs. That produced a genuinely useful correction.
+
+I first extended the phase-3 rootfs so the same initramfs could launch either Chromium or `weston-simple-shm`. That let me test the same Weston, suspend helper, QEMU device model, and `pm_test=devices` flow without the browser. The first isolate run still showed the old `virtio_gpu_dequeue_ctrl_func` invalid-resource errors, but the pre-suspend screenshot was already wrong: it showed the firmware text plane instead of a Wayland surface. That was the clue that the latest debug instrumentation itself might be interfering with the display path.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 6)
+
+**Assistant interpretation:** Keep debugging the unresolved stage-3 `pm_test=devices` path, but use more targeted experiments rather than repeatedly rerunning the full Chromium case.
+
+**Inferred user intent:** Reduce uncertainty around the display-resume failure by isolating variables and preserving the investigation trail.
+
+**Commit (code):** Pending at this step
+
+### What I did
+- Added a phase-3 client selector to:
+  - [guest/init-phase3](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase3)
+  - [guest/build-phase3-rootfs.sh](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-phase3-rootfs.sh)
+- Mirrored the updated scripts into the stage-3 ticket script archive:
+  - [scripts/init-phase3](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/scripts/init-phase3)
+  - [scripts/build-phase3-rootfs.sh](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/scripts/build-phase3-rootfs.sh)
+- Rebuilt the phase-3 initramfs and ran a `pm_test=devices` isolate with:
+  - `phase3_client=weston-simple-shm`
+  - results in `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-westonshm-devices1`
+- Observed in that first isolate:
+  - the pre-suspend screenshot was already stuck on the boot-text plane,
+  - the post-resume screenshot was also the boot-text plane,
+  - the old `virtio_gpu_dequeue_ctrl_func ... response 0x1203` errors still appeared.
+- Identified the most suspicious new variable: I had recently added `tail -f /var/log/weston.log >/dev/console`, which continuously wrote text to the DRM console while Weston owned the display.
+- Removed that continuous Weston-log tail from [guest/init-phase3](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase3), rebuilt again, and reran the same isolate in:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-westonshm-devices2`
+- Observed in the cleaned isolate:
+  - the pre-suspend screenshot became a quiet black framebuffer rather than the firmware text plane,
+  - the post-resume screenshot still fell back to the firmware text plane,
+  - the `virtio_gpu_dequeue_ctrl_func` invalid-resource errors disappeared from the serial log.
+- Started a fresh Chromium rerun on the cleaned initramfs in `results-phase3-suspend6`, but the user intentionally interrupted the turn before that capture finished, so I did not treat it as valid evidence.
+
+### Why
+- The earlier experiments had too many changing variables at once:
+  - Chromium,
+  - Weston,
+  - suspend timing,
+  - additional debug logging,
+  - and the framebuffer capture path.
+- A smaller control experiment was necessary to separate a real resume bug from self-inflicted instrumentation noise.
+
+### What worked
+- The client-selector change made it possible to reuse the same phase-3 rootfs and suspend path for a minimal control client.
+- The first `weston-simple-shm` isolate exposed that the display was already in a bad state before resume, which made the investigation much more honest.
+- Removing the continuous Weston-log tail removed the `virtio_gpu` invalid-resource errors in the control run, which means those errors were at least partly caused by the debug instrumentation.
+
+### What didn't work
+- `weston-simple-shm` did not immediately give a nice known-good visible scene in the phase-3 capture harness, so it was not a perfect visual control.
+- The cleaned `weston-simple-shm` run still did not preserve display continuity through `pm_test=devices`; it only removed the extra DRM error noise.
+- The Chromium confirmation rerun was aborted by user interruption, so there is not yet a corresponding cleaned Chromium dataset.
+
+### What I learned
+- Yes, smaller experiments make sense here; this step produced more useful information than another blind full-stack rerun.
+- The earlier `virtio_gpu_dequeue_ctrl_func ... response 0x1203` signal was not a pure app or compositor symptom. My own continuous `/dev/console` writes were contaminating the resume path.
+- There is still a real continuity problem after `pm_test=devices`, but it is narrower than before:
+  - one layer was instrumentation-induced,
+  - another layer is still a genuine display restoration failure.
+- This means the stage-3 investigation should now focus on the display handoff / console / scanout state after resume, not on Chromium first.
+
+### What was tricky to build
+- The hardest part was noticing that better logging had become worse logging. The `tail -f /var/log/weston.log` change looked harmless because it only touched observability, but it introduced a second actor writing to the same display stack being investigated.
+- The first isolate run was easy to misread as “the same bug without Chromium,” when the pre-suspend screenshot was already telling a more important story: the capture path had been dirtied before the suspend cycle even began.
+
+### What warrants a second pair of eyes
+- Whether `weston-simple-shm` is the right long-term control client for stage-3 display debugging, or whether a purpose-built fullscreen shm test client would be better.
+- Whether the remaining post-resume fallback to the firmware text plane is best explained by fbcon reasserting itself, Weston losing scanout ownership, or the display never being repainted after resume.
+
+### What should be done in the future
+- Re-run the cleaned Chromium `pm_test=devices` case and compare it directly to `results-phase3-westonshm-devices2`.
+- Prefer smaller controls before adding more logging or more browser flags.
+- Keep `/dev/console` logging minimal during graphics-resume experiments.
+
+### Code review instructions
+- Review the control-client hook in:
+  - [guest/init-phase3](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase3)
+  - [guest/build-phase3-rootfs.sh](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-phase3-rootfs.sh)
+- Inspect the before/after isolate artifacts:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-westonshm-devices1/00-pre.png`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-westonshm-devices1/01-post.png`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-westonshm-devices2/00-pre.png`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-westonshm-devices2/01-post.png`
+- Compare the serial logs:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-westonshm-devices1/guest-serial.log`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-westonshm-devices2/guest-serial.log`
+- Reproduce the cleaned control run:
+  - `bash guest/build-phase3-rootfs.sh build build/initramfs-phase3.img`
+  - `bash guest/run-qemu-phase3.sh --kernel build/vmlinuz --initramfs build/initramfs-phase3.img --results-dir results-phase3-westonshm-devices2 --append-extra 'phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices'`
+  - `python3 host/capture_phase3_suspend_checkpoints.py --socket results-phase3-westonshm-devices2/qmp.sock --serial-log results-phase3-westonshm-devices2/guest-serial.log --results-dir results-phase3-westonshm-devices2 --pre-name 00-pre --post-name 01-post`
+
+### Technical details
+- `results-phase3-westonshm-devices1`:
+  - pre-suspend screenshot: firmware text plane
+  - post-resume screenshot: firmware text plane
+  - serial log includes:
+    - `virtio_gpu_dequeue_ctrl_func ... *ERROR* response 0x1203 (command 0x105)`
+    - `virtio_gpu_dequeue_ctrl_func ... *ERROR* response 0x1203 (command 0x104)`
+- `results-phase3-westonshm-devices2`:
+  - pre-suspend screenshot: black framebuffer
+  - post-resume screenshot: firmware text plane
+  - serial log does **not** show the earlier `virtio_gpu_dequeue_ctrl_func` errors
+  - serial log still shows the xHCI resume/reset path
+  - image difference metric from the checkpoint harness: `AE=3647`
+- Interrupted follow-up:
+  - a cleaned Chromium rerun was started in `results-phase3-suspend6`
+  - the user intentionally interrupted the turn before the run completed, so that dataset needs to be treated as partial and re-run cleanly.
+
+## Step 8: Ran A Real Stage-2 Control And Found The Same `devices` Visual Fallback Pattern In The Simpler Stack
+
+After the stage-3 control isolate, I went back and did the control test the right way: rebuild the current phase-2 image with the actual suspend-driving client binary present, then run the same `pm_test=devices` cycle and capture pre/post screenshots. This was important because the first attempt accidentally booted only `weston-simple-shm` without the suspend-driving `wl_sleepdemo`, which meant the guest never actually entered the suspend path.
+
+The corrected control run was much more informative. It showed the same overall display pattern as the cleaned stage-3 control run:
+- pre-suspend screenshot: black framebuffer
+- post-resume screenshot: firmware text plane
+- xHCI resume/reset noise in the log
+- no `virtio_gpu_dequeue_ctrl_func` invalid-resource errors
+
+That means the remaining issue is probably not stage-3-specific anymore. Once the noisy debug instrumentation was removed, the surviving `devices` problem looks shared between the simpler phase-2 stack and the phase-3 stack.
+
+### Prompt Context
+
+**User prompt (verbatim):** "do the control test, then advise and continue. keep a diary sa you work"
+
+**Assistant interpretation:** Run the proposed control experiment instead of reasoning abstractly, preserve the exact outcome in the diary, then use it to decide the next debugging direction.
+
+**Inferred user intent:** Replace guesswork with a concrete control result and keep the investigation state explicit enough that later steps build on evidence instead of memory.
+
+**Commit (code):** Pending at this step
+
+### What I did
+- Rebuilt the phase-2 initramfs once with the default settings and discovered the first control run was invalid because the rootfs did not contain `/bin/wl_sleepdemo`.
+- Verified in [guest/init-phase2](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase2) that suspend only runs through `/bin/wl_sleepdemo` when present.
+- Rebuilt the phase-2 rootfs correctly with:
+  - `bash guest/build-wl-sleepdemo.sh build build/wl_sleepdemo`
+  - `bash guest/build-phase2-rootfs.sh build build/initramfs-phase2.img build/wl_sleepdemo`
+- Ran the corrected control in:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase2-control-devices2`
+- Captured:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase2-control-devices2/00-pre.png`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase2-control-devices2/01-post.png`
+- Compared the phase-2 control directly against the cleaned stage-3 control:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-westonshm-devices2`
+
+### Why
+- The stage-3 control result was pointing toward a shared base-layer issue, but without a current-tree phase-2 confirmation that was still an inference.
+- A current phase-2 control removes a lot of ambiguity because it uses the simpler app stack on the same QEMU/Weston/suspend base.
+
+### What worked
+- The corrected phase-2 control entered suspend and resumed cleanly.
+- The phase-2 serial log showed healthy suspend metrics:
+  - `sleep_duration=5753 ms`
+  - `suspend_resume_gap=5753 ms`
+  - `resume_to_redraw=4 ms`
+- The phase-2 control did **not** show the earlier stage-3-only-looking `virtio_gpu_dequeue_ctrl_func` errors.
+- The visual result matched the cleaned stage-3 control closely enough to change the diagnosis.
+
+### What didn't work
+- The first phase-2 control attempt was invalid because the image did not include `wl_sleepdemo`, so the test never exercised suspend.
+- The corrected phase-2 control still did not preserve visible framebuffer continuity in the screenshot harness, despite the app-level redraw metric saying the client repainted.
+
+### What I learned
+- The surviving `devices` display problem is likely a shared base issue, not a Chromium problem and not even obviously a phase-3 problem.
+- The earlier `virtio_gpu` invalid-resource errors were a misleading extra signal caused by my debug logging, not the core issue.
+- The fact that phase 2 reports `resume_to_redraw=4 ms` while the post-resume screenshot still shows the firmware text plane is strong evidence that the client/compositor may be alive while scanout or console ownership is wrong after resume.
+
+### What was tricky to build
+- The phase-2 control had a hidden footgun: the default init path only becomes the suspend-driving path if `/bin/wl_sleepdemo` exists in the rootfs. Without checking that branch explicitly, it was easy to think the first run was a valid control when it was not.
+- The app-level metrics and the screenshot-level evidence now disagree in an important way, which is exactly the kind of partial-truth situation that can waste time if it is not written down carefully.
+
+### What warrants a second pair of eyes
+- Whether QEMU `screendump` after `pm_test=devices` is observing the wrong plane or a fallback fbcon plane rather than Weston’s intended scanout.
+- Whether the next best proof is a cleaned stage-3 Chromium rerun or a lower-level scanout/DRM/fbcon ownership probe after resume.
+
+### What should be done in the future
+- Re-run the cleaned stage-3 Chromium `pm_test=devices` case now that the phase-2 control suggests a shared base issue.
+- Shift the investigation away from “Chromium resume is broken” and toward “what owns visible scanout after `devices` resume?”
+- If needed, add a more direct post-resume ownership probe rather than relying only on screenshots.
+
+### Code review instructions
+- Review the phase-2 control launch condition in:
+  - [guest/init-phase2](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase2)
+  - [guest/build-phase2-rootfs.sh](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-phase2-rootfs.sh)
+- Inspect the corrected control artifacts:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase2-control-devices2/00-pre.png`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase2-control-devices2/01-post.png`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase2-control-devices2/guest-serial.log`
+- Compare against the cleaned stage-3 control:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-westonshm-devices2/00-pre.png`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-westonshm-devices2/01-post.png`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-westonshm-devices2/guest-serial.log`
+
+### Technical details
+- Invalid first control:
+  - `results-phase2-control-devices1`
+  - rootfs lacked `/bin/wl_sleepdemo`
+  - no suspend cycle occurred
+- Corrected control:
+  - `results-phase2-control-devices2`
+  - metrics:
+    - `sleep_duration=5753 ms`
+    - `suspend_resume_gap=5753 ms`
+    - `resume_to_redraw=4 ms`
+  - visual diff metric:
+    - `AE=3657`
+- Shared surviving pattern between:
+  - `results-phase2-control-devices2`
+  - `results-phase3-westonshm-devices2`
+  is:
+  - pre-suspend black framebuffer
+  - post-resume firmware text plane
+  - xHCI resume/reset messages
+  - no `virtio_gpu_dequeue_ctrl_func` invalid-resource errors
+
+## Step 9: Re-Ran Cleaned Stage 3 With Chromium And Confirmed A Two-Layer Failure Instead Of One
+
+The stage-2 control narrowed the problem, but it did not eliminate stage-3-specific behavior. So I ran one cleaned stage-3 Chromium `pm_test=devices` validation on the same initramfs that had already removed the self-inflicted Weston log tail. That was the right next step because it could tell me whether Chromium still brought back the extra DRM failure signal or whether the control and stage-3 paths had fully converged.
+
+They did not fully converge. The cleaned Chromium run matched the controls at the screenshot level, but it also restored the `virtio_gpu_dequeue_ctrl_func` invalid-resource errors. So the current model is no longer “one mysterious stage-3 failure.” It is:
+- one shared `devices`-resume visual fallback that also appears in the simpler phase-2 and phase-3 control runs
+- plus one extra Chromium-associated DRM/resource failure signal on top of that
+
+### Prompt Context
+
+**User prompt (verbatim):** (see Step 8)
+
+**Assistant interpretation:** After the control result, verify whether cleaned stage 3 still behaves differently from the controls, instead of assuming the control fully explained the stage-3 failure.
+
+**Inferred user intent:** Use the control to reduce uncertainty, then keep going until the remaining difference is explicit.
+
+**Commit (code):** Pending at this step
+
+### What I did
+- Re-ran cleaned stage 3 in:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-suspend7`
+- Used the same deterministic test page and the same suspend checkpoint harness shape as earlier stage-3 runs.
+- Captured:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-suspend7/00-pre.png`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-suspend7/01-post.png`
+- Compared the result against:
+  - `results-phase2-control-devices2`
+  - `results-phase3-westonshm-devices2`
+
+### Why
+- The phase-2 control strongly suggested a shared base-layer issue, but it did not answer whether Chromium still added its own failure mode.
+- A cleaned Chromium rerun was required to avoid overcorrecting from “Chromium is the whole problem” to “Chromium is irrelevant.”
+
+### What worked
+- The run completed cleanly enough to provide a usable comparison dataset.
+- The screenshot-level behavior matched the controls:
+  - pre-suspend black framebuffer
+  - post-resume firmware text plane
+- The serial log still emitted valid suspend metrics:
+  - `sleep_duration=5759 ms`
+  - `suspend_resume_gap=5759 ms`
+
+### What didn't work
+- The cleaned Chromium run still restored the `virtio_gpu_dequeue_ctrl_func ... response 0x1203` errors:
+  - command `0x105`
+  - command `0x104`
+- So removing the debug log tail was not sufficient to make stage 3 fully match the simpler controls.
+
+### What I learned
+- The phase-2 control was worth doing because it separated two problems that had been conflated:
+  - shared base-layer visual fallback after `pm_test=devices`
+  - Chromium-associated DRM resource errors on top of that base issue
+- The remaining stage-3-specific question is now much narrower:
+  - what is Chromium doing to the Weston/DRM path that causes the invalid-resource responses after resume?
+- The right next experiments should now be smaller Chromium-focused controls, not more generic suspend reruns.
+
+### What was tricky to build
+- The danger after the phase-2 control was overgeneralizing from it. The cleaned Chromium rerun was necessary specifically to avoid collapsing two separate problems into one simplified narrative.
+- The screenshot artifacts alone were not enough; the serial log remained necessary because the visual behavior matched the controls while the DRM error signature did not.
+
+### What warrants a second pair of eyes
+- Whether Chromium’s Wayland client path is causing a different class of buffer/resource reuse on resume than `wl_sleepdemo` or `weston-simple-shm`.
+- Whether the next control should target Chromium’s rendering path specifically:
+  - simpler browser content,
+  - different launch flags,
+  - or forcing a different client-side buffer behavior.
+
+### What should be done in the future
+- Keep the shared base-layer display fallback as one track of investigation.
+- Start a second, smaller track for Chromium-specific post-resume DRM errors.
+- Avoid treating either track as the full explanation by itself.
+
+### Code review instructions
+- Inspect the cleaned Chromium artifacts:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-suspend7/00-pre.png`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-suspend7/01-post.png`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-suspend7/guest-serial.log`
+- Compare those against the control runs:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase2-control-devices2/guest-serial.log`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-westonshm-devices2/guest-serial.log`
+
+### Technical details
+- `results-phase3-suspend7`:
+  - visual diff metric: `AE=3647`
+  - metrics:
+    - `sleep_duration=5759 ms`
+    - `suspend_resume_gap=5759 ms`
+  - serial log includes:
+    - `virtio_gpu_dequeue_ctrl_func ... *ERROR* response 0x1203 (command 0x105)`
+    - `virtio_gpu_dequeue_ctrl_func ... *ERROR* response 0x1203 (command 0x104)`
+- Comparison result:
+  - screenshot behavior is shared with the controls
+  - extra DRM invalid-resource errors are still Chromium-associated

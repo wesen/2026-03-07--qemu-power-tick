@@ -84,39 +84,86 @@ fi
 
 build_browser_args() {
   URL=about:blank
+  CLIENT=chromium
   RUNTIME_SECONDS=
+  SUSPEND_DELAY_SECONDS=
+  WAKE_SECONDS=
+  PM_TEST=
+  NO_SUSPEND=
 
   for arg in $(cat /proc/cmdline); do
     case "$arg" in
+      phase3_client=*) CLIENT=${arg#phase3_client=} ;;
       phase3_url=*) URL=${arg#phase3_url=} ;;
       phase3_runtime_seconds=*) RUNTIME_SECONDS=${arg#phase3_runtime_seconds=} ;;
+      phase3_suspend_delay_seconds=*) SUSPEND_DELAY_SECONDS=${arg#phase3_suspend_delay_seconds=} ;;
+      phase3_wake_seconds=*) WAKE_SECONDS=${arg#phase3_wake_seconds=} ;;
+      phase3_pm_test=*) PM_TEST=${arg#phase3_pm_test=} ;;
+      phase3_no_suspend=1) NO_SUSPEND=1 ;;
     esac
   done
 
-  echo "$URL|$RUNTIME_SECONDS"
+  echo "$CLIENT|$URL|$RUNTIME_SECONDS|$SUSPEND_DELAY_SECONDS|$WAKE_SECONDS|$PM_TEST|$NO_SUSPEND"
 }
 
 CONFIG=$(build_browser_args)
-URL=${CONFIG%|*}
-RUNTIME_SECONDS=${CONFIG#*|}
+CLIENT=${CONFIG%%|*}
+REST=${CONFIG#*|}
+URL=${REST%%|*}
+REST=${REST#*|}
+RUNTIME_SECONDS=${REST%%|*}
+REST=${REST#*|}
+SUSPEND_DELAY_SECONDS=${REST%%|*}
+REST=${REST#*|}
+WAKE_SECONDS=${REST%%|*}
+REST=${REST#*|}
+PM_TEST=${REST%%|*}
+NO_SUSPEND=${REST#*|}
 
 echo "[init-phase3] wayland ready" >/dev/console
 sed -n '1,160p' /var/log/weston.log >/dev/console 2>&1 || true
-echo "[init-phase3] launching chromium url=$URL runtime=$RUNTIME_SECONDS" >/dev/console
+echo "[init-phase3] launching client=$CLIENT url=$URL runtime=$RUNTIME_SECONDS suspend_delay=$SUSPEND_DELAY_SECONDS wake=$WAKE_SECONDS pm_test=$PM_TEST no_suspend=$NO_SUSPEND" >/dev/console
 
-/usr/bin/chromium-wayland-launcher "$URL" >/var/log/chromium.log 2>&1 &
-CHROMIUM_PID=$!
-echo "[init-phase3] chromium pid=$CHROMIUM_PID" >/dev/console
-tail -f /var/log/chromium.log >/dev/console 2>&1 &
+APP_LOG=
+case "$CLIENT" in
+  chromium)
+    APP_LOG=/var/log/chromium.log
+    /usr/bin/chromium-wayland-launcher "$URL" >"$APP_LOG" 2>&1 &
+    ;;
+  weston-simple-shm)
+    APP_LOG=/var/log/weston-simple-shm.log
+    /usr/bin/weston-simple-shm >"$APP_LOG" 2>&1 &
+    ;;
+  *)
+    echo "[init-phase3] unknown phase3_client=$CLIENT" >/dev/console
+    poweroff -f
+    ;;
+esac
+APP_PID=$!
+echo "[init-phase3] app pid=$APP_PID client=$CLIENT" >/dev/console
+[ -n "$APP_LOG" ] && tail -f "$APP_LOG" >/dev/console 2>&1 &
+
+if [ -n "${SUSPEND_DELAY_SECONDS:-}" ]; then
+  SUSPEND_ARGS="--delay-seconds $SUSPEND_DELAY_SECONDS"
+  [ -n "${WAKE_SECONDS:-}" ] && SUSPEND_ARGS="$SUSPEND_ARGS --wake-seconds $WAKE_SECONDS"
+  [ -n "${PM_TEST:-}" ] && SUSPEND_ARGS="$SUSPEND_ARGS --pm-test $PM_TEST"
+  [ -n "${NO_SUSPEND:-}" ] && SUSPEND_ARGS="$SUSPEND_ARGS --no-suspend"
+  echo "[init-phase3] scheduling suspend args=$SUSPEND_ARGS" >/dev/console
+  /usr/bin/suspendctl $SUSPEND_ARGS >/dev/console 2>&1 &
+  SUSPEND_PID=$!
+else
+  SUSPEND_PID=
+fi
 
 if [ -n "$RUNTIME_SECONDS" ]; then
   (
     sleep "$RUNTIME_SECONDS"
-    echo "[init-phase3] runtime limit reached, terminating chromium" >/dev/console
-    kill "$CHROMIUM_PID" 2>/dev/null || true
+    echo "[init-phase3] runtime limit reached, terminating client=$CLIENT" >/dev/console
+    kill "$APP_PID" 2>/dev/null || true
   ) &
 fi
 
-wait "$CHROMIUM_PID" || true
-echo "[init-phase3] chromium exited" >/dev/console
+wait "$APP_PID" || true
+[ -n "${SUSPEND_PID:-}" ] && wait "$SUSPEND_PID" || true
+echo "[init-phase3] client exited client=$CLIENT" >/dev/console
 poweroff -f

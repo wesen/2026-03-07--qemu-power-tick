@@ -119,6 +119,7 @@ python3 "$REPO_ROOT/scripts/copy-runtime-deps.py" \
   --rootfs "$ROOTFS" \
   --ld-library-path "$ROOTFS/usr/lib/chromium-browser:$ROOTFS/usr/lib/x86_64-linux-gnu:$ROOTFS/usr/lib/x86_64-linux-gnu/weston" \
   --binary "$ROOTFS/usr/bin/weston" \
+  --binary "$ROOTFS/usr/bin/weston-simple-shm" \
   --binary "$ROOTFS/usr/sbin/seatd" \
   --binary "$ROOTFS/usr/bin/udevadm" \
   --binary "$ROOTFS/usr/bin/suspendctl" \

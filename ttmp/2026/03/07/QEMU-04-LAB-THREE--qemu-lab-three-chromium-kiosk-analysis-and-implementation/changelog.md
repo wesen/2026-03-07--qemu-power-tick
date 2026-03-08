@@ -21,3 +21,8 @@
   - `pm_test=freezer` preserves the Chromium surface (`results-phase3-suspend-freezer1`)
   - `pm_test=devices` records good suspend metrics but loses visible display continuity after resume (`results-phase3-suspend2`, `results-phase3-suspend4`)
 - Added a detailed stage-3 postmortem review doc assessing the result quality, process quality, struggles, and recommended next steps.
+- Compared the stage-2 and stage-3 `pm_test=devices` resume logs and narrowed the new regression to stage-3-specific virtio-gpu / Chromium interaction rather than generic xHCI resume noise.
+- Switched to smaller stage-3 control experiments by making the phase-3 rootfs launch either Chromium or `weston-simple-shm`, then discovered that continuous Weston-log writes to `/dev/console` were polluting the graphics-resume investigation.
+- Cleaned the phase-3 debug path by removing the continuous Weston-log tail, which removed the earlier `virtio_gpu_dequeue_ctrl_func` invalid-resource errors in the `weston-simple-shm` `pm_test=devices` isolate while leaving a narrower display-continuity failure to investigate.
+- Ran a corrected current-tree phase-2 `pm_test=devices` control with `wl_sleepdemo` present in the rootfs and found the same surviving post-resume visual fallback pattern as the cleaned stage-3 control, shifting the remaining diagnosis toward a shared scanout/console ownership issue.
+- Re-ran cleaned stage 3 with Chromium and confirmed that the screenshot-level post-resume fallback matches the simpler controls, but Chromium still reintroduces the `virtio_gpu_dequeue_ctrl_func` invalid-resource errors, splitting the investigation into a shared base-layer display issue plus a narrower Chromium-associated DRM issue.
