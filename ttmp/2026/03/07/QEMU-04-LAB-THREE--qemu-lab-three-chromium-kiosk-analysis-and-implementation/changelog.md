@@ -20,3 +20,4 @@
 - Verified stage-3 suspend metrics and continuity split:
   - `pm_test=freezer` preserves the Chromium surface (`results-phase3-suspend-freezer1`)
   - `pm_test=devices` records good suspend metrics but loses visible display continuity after resume (`results-phase3-suspend2`, `results-phase3-suspend4`)
+- Added a detailed stage-3 postmortem review doc assessing the result quality, process quality, struggles, and recommended next steps.

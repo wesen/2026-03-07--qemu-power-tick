@@ -113,7 +113,7 @@ This step had one useful failure before the success. My first phase-3 image was 
 
 **Inferred user intent:** Produce concrete forward progress on Chromium itself, not just planning.
 
-**Commit (code):** Pending at this step
+**Commit (code):** `6c2b1c0` `Validate stage 3 chromium input`
 
 ### What I did
 - Added:
@@ -223,7 +223,7 @@ That gave me a clean visual proof path. The first manual run showed the concept 
 
 **Inferred user intent:** Push through the next browser milestone, but keep it reproducible enough that later review and reporting stay easy.
 
-**Commit (code):** Pending at this step
+**Commit (code):** `1ce649c` `Add stage 3 suspend plumbing`
 
 ### What I did
 - Generated a deterministic stage-3 browser page as a `data:` URL.
@@ -439,3 +439,86 @@ That distinction matters. It means the stage-3 suspend plumbing itself is real a
   - stage-3 continuity passes for `freezer`,
   - stage-3 continuity remains open for `devices`,
   - the best current root-cause lead is a virtio-gpu / DRM resume failure in the `devices` path.
+
+## Step 5: Wrote A Stage-3 Postmortem And Review Guide Based On The Diary, Git History, And Current Code
+
+After the latest stage-3 implementation slice, I stopped to assess the quality of the work itself instead of just continuing to push features. The goal of this step was to answer a different question: not “what changed?” but “how good is the result, where is it strong, where is it still weak, and what should the next engineer understand before taking over?”
+
+I based the review on the existing stage-3 diary, the stage-3 commit history, the current guest and host helper files, and the result logs from the successful and failing runs. That matters because a postmortem written from memory would be much less useful than one anchored to the exact artifacts the next engineer will inspect.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, so far your little brother I think has been doing quite good. Look at his diaries and his process and progress (you can use git too), and write a postmortem analysis of the quality of the result (for all I know it could be complete garbage), and analyze where they struggled on their way, what they did well, what they could improve, what we could improv eein the lab.
+
+Create a detailed analysis / and review guide that is very detailed for the brother, explaining all the parts of the system needed to understand what it is, with prose paragraphs and bullet point sand pseudocode and diagrams and api references and file
+  references.
+  It should be very clear and detailed. Store in the ticket and the nupload to remarkable."
+
+**Assistant interpretation:** Write an evidence-based postmortem and review guide for the current stage-3 work, store it in the ticket, and deliver it through the documentation pipeline.
+
+**Inferred user intent:** Assess the quality of the stage-3 result honestly and leave the next engineer with a clear mental model, a list of strengths and weaknesses, and a practical review/onboarding document.
+
+**Commit (code):** Pending at this step
+
+### What I did
+- Reviewed:
+  - the stage-3 diary
+  - the stage-3 guide
+  - the stage-3 tasks and changelog
+  - the stage-3 commit history
+  - the current guest/host implementation files
+  - the result logs and screenshots from successful and failing runs
+- Added:
+  - [design/02-stage-3-postmortem-and-review-guide.md](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/design/02-stage-3-postmortem-and-review-guide.md)
+- Updated:
+  - [index.md](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/index.md)
+  - [changelog.md](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/changelog.md)
+
+### Why
+- The engineering work had reached the point where another person could plausibly take over, so a quality review becomes almost as important as the next code change.
+- The ticket already had strong evidence, which made it possible to produce a real postmortem instead of vague praise or generic criticism.
+
+### What worked
+- The existing diary and result artifacts were good enough to support a real postmortem.
+- Git history was coherent enough to reconstruct the three main implementation milestones.
+- The review could be anchored to concrete files and logs rather than general impressions.
+
+### What didn't work
+- The diary’s commit bookkeeping had drifted, which reduced traceability and became one of the explicit review findings.
+
+### What I learned
+- The stage-3 work is materially better than a superficial look might suggest because the strongest value is in the evidence and validation quality, not just the visible Chromium screenshot.
+- The main unresolved weakness is clear and concrete rather than vague: device-level graphics continuity on resume.
+
+### What was tricky to build
+- The hardest part of this review was separating “incomplete” from “bad.” The work is not complete, but a lot of the underlying engineering choices were still good and worth preserving.
+
+### What warrants a second pair of eyes
+- Whether the review is too generous or too harsh on the shell-heavy orchestration layer.
+- Whether the diary commit-drift should be corrected immediately or left as part of the historical record and fixed in a later cleanup pass.
+
+### What should be done in the future
+- Commit this review document and ticket update.
+- Upload the stage-3 review bundle to reMarkable.
+
+### Code review instructions
+- Start with:
+  - [design/02-stage-3-postmortem-and-review-guide.md](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/design/02-stage-3-postmortem-and-review-guide.md)
+  - [reference/01-diary.md](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/reference/01-diary.md)
+- Reconstruct milestones with:
+  - `git log --oneline --max-count=10`
+  - `nl -ba guest/init-phase3 | sed -n '1,240p'`
+  - `nl -ba guest/build-phase3-rootfs.sh | sed -n '1,220p'`
+  - `nl -ba results-phase3-suspend2/guest-serial.log | sed -n '612,623p'`
+
+### Technical details
+- Stage-3 commits reviewed:
+  - `b88e9d9`
+  - `6c2b1c0`
+  - `1ce649c`
+- Key evidence files reviewed:
+  - `results-phase3-smoke3/01-stage3.png`
+  - `results-phase3-checkpoints1/01-after-keyboard.png`
+  - `results-phase3-checkpoints1/02-after-pointer.png`
+  - `results-phase3-suspend2/guest-serial.log`
+  - `results-phase3-suspend-freezer1/guest-serial.log`

@@ -29,6 +29,7 @@ The first active engineering risk is packaging. On this host, `chromium-browser`
 ## Key Links
 
 - **Primary guide**: [design/01-stage-3-chromium-kiosk-guide.md](./design/01-stage-3-chromium-kiosk-guide.md)
+- **Postmortem review**: [design/02-stage-3-postmortem-and-review-guide.md](./design/02-stage-3-postmortem-and-review-guide.md)
 - **Diary**: [reference/01-diary.md](./reference/01-diary.md)
 - **Tasks**: [tasks.md](./tasks.md)
 - **Imported source**: [sources/local/01-lab2.md](./sources/local/01-lab2.md)
