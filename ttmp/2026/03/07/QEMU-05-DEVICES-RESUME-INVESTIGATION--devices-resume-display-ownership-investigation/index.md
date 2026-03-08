@@ -38,6 +38,10 @@ The purpose of this ticket is to keep the next investigation steps small and evi
 - whether the QMP screenshot path is observing a fallback plane,
 - and what extra resource failure Chromium introduces beyond the shared base issue.
 
+Recent correction:
+- `weston-screenshooter` is not blocked by `kiosk-shell.so` in this setup.
+- The decisive gate is Weston compositor debug/capture policy: with the same kiosk shell, adding `--debug` makes `weston-screenshooter` work.
+
 ## Key Links
 
 - Analysis guide: [design-doc/01-devices-resume-analysis-guide.md](./design-doc/01-devices-resume-analysis-guide.md)

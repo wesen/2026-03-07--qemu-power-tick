@@ -435,6 +435,38 @@ Interpretation:
 - That makes `/dev/fb0` a useful negative control, but not a valid guest-visible ground truth for this stack.
 - The next readback attempt needs to move below fbdev, toward a DRM/KMS-oriented capture path or another compositor-authorized capture route.
 
+### Intervention J: Validate That Weston Screenshot Authorization Depends on `--debug`, Not `kiosk-shell.so`
+
+Command:
+```bash
+bash guest/run-qemu-phase3.sh \
+  --kernel build/vmlinuz \
+  --initramfs build/initramfs-phase3.img \
+  --results-dir results-phase3-guestshot-debug1 \
+  --append-extra 'phase3_client=weston-simple-shm phase3_runtime_seconds=15 phase3_guest_capture=1 phase3_guest_capture_pre_delay_seconds=6 phase3_weston_debug=1'
+
+python3 host/extract_guestshot_from_serial.py \
+  --serial-log results-phase3-guestshot-debug1/guest-serial.log \
+  --output-dir results-phase3-guestshot-debug1/guestshots
+```
+
+Observed:
+- earlier no-debug run under the same kiosk shell failed with:
+  - `Output capture error: unauthorized`
+  - `Error: screenshot or protocol failure`
+- the debug-enabled run logged:
+  - `WARNING: debug protocol has been enabled. This is a potential denial-of-service attack vector and information leak.`
+  - `Command line: /usr/bin/weston --backend=drm --renderer=pixman --shell=kiosk-shell.so --socket=wayland-1 --continue-without-input --debug --log=/var/log/weston.log`
+- the same kiosk-shell session then produced a guest screenshot successfully:
+  - `@@GUESTSHOT tag=pre path=/var/log/guestshots/wayland-screenshot-...png size=287651 sha256=decb3e03a100ded172651674d26cc7cd88510fd3f0880b4f885df339bd223431`
+  - extracted file: `results-phase3-guestshot-debug1/guestshots/guestshot-pre.png`
+
+Interpretation:
+- `kiosk-shell.so` was **not** the thing rejecting `weston-screenshooter`.
+- The real gate is Weston compositor debug/capture policy.
+- In this environment, `weston-screenshooter` becomes available once Weston is launched with `--debug`, even with kiosk shell unchanged.
+- This matches Weston’s own manual, which states that `--debug` exposes the `weston-screenshooter` interface and should not be used in production.
+
 ## What the Intern Should Conclude Right Now
 
 Do **not** conclude:
@@ -451,6 +483,8 @@ Do conclude:
   - Chromium: no visible change in the current test page setup
 - `/dev/fb0` is not the same plane as the visible graphical scene in corrected stage 3, even before suspend,
 - a raw `fb0` readback therefore cannot be used as “what the guest is visibly showing” in this environment,
+- `weston-screenshooter` is available in this stack when Weston is started with `--debug`,
+- the earlier `unauthorized` failure was not a kiosk-shell-specific denial,
 - the stage-2 probe evidence points below simple `vtconsole` ownership,
 - the earlier phase-3 probe gap was a shell bug, not an inherent logging limitation.
 
@@ -472,6 +506,13 @@ Reason:
 
 Reason:
 - log spam to `/dev/console` can perturb the graphics path being debugged.
+
+### Decision: treat `weston-screenshooter` as a debug-only capture path
+
+Reason:
+- the same kiosk-shell configuration succeeds once Weston is launched with `--debug`,
+- Weston documents that `--debug` exposes the screenshot interface,
+- therefore screenshot authorization here is a compositor debug-policy knob, not a shell-specific capability.
 
 ## Alternatives Considered
 
@@ -497,7 +538,7 @@ Rejected because:
 ### Immediate next tests
 
 1. Re-run stage-3 `display_unbind_fbcon=1` with capture attached concurrently, not post-hoc.
-2. Add one guest-visible screenshot or readback experiment to compare guest-side output with QMP `screendump` after resume.
+2. If a guest-visible screenshot is needed for comparison, use the explicit investigation-only `phase3_weston_debug=1` knob instead of assuming kiosk shell prevents capture.
 3. Since `/dev/fb0` turned out not to be the visible plane, add a lower-level DRM/KMS readback or plane-state experiment next.
 4. If that still points below QMP, add a tighter post-resume probe for DRM/scanout state during the narrow resume window.
 
@@ -525,7 +566,7 @@ for each hypothesis in [fbcon_ownership, drm_scanout_restore, client_resource_in
 
 ## Open Questions
 
-- Which guest-side API can capture the compositor-visible KMS plane without requiring Weston screenshot authorization?
+- Which guest-side API can capture the compositor-visible KMS plane without requiring Weston `--debug`?
 - Are the `virtio_gpu_dequeue_ctrl_func ... 0x1203` lines in `results-phase3-probe-shm1` caused by the same lower-layer issue as the screenshot fallback, or were they primarily tied to the earlier broken runs?
 - Is QMP `screendump` observing firmware text output after resume while `virtio_gpudrmfb` remains mapped but visually unused?
 - Is there a resume-time DRM or console handoff event occurring in a narrower window than the one-second probe interval can capture?
@@ -549,3 +590,4 @@ for each hypothesis in [fbcon_ownership, drm_scanout_restore, client_resource_in
 - QMP screenshot/input harness: [host/capture_phase3_suspend_checkpoints.py](../../../../../../host/capture_phase3_suspend_checkpoints.py)
 - Guest framebuffer dump helper: [guest/dump_fb0_snapshot.sh](../../../../../../guest/dump_fb0_snapshot.sh)
 - Host framebuffer extractor: [host/extract_fbshot_from_serial.py](../../../../../../host/extract_fbshot_from_serial.py)
+- Weston manual for `--debug` and screenshot exposure: https://manpages.debian.org/testing/weston/weston.1.en.html

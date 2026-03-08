@@ -822,7 +822,7 @@ OSError: cannot write mode RGBX as PNG
   - [guest/build-phase3-rootfs.sh](../../../../../../guest/build-phase3-rootfs.sh)
 - Then inspect:
   - `results-phase3-fbshot-nosuspend1/guest-serial.log`
-  - `results-phase3-fbshot-shm1/guest-serial.log`
+- `results-phase3-fbshot-shm1/guest-serial.log`
   - `results-phase3-fbshot-shm1/fbshots/fbshot-pre.json`
   - `results-phase3-fbshot-shm1/fbshots/fbshot-post.json`
 
@@ -843,3 +843,104 @@ guest fb pre/post AE: 0
 host pre/post screenshot AE: 1.024e+06
 guest-pre vs host-pre AE: 1023981
 ```
+
+## Step 9: Validate That `weston-screenshooter` Was Gated by Weston `--debug`, Not by `kiosk-shell.so`
+
+The earlier guest-side screenshot failure had one plausible but wrong explanation: maybe `kiosk-shell.so` simply does not authorize `weston-screenshooter`. That was worth testing directly because it would have changed the design advice for every future lab iteration. A shell-specific denial would point to shell policy. A same-shell success under one compositor flag would point somewhere else entirely.
+
+The control was simple and decisive. I kept the same kiosk shell and the same `weston-simple-shm` client, changed only one thing, and that one thing was enabling Weston `--debug`. With that flag, `weston-screenshooter` worked immediately and produced a real PNG. That means the earlier `unauthorized` result came from Weston’s debug/capture policy, not from the kiosk shell.
+
+### Prompt Context
+
+**User prompt (verbatim):** "can you validiate that it's the kiosk not authorizing the screenshotter? maybe search on the web even?"
+
+**Assistant interpretation:** Verify whether the screenshot rejection is really caused by `kiosk-shell.so`, and confirm it against external Weston documentation if possible.
+
+**Inferred user intent:** Replace a plausible but weak explanation with an evidence-backed one that future investigation steps can trust.
+
+### What I did
+- Confirmed the original failure in [results-phase3-guestshot-nosuspend1/guest-serial.log](../../../../../../results-phase3-guestshot-nosuspend1/guest-serial.log):
+  - `Output capture error: unauthorized`
+  - `Error: screenshot or protocol failure`
+- Added an investigation-only flag to [guest/init-phase3](../../../../../../guest/init-phase3):
+  - `phase3_weston_debug=1`
+  - this launches Weston with `--debug`
+- Rebuilt the phase-3 initramfs.
+- Ran a minimal no-suspend control with the same kiosk shell:
+```bash
+bash guest/run-qemu-phase3.sh \
+  --kernel build/vmlinuz \
+  --initramfs build/initramfs-phase3.img \
+  --results-dir results-phase3-guestshot-debug1 \
+  --append-extra 'phase3_client=weston-simple-shm phase3_runtime_seconds=15 phase3_guest_capture=1 phase3_guest_capture_pre_delay_seconds=6 phase3_weston_debug=1'
+```
+- Extracted the resulting screenshot:
+```bash
+python3 host/extract_guestshot_from_serial.py \
+  --serial-log results-phase3-guestshot-debug1/guest-serial.log \
+  --output-dir results-phase3-guestshot-debug1/guestshots
+```
+- Checked Weston’s manual text from the packaged documentation and Debian manpage.
+
+### Why
+- The earlier explanation blamed the shell plugin.
+- If that were true, future capture experiments would need a different shell or a different compositor path.
+- It was worth isolating because a single-flag control could answer it cleanly.
+
+### What worked
+- The debug-enabled run logged:
+  - `WARNING: debug protocol has been enabled. This is a potential denial-of-service attack vector and information leak.`
+  - `Command line: /usr/bin/weston --backend=drm --renderer=pixman --shell=kiosk-shell.so --socket=wayland-1 --continue-without-input --debug --log=/var/log/weston.log`
+- The same kiosk-shell session then produced:
+  - `@@GUESTSHOT tag=pre path=/var/log/guestshots/wayland-screenshot-...png size=287651 sha256=decb3e03a100ded172651674d26cc7cd88510fd3f0880b4f885df339bd223431`
+- The extracted PNG exists at:
+  - `results-phase3-guestshot-debug1/guestshots/guestshot-pre.png`
+- Weston’s manual says `--debug` “will expose weston-screenshooter interface allowing the user to take screenshots of the outputs”.
+
+### What didn't work
+- The original no-debug run under the same shell still failed with:
+```text
+Output capture error: unauthorized
+Error: screenshot or protocol failure
+```
+- So the earlier assumption that “kiosk shell blocks screenshots” was not supported by the control.
+
+### What I learned
+- The correct mental model is:
+  `weston-screenshooter` availability here is primarily a Weston debug/capture policy issue.
+- `kiosk-shell.so` is not the deciding gate in this setup.
+- The right advice for future work is:
+  use `phase3_weston_debug=1` only as an explicit investigation knob, not as a production configuration.
+
+### What was tricky to build
+- Weston starts before most of the main cmdline parsing in `init-phase3`, so the `phase3_weston_debug=1` flag had to be parsed early enough to affect the Weston launch itself.
+- Without that early parse, the experiment would have looked valid in the logs while actually changing nothing.
+
+### What warrants a second pair of eyes
+- Whether there is a more surgical way to expose screenshot capture without turning on Weston’s full debug protocol surface.
+- Whether the `--debug` path changes any timing or output behavior relevant to the resume bug, which would make it unsuitable for anything beyond explicit control experiments.
+
+### What should be done in the future
+- Preserve this as investigation guidance:
+  do not blame `kiosk-shell.so` for `weston-screenshooter` `unauthorized` failures until you have ruled out the compositor debug-policy gate.
+- Keep `phase3_weston_debug=1` as a debug-only knob, not a default.
+
+### Code review instructions
+- Start with:
+  - [guest/init-phase3](../../../../../../guest/init-phase3)
+  - [guest/dump_wayland_screenshot.sh](../../../../../../guest/dump_wayland_screenshot.sh)
+  - [host/extract_guestshot_from_serial.py](../../../../../../host/extract_guestshot_from_serial.py)
+- Then inspect:
+  - [results-phase3-guestshot-nosuspend1/guest-serial.log](../../../../../../results-phase3-guestshot-nosuspend1/guest-serial.log)
+  - [results-phase3-guestshot-debug1/guest-serial.log](../../../../../../results-phase3-guestshot-debug1/guest-serial.log)
+  - [results-phase3-guestshot-debug1/guestshots/guestshot-pre.png](../../../../../../results-phase3-guestshot-debug1/guestshots/guestshot-pre.png)
+
+### Technical details
+- Local Weston documentation excerpt:
+```text
+--debug
+    Enable debug protocol extension weston_debug_v1 ...
+    Additionally this will expose weston-screenshooter interface allowing the user to take screenshots of the outputs using weston-screenshooter application ...
+```
+- External reference:
+  https://manpages.debian.org/testing/weston/weston.1.en.html

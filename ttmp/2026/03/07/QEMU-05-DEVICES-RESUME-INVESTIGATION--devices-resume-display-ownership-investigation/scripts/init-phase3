@@ -44,6 +44,7 @@ GUEST_CAPTURE_POST_DELAY=
 FB_CAPTURE=
 FB_CAPTURE_PRE_DELAY=
 FB_CAPTURE_POST_DELAY=
+WESTON_DEBUG=
 
 KERNEL_RELEASE=$(uname -r)
 for module in \
@@ -72,6 +73,12 @@ udevadm settle >/dev/console 2>&1 || true
 ls -l /dev/dri >/dev/console 2>&1 || echo "[init-phase3] /dev/dri missing" >/dev/console
 ls -l /dev/input >/dev/console 2>&1 || echo "[init-phase3] /dev/input missing" >/dev/console
 
+for arg in $(cat /proc/cmdline); do
+  case "$arg" in
+    phase3_weston_debug=1) WESTON_DEBUG=1 ;;
+  esac
+done
+
 /usr/sbin/seatd >/var/log/seatd.log 2>&1 &
 SEATD_PID=$!
 echo "[init-phase3] seatd pid=$SEATD_PID" >/dev/console
@@ -82,6 +89,7 @@ echo "[init-phase3] seatd pid=$SEATD_PID" >/dev/console
   --shell=kiosk-shell.so \
   --socket="$WAYLAND_DISPLAY" \
   --continue-without-input \
+  ${WESTON_DEBUG:+--debug} \
   --log=/var/log/weston.log >/dev/console 2>&1 &
 WESTON_PID=$!
 echo "[init-phase3] weston pid=$WESTON_PID" >/dev/console
@@ -115,6 +123,7 @@ for arg in $(cat /proc/cmdline); do
     phase3_fb_capture=1) FB_CAPTURE=1 ;;
     phase3_fb_capture_pre_delay_seconds=*) FB_CAPTURE_PRE_DELAY=${arg#phase3_fb_capture_pre_delay_seconds=} ;;
     phase3_fb_capture_post_delay_seconds=*) FB_CAPTURE_POST_DELAY=${arg#phase3_fb_capture_post_delay_seconds=} ;;
+    phase3_weston_debug=1) WESTON_DEBUG=1 ;;
   esac
 done
 
