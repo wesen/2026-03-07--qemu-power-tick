@@ -24,6 +24,8 @@ RelatedFiles:
       Note: Phase-4 payload/runtime probe for Chromium artifacts and DRM runtime prerequisites
     - Path: host/configure_phase4_chromium_build.sh
       Note: Writes the first-pass direct DRM/Ozone args.gn and target list for the Chromium build
+    - Path: host/build_phase4_chromium_targets.sh
+      Note: End-to-end helper for the first phase-4 Chromium build pass once sync and system dependencies are ready
     - Path: guest/init-phase3
       Note: Current phase-3 runtime flow that phase 4 deliberately avoids reusing in place
     - Path: guest/kms_pattern.c
@@ -234,6 +236,10 @@ Current verified target set from Chromium BUILD files:
 - `//components/crash/core/app:chrome_crashpad_handler`
 
 Those targets are now reflected in [host/configure_phase4_chromium_build.sh](../../../../../../host/configure_phase4_chromium_build.sh), which writes the first-pass `args.gn` and prints the intended initial build list.
+The next layer on top of that is [host/build_phase4_chromium_targets.sh](../../../../../../host/build_phase4_chromium_targets.sh), which scripts:
+- `gclient runhooks`
+- `configure_phase4_chromium_build.sh`
+- `autoninja -C out/Phase4DRM content_shell chrome_sandbox chrome_crashpad_handler`
 
 ### Decision: Keep `virtio-gpu-pci` + `-vga none` as the default phase-4 device
 
@@ -335,6 +341,11 @@ The new payload/runtime probe reinforces that split. Baseline output in `results
 - Chromium payload directory absent
 
 So the immediate gating item for the first real `content_shell` boot is no longer "is the host graphics runtime missing?" It is "finish the Chromium checkout/build and point phase 4 at a real payload directory."
+
+One remaining host-side prerequisite is still outside the repo:
+- Chromium's official `build/install-build-deps.sh` wants `sudo` to install the Linux build package set
+- the quick check already identified the missing packages
+- the actual install attempt stopped at the password boundary, not at a script/design problem
 - launcher env vars for Ozone DRM
 - no Weston packages in the minimal success path
 

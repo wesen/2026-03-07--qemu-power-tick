@@ -20,3 +20,7 @@
 - Imported the official Chromium Linux build/Ozone references into the ticket for future reference.
 - Verified from Chromium BUILD files that the initial phase-4 target set is `content_shell`, `chrome_sandbox`, and `chrome_crashpad_handler`.
 - Added `host/configure_phase4_chromium_build.sh`, which writes `~/chromium/src/out/Phase4DRM/args.gn` with a direct DRM/Ozone baseline and prints the initial target list.
+- Checked the official Chromium dependency installer:
+  - quick check identified the expected missing Linux build packages
+  - full install attempt stopped at the `sudo` password boundary
+- Added `host/build_phase4_chromium_targets.sh`, which scripts `gclient runhooks`, `configure_phase4_chromium_build.sh`, and the initial `autoninja` target set.

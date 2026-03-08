@@ -50,6 +50,8 @@ Current status:
 - Chromium `src/` tree is now materialized enough to inspect BUILD files
 - initial verified target set is `content_shell`, `chrome_sandbox`, and `chrome_crashpad_handler`
 - a first-pass phase-4 `args.gn` writer now creates `~/chromium/src/out/Phase4DRM/args.gn`
+- a phase-4 build driver now scripts `gclient runhooks -> gn gen -> autoninja`
+- official Chromium build-deps installer was checked; the remaining local blocker there is sudo/password access, not missing docs
 
 ## Key Links
 

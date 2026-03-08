@@ -631,6 +631,8 @@ I used that source visibility to add a small build helper rather than just anoth
 
 **Inferred user intent:** Reduce future guesswork by turning the first Chromium build configuration into an explicit ticket artifact.
 
+**Commit (code):** `ffa15e3` - `Document phase 4 Chromium targets and args`
+
 ### What I did
 - Confirmed that the no-history checkout had created a usable Chromium source tree:
 ```text
@@ -736,4 +738,117 @@ rg -n 'executable\\(\"content_shell\"|chrome_sandbox|chrome_crashpad_handler' /h
 - Current generated config path:
 ```text
 /home/manuel/chromium/src/out/Phase4DRM/args.gn
+```
+
+## Step 7: Check the Official Build-Dependency Path and Script the First Real Build
+
+After the target set and GN args baseline were explicit, the next question was simple: what is still missing between "source tree exists" and "we can ask Chromium to compile"? There are two answers. One is external and expected: Chromium's Linux dependency installer wants `sudo`. The other is internal and fixable now: the repo needed one script that turns the verified target plan into an actual build invocation.
+
+So this step did both. I ran the official dependency checks to see whether the host is close enough, and I added a build driver helper that scripts the first real phase-4 build path once the sync and package prerequisites are satisfied.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Keep moving the ticket toward a real build attempt rather than stopping at static analysis.
+
+**Inferred user intent:** Make the path from "Chromium checkout exists" to "first direct DRM build command" as explicit and repeatable as the earlier phase-4 boot work.
+
+### What I did
+- Ran Chromium's quick dependency check:
+```text
+PATH=/home/manuel/depot_tools:$PATH /home/manuel/chromium/src/build/install-build-deps.sh --quick-check
+```
+- It reported the missing package set, including:
+```text
+libevdev-dev
+libinput-dev
+libnspr4-dev
+libnss3-dev
+libspeechd-dev
+libsystemd-dev
+libva-dev
+libxshmfence-dev
+libxslt1-dev
+openbox
+xcompmgr
+xserver-xorg-video-dummy
+```
+- Attempted the real package install with conservative flags:
+```text
+PATH=/home/manuel/depot_tools:$PATH /home/manuel/chromium/src/build/install-build-deps.sh --no-prompt --no-arm --no-chromeos-fonts
+```
+- That stopped at the expected privilege boundary:
+```text
+sudo: a password is required
+```
+- Added the new build driver:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/build_phase4_chromium_targets.sh`
+- Mirrored it into the ticket archive:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/scripts/build_phase4_chromium_targets.sh`
+- The helper now scripts:
+```text
+gclient runhooks
+configure_phase4_chromium_build.sh
+autoninja -C out/Phase4DRM content_shell chrome_sandbox chrome_crashpad_handler
+```
+
+### Why
+- The quick check tells us whether the host is missing obvious Chromium build prerequisites before we waste time on later build failures.
+- The dependency installer result needed to be recorded as a real blocker, not left implicit.
+- A single build driver script is the natural next artifact after the target-verification helper.
+
+### What worked
+- The quick dependency check ran cleanly and gave a concrete missing-package list.
+- The build driver script passes shell syntax checks and is mirrored into the ticket.
+- The Chromium sync is still progressing in parallel, so this step did not block on waiting.
+
+### What didn't work
+- The real dependency install cannot proceed unattended in this environment because it needs `sudo`:
+```text
+install-build-deps.py [INFO]: You might have to enter your password one or more times for 'sudo'.
+sudo: a password is required
+```
+- That means the Chromium build is now blocked on either:
+  - you entering the password interactively, or
+  - you installing the listed packages yourself out of band
+
+### What I learned
+- The remaining pre-build blockers are now very clean:
+  1. finish `gclient sync`
+  2. satisfy the official Linux build packages
+- The repo-side build path itself is no longer vague. The next unprivileged build command is already scripted.
+
+### What was tricky to build
+- The tricky part here was not technical complexity; it was separating "real blocker" from "not actually blocked." The missing packages are real, but the rest of the build flow can still be scripted and validated now. That is why it was worth adding the build driver even before the package install is complete.
+- Another subtlety is that Chromium's dependency list includes some packages that look kiosk- or desktop-oriented rather than obviously direct-DRM-specific. That is Chromium's build ecosystem showing through; the script is still the right thing to trust for the baseline.
+
+### What warrants a second pair of eyes
+- Once the build-deps install is allowed to complete, the first `gclient runhooks` + `gn gen` run should be reviewed closely because that is where the first source-tree-specific configuration breakage is likely to appear.
+- The missing package list from `--quick-check` is worth re-running after installation to confirm nothing was skipped inadvertently.
+
+### What should be done in the future
+- Finish the package install with `sudo`.
+- Let `gclient sync` finish.
+- Run the build driver helper.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/build_phase4_chromium_targets.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/configure_phase4_chromium_build.sh`
+- Validation commands:
+```text
+PATH=/home/manuel/depot_tools:$PATH /home/manuel/chromium/src/build/install-build-deps.sh --quick-check
+bash -n /home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/build_phase4_chromium_targets.sh
+```
+
+### Technical details
+- Current build blockers:
+```text
+1. gclient sync still running
+2. build/install-build-deps.sh needs sudo/password
+```
+- First scripted build entry point:
+```text
+/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/build_phase4_chromium_targets.sh
 ```
