@@ -15,6 +15,14 @@ topics:
       description: Systems programming and OS-level behavior
     - slug: refactor
       description: Code-structure cleanup and modularization work
+    - slug: chromium
+      description: Chromium browser and kiosk/client integration work
+    - slug: linux
+      description: Linux kernel, userspace, and system integration work
+    - slug: wayland
+      description: Wayland compositor and client stack work
+    - slug: power-management
+      description: Suspend, resume, wake, and low-power behavior investigations
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
