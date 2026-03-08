@@ -7,6 +7,7 @@ RESULTS_DIR=${RESULTS_DIR:-results-phase2}
 SERIAL_LOG=${SERIAL_LOG:-$RESULTS_DIR/guest-serial.log}
 QMP_SOCKET=${QMP_SOCKET:-$RESULTS_DIR/qmp.sock}
 MEMORY_MB=${MEMORY_MB:-1024}
+APPEND_EXTRA=${APPEND_EXTRA:-"phase2_idle_seconds=5 phase2_max_suspend_cycles=1 phase2_wake_seconds=5 phase2_pm_test=devices"}
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -16,6 +17,10 @@ while [[ $# -gt 0 ]]; do
       RESULTS_DIR=$2
       SERIAL_LOG=$RESULTS_DIR/guest-serial.log
       QMP_SOCKET=$RESULTS_DIR/qmp.sock
+      shift 2
+      ;;
+    --append-extra)
+      APPEND_EXTRA=$2
       shift 2
       ;;
     *)
@@ -34,6 +39,9 @@ mkdir -p "$RESULTS_DIR"
 rm -f "$SERIAL_LOG" "$QMP_SOCKET"
 
 APPEND="console=ttyS0 panic=-1 no_console_suspend rdinit=/init"
+if [[ -n "$APPEND_EXTRA" ]]; then
+  APPEND="$APPEND $APPEND_EXTRA"
+fi
 
 exec qemu-system-x86_64 \
   -machine q35,accel=kvm:tcg \

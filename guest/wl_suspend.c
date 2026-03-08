@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/reboot.h>
 #include <sys/timerfd.h>
 #include <time.h>
 #include <unistd.h>
@@ -49,6 +50,19 @@ static int write_text_file(const char *path, const char *value) {
         return -1;
     }
     return 0;
+}
+
+static void shutdown_guest_if_pid1(struct app *app) {
+    if (getpid() != 1) {
+        app->running = false;
+        return;
+    }
+
+    log_line("state", "runtime_limit_action=poweroff");
+    sync();
+    reboot(RB_POWER_OFF);
+    log_line("error", "poweroff_failed_falling_back_to_exit");
+    app->running = false;
 }
 
 static void program_rtc_wakealarm(struct app *app) {
@@ -96,7 +110,7 @@ void maybe_exit_on_runtime_limit(struct app *app) {
     if (app->runtime_seconds > 0 &&
         mono_ns() - app->started_mono_ns >= (uint64_t)app->runtime_seconds * 1000000000ull) {
         log_line("state", "runtime_limit_reached=true");
-        app->running = false;
+        shutdown_guest_if_pid1(app);
     }
 }
 

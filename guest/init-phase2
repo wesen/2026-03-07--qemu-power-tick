@@ -91,11 +91,41 @@ fi
 echo "[init-phase2] wayland ready" >/dev/console
 sed -n '1,160p' /var/log/weston.log >/dev/console 2>&1 || true
 
+build_client_args() {
+  IDLE_SECONDS=
+  MAX_SUSPEND_CYCLES=
+  WAKE_SECONDS=
+  PM_TEST=
+  RUNTIME_SECONDS=
+  NO_SUSPEND=
+
+  for arg in $(cat /proc/cmdline); do
+    case "$arg" in
+      phase2_idle_seconds=*) IDLE_SECONDS=${arg#phase2_idle_seconds=} ;;
+      phase2_max_suspend_cycles=*) MAX_SUSPEND_CYCLES=${arg#phase2_max_suspend_cycles=} ;;
+      phase2_wake_seconds=*) WAKE_SECONDS=${arg#phase2_wake_seconds=} ;;
+      phase2_pm_test=*) PM_TEST=${arg#phase2_pm_test=} ;;
+      phase2_runtime_seconds=*) RUNTIME_SECONDS=${arg#phase2_runtime_seconds=} ;;
+      phase2_no_suspend=1) NO_SUSPEND=1 ;;
+    esac
+  done
+
+  CLIENT_ARGS=
+  [ -n "$IDLE_SECONDS" ] && CLIENT_ARGS="$CLIENT_ARGS --idle-seconds $IDLE_SECONDS"
+  [ -n "$MAX_SUSPEND_CYCLES" ] && CLIENT_ARGS="$CLIENT_ARGS --max-suspend-cycles $MAX_SUSPEND_CYCLES"
+  [ -n "$WAKE_SECONDS" ] && CLIENT_ARGS="$CLIENT_ARGS --wake-seconds $WAKE_SECONDS"
+  [ -n "$PM_TEST" ] && CLIENT_ARGS="$CLIENT_ARGS --pm-test $PM_TEST"
+  [ -n "$RUNTIME_SECONDS" ] && CLIENT_ARGS="$CLIENT_ARGS --runtime-seconds $RUNTIME_SECONDS"
+  [ -n "$NO_SUSPEND" ] && CLIENT_ARGS="$CLIENT_ARGS --no-suspend"
+
+  echo "$CLIENT_ARGS"
+}
+
 CLIENT_BIN=${PHASE2_CLIENT_BIN:-/usr/bin/weston-simple-shm}
 if [ -x /bin/wl_sleepdemo ]; then
   CLIENT_BIN=/bin/wl_sleepdemo
 fi
 
-CLIENT_ARGS="--idle-seconds 5 --max-suspend-cycles 1 --wake-seconds 5 --pm-test devices"
+CLIENT_ARGS=$(build_client_args)
 echo "[init-phase2] launching client=$CLIENT_BIN args=$CLIENT_ARGS" >/dev/console
 exec "$CLIENT_BIN" $CLIENT_ARGS

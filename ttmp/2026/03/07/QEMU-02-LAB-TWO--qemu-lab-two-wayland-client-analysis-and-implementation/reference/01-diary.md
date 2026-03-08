@@ -14,7 +14,7 @@ RelatedFiles: []
 ExternalSources:
     - local:01-lab2.md
 Summary: Chronological implementation diary for phase 2, including decisions, commands, failures, validation notes, and lessons learned.
-LastUpdated: 2026-03-07T18:00:00-05:00
+LastUpdated: 2026-03-07T18:55:00-05:00
 WhatFor: Maintain a step-by-step implementation diary for phase 2, including failures, commands, lessons, and validation notes.
 WhenToUse: Update this whenever a meaningful design, implementation, or validation step completes during the phase-2 work.
 ---
@@ -1195,3 +1195,104 @@ I added a small watcher script that waits for `state=RESUMED` in the guest seria
   - `suspend_resume_gap = 5755 ms`
   - `resume_to_redraw = 5 ms`
   - `resume_to_reconnect = 1243 ms`
+
+## Step 16: Applied The First Postmortem Cleanup Pass And Fixed The PID-1 Exit Bug
+
+I took the review feedback seriously enough to validate it with a real boot instead of treating it as documentation-only cleanup. That turned out to be the right call. The “remove unconditional redraws” and “move scenario control out of `/init`” changes behaved as intended, but the validation run also exposed a correctness bug the postmortem had only identified as a risk: when `wl_sleepdemo` hit its runtime limit as PID 1, the guest panicked because init exited.
+
+This step therefore became more valuable than a pure cleanup pass. It tightened the control boundary between host and guest, reduced artificial redraw activity, and converted a known risk into a concrete fix verified by a repeatable boot scenario.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, with that feedback in mind, we should go back to you, the little brother, and have you continue."
+
+**Assistant interpretation:** Resume phase-2 implementation while acting on the postmortem feedback instead of just writing about it.
+
+**Inferred user intent:** Improve the actual system based on the review findings, keep the ticket current, and avoid letting the postmortem become shelfware.
+
+**Commit (code):** Pending at this step
+
+### What I did
+- Removed the unconditional redraw tick from [guest/wl_sleepdemo.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_sleepdemo.c) so redraws are now driven by real state changes instead of a fixed timer.
+- Changed [guest/init-phase2](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase2) to derive client suspend/runtime arguments from `/proc/cmdline` rather than hardcoding one scenario inside the init script.
+- Extended [guest/run-qemu-phase2.sh](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/run-qemu-phase2.sh) with host-controlled `APPEND_EXTRA` and `--append-extra` support so the test scenario can be chosen outside the guest image.
+- Booted a validation guest with:
+  - `guest/build-wl-sleepdemo.sh build build/wl_sleepdemo`
+  - `guest/build-phase2-rootfs.sh build build/initramfs-phase2-client.cpio.gz build/wl_sleepdemo`
+  - `guest/run-qemu-phase2.sh --kernel build/vmlinuz --initramfs build/initramfs-phase2-client.cpio.gz --results-dir results-phase2-cleanup-validate --append-extra 'phase2_idle_seconds=3 phase2_max_suspend_cycles=1 phase2_wake_seconds=5 phase2_pm_test=devices phase2_runtime_seconds=18'`
+- Verified from `results-phase2-cleanup-validate/guest-serial.log` that `/init` launched the client with cmdline-derived args and that suspend still worked.
+- Observed the guest fail at runtime limit with:
+  - `@@LOG kind=state runtime_limit_reached=true`
+  - `Kernel panic - not syncing: Attempted to kill init! exitcode=0x00000000`
+- Fixed that path in [guest/wl_suspend.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_suspend.c) so PID 1 powers off the guest instead of simply returning.
+- Rebuilt and reran the same scenario in `results-phase2-cleanup-validate2`, which now ends with:
+  - `@@LOG kind=state runtime_limit_reached=true`
+  - `@@LOG kind=state runtime_limit_action=poweroff`
+  - `reboot: Power down`
+- Mirrored the updated sources into the ticket-local `scripts/` directory:
+  - `wl_sleepdemo.c`
+  - `wl_suspend.c`
+  - `init-phase2`
+  - `run-qemu-phase2.sh`
+
+### Why
+- The postmortem called out concrete quality issues, and the right response was to either fix them or prove they were harmless.
+- Moving scenario control to the host side makes later measurement runs much easier to vary without rebuilding the guest logic each time.
+- The redraw change reduces background activity and makes future idle/sleep behavior easier to reason about.
+- The PID-1 shutdown fix was required for correctness once runtime-limited validation runs were used as part of the workflow.
+
+### What worked
+- The cleaned-up control boundary works: `init-phase2` now prints and uses client args reconstructed from the kernel command line.
+- `pm_test=devices` suspend still works after the cleanup.
+- The validation rerun in `results-phase2-cleanup-validate2` produced:
+  - `sleep_duration = 5757 ms`
+  - `suspend_resume_gap = 5757 ms`
+  - `resume_to_redraw = 2 ms`
+- The runtime-limit path now powers down cleanly instead of triggering a kernel panic.
+
+### What didn't work
+- The first validation run after the cleanup failed at guest shutdown because PID 1 exited directly:
+  - `Kernel panic - not syncing: Attempted to kill init! exitcode=0x00000000`
+- That bug was not hypothetical. It only became visible once I used the new cmdline-driven runtime limit in a real booted guest.
+
+### What I learned
+- Review findings about “risk” are often worth validating immediately, because they can hide real correctness bugs.
+- The host/guest scenario boundary matters a lot in this lab. Encoding test policy in the kernel command line is materially cleaner than freezing it into `/init`.
+- Removing the forced redraw tick does not break suspend/resume in the current client path, which means the redraw loop was more policy than necessity.
+
+### What was tricky to build
+- The subtle part was that the cleanup looked behavior-preserving at first glance, so it would have been easy to skip a full boot and just commit the refactor. That would have missed the PID-1 failure entirely. The runtime-limit bug only manifests when the client is actually acting as init inside the guest, so ordinary local compilation or static review would not have caught it.
+
+### What warrants a second pair of eyes
+- Whether `runtime_limit_seconds` should remain a client concern at all, or whether long-run shutdown policy should eventually move to a thinner bootstrap or host harness.
+- Whether any remaining periodic wakeups still exist elsewhere in the Wayland or network path and bias the later energy-style measurements.
+
+### What should be done in the future
+- Commit this cleanup checkpoint.
+- Re-run the phase-2 screenshot matrix using the new host-driven scenario controls.
+- Measure a few alternative idle/reconnect scenarios now that the redraw tick is gone.
+
+### Code review instructions
+- Start with:
+  - [guest/wl_sleepdemo.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_sleepdemo.c)
+  - [guest/init-phase2](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase2)
+  - [guest/run-qemu-phase2.sh](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/run-qemu-phase2.sh)
+  - [guest/wl_suspend.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/wl_suspend.c)
+- Then inspect:
+  - `results-phase2-cleanup-validate/guest-serial.log`
+  - `results-phase2-cleanup-validate2/guest-serial.log`
+- Validate with:
+  - `guest/build-wl-sleepdemo.sh build build/wl_sleepdemo`
+  - `guest/build-phase2-rootfs.sh build build/initramfs-phase2-client.cpio.gz build/wl_sleepdemo`
+  - `guest/run-qemu-phase2.sh --kernel build/vmlinuz --initramfs build/initramfs-phase2-client.cpio.gz --results-dir results-phase2-cleanup-validate2 --append-extra 'phase2_idle_seconds=3 phase2_max_suspend_cycles=1 phase2_wake_seconds=5 phase2_pm_test=devices phase2_runtime_seconds=18'`
+
+### Technical details
+- The key proof that scenario control moved out of `/init` is:
+  - `[init-phase2] launching client=/bin/wl_sleepdemo args= --idle-seconds 3 --max-suspend-cycles 1 --wake-seconds 5 --pm-test devices --runtime-seconds 18`
+- The failing shutdown sequence in `results-phase2-cleanup-validate/guest-serial.log` ended with:
+  - `@@LOG kind=state runtime_limit_reached=true`
+  - `Kernel panic - not syncing: Attempted to kill init! exitcode=0x00000000`
+- The fixed shutdown sequence in `results-phase2-cleanup-validate2/guest-serial.log` ends with:
+  - `@@LOG kind=state runtime_limit_reached=true`
+  - `@@LOG kind=state runtime_limit_action=poweroff`
+  - `reboot: Power down`

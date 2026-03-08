@@ -12,3 +12,4 @@
 - Added a suspend-aware modularized phase-2 client path with `pm_test=devices` measurements and verified post-resume redraw plus post-resume keyboard and pointer input, while leaving clean reconnect-latency measurement as the main remaining gap.
 - Added `host/resume_drip_server.py` to trigger a host drip server from the guest resume marker, and used it to capture a clean phase-2 reconnect metric alongside sleep, suspend-gap, and redraw timing.
 - Added a postmortem and review guide that evaluates the work quality, identifies the main remaining risks, and explains the system and review order for the next engineer.
+- Applied the first postmortem-driven cleanup pass: removed the unconditional redraw tick, moved phase-2 suspend scenario parameters onto the kernel command line via the host launcher, and fixed the runtime-limit path so PID 1 powers off cleanly instead of panicking the guest.

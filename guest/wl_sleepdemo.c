@@ -19,23 +19,9 @@
 enum {
     EV_WAYLAND = 1,
     EV_SOCKET = 2,
-    EV_REDRAW = 3,
-    EV_IDLE = 4,
-    EV_SIGNAL = 5,
+    EV_IDLE = 3,
+    EV_SIGNAL = 4,
 };
-
-static void arm_redraw_timer(struct app *app, int first_ms, int interval_ms) {
-    struct itimerspec spec = {0};
-
-    spec.it_value.tv_sec = first_ms / 1000;
-    spec.it_value.tv_nsec = (long)(first_ms % 1000) * 1000000L;
-    spec.it_interval.tv_sec = interval_ms / 1000;
-    spec.it_interval.tv_nsec = (long)(interval_ms % 1000) * 1000000L;
-    if (timerfd_settime(app->redraw_timer_fd, 0, &spec, NULL) != 0) {
-        perror("timerfd_settime");
-        exit(1);
-    }
-}
 
 static void setup_epoll(struct app *app) {
     struct epoll_event ev = {0};
@@ -51,19 +37,6 @@ static void setup_epoll(struct app *app) {
     ev.data.u32 = EV_WAYLAND;
     if (epoll_ctl(app->epoll_fd, EPOLL_CTL_ADD, wl_display_get_fd(app->display), &ev) != 0) {
         perror("epoll_ctl add wayland");
-        exit(1);
-    }
-
-    app->redraw_timer_fd = timerfd_create(CLOCK_MONOTONIC, TFD_CLOEXEC);
-    if (app->redraw_timer_fd < 0) {
-        perror("timerfd_create");
-        exit(1);
-    }
-    arm_redraw_timer(app, 1000, 1000);
-    ev.events = EPOLLIN;
-    ev.data.u32 = EV_REDRAW;
-    if (epoll_ctl(app->epoll_fd, EPOLL_CTL_ADD, app->redraw_timer_fd, &ev) != 0) {
-        perror("epoll_ctl add redraw");
         exit(1);
     }
 
@@ -135,6 +108,7 @@ int main(int argc, char **argv) {
     struct epoll_event events[8];
 
     app.socket_fd = -1;
+    app.redraw_timer_fd = -1;
     app.idle_timer_fd = -1;
     app.running = true;
     app.pointer_x = 640;
@@ -182,15 +156,6 @@ int main(int argc, char **argv) {
             case EV_SOCKET:
                 handle_socket_event(&app, events[i].events);
                 break;
-            case EV_REDRAW: {
-                uint64_t expirations;
-
-                if (read(app.redraw_timer_fd, &expirations, sizeof(expirations)) > 0) {
-                    set_redraw_reason(&app, "timer");
-                }
-                maybe_exit_on_runtime_limit(&app);
-                break;
-            }
             case EV_IDLE: {
                 uint64_t expirations;
 
@@ -209,6 +174,8 @@ int main(int argc, char **argv) {
             }
             }
         }
+
+        maybe_exit_on_runtime_limit(&app);
     }
 
     return 0;
