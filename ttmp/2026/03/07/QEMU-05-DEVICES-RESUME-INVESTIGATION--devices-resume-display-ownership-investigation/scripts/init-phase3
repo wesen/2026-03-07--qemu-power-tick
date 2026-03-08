@@ -38,6 +38,12 @@ SUSPEND_DELAY_SECONDS=
 WAKE_SECONDS=
 PM_TEST=
 NO_SUSPEND=
+GUEST_CAPTURE=
+GUEST_CAPTURE_PRE_DELAY=
+GUEST_CAPTURE_POST_DELAY=
+FB_CAPTURE=
+FB_CAPTURE_PRE_DELAY=
+FB_CAPTURE_POST_DELAY=
 
 KERNEL_RELEASE=$(uname -r)
 for module in \
@@ -103,6 +109,12 @@ for arg in $(cat /proc/cmdline); do
     phase3_wake_seconds=*) WAKE_SECONDS=${arg#phase3_wake_seconds=} ;;
     phase3_pm_test=*) PM_TEST=${arg#phase3_pm_test=} ;;
     phase3_no_suspend=1) NO_SUSPEND=1 ;;
+    phase3_guest_capture=1) GUEST_CAPTURE=1 ;;
+    phase3_guest_capture_pre_delay_seconds=*) GUEST_CAPTURE_PRE_DELAY=${arg#phase3_guest_capture_pre_delay_seconds=} ;;
+    phase3_guest_capture_post_delay_seconds=*) GUEST_CAPTURE_POST_DELAY=${arg#phase3_guest_capture_post_delay_seconds=} ;;
+    phase3_fb_capture=1) FB_CAPTURE=1 ;;
+    phase3_fb_capture_pre_delay_seconds=*) FB_CAPTURE_PRE_DELAY=${arg#phase3_fb_capture_pre_delay_seconds=} ;;
+    phase3_fb_capture_post_delay_seconds=*) FB_CAPTURE_POST_DELAY=${arg#phase3_fb_capture_post_delay_seconds=} ;;
   esac
 done
 
@@ -153,6 +165,56 @@ APP_PID=$!
 echo "[init-phase3] app pid=$APP_PID client=$CLIENT" >/dev/console
 [ -n "$APP_LOG" ] && tail -f "$APP_LOG" >/dev/console 2>&1 &
 
+schedule_guest_capture() {
+  tag=$1
+  delay=$2
+  (
+    sleep "$delay"
+    echo "[init-phase3] guest-capture tag=$tag delay=$delay" >/dev/console
+    /usr/bin/dump_wayland_screenshot.sh "$tag" /var/log/guestshots >/dev/console 2>&1 || true
+  ) &
+  echo $!
+}
+
+schedule_fb_capture() {
+  tag=$1
+  delay=$2
+  (
+    sleep "$delay"
+    echo "[init-phase3] fb-capture tag=$tag delay=$delay" >/dev/console
+    /usr/bin/dump_fb0_snapshot.sh "$tag" >/dev/console 2>&1 || true
+  ) &
+  echo $!
+}
+
+if [ -n "${GUEST_CAPTURE:-}" ]; then
+  GUEST_CAPTURE_PRE_PID=
+  GUEST_CAPTURE_POST_PID=
+  if [ -n "${GUEST_CAPTURE_PRE_DELAY:-}" ]; then
+    GUEST_CAPTURE_PRE_PID=$(schedule_guest_capture pre "$GUEST_CAPTURE_PRE_DELAY")
+  fi
+  if [ -n "${GUEST_CAPTURE_POST_DELAY:-}" ]; then
+    GUEST_CAPTURE_POST_PID=$(schedule_guest_capture post "$GUEST_CAPTURE_POST_DELAY")
+  fi
+else
+  GUEST_CAPTURE_PRE_PID=
+  GUEST_CAPTURE_POST_PID=
+fi
+
+if [ -n "${FB_CAPTURE:-}" ]; then
+  FB_CAPTURE_PRE_PID=
+  FB_CAPTURE_POST_PID=
+  if [ -n "${FB_CAPTURE_PRE_DELAY:-}" ]; then
+    FB_CAPTURE_PRE_PID=$(schedule_fb_capture pre "$FB_CAPTURE_PRE_DELAY")
+  fi
+  if [ -n "${FB_CAPTURE_POST_DELAY:-}" ]; then
+    FB_CAPTURE_POST_PID=$(schedule_fb_capture post "$FB_CAPTURE_POST_DELAY")
+  fi
+else
+  FB_CAPTURE_PRE_PID=
+  FB_CAPTURE_POST_PID=
+fi
+
 if [ -n "${SUSPEND_DELAY_SECONDS:-}" ]; then
   SUSPEND_ARGS="--delay-seconds $SUSPEND_DELAY_SECONDS"
   [ -n "${WAKE_SECONDS:-}" ] && SUSPEND_ARGS="$SUSPEND_ARGS --wake-seconds $WAKE_SECONDS"
@@ -174,6 +236,10 @@ if [ -n "$RUNTIME_SECONDS" ]; then
 fi
 
 wait "$APP_PID" || true
+[ -n "${GUEST_CAPTURE_PRE_PID:-}" ] && wait "$GUEST_CAPTURE_PRE_PID" || true
+[ -n "${GUEST_CAPTURE_POST_PID:-}" ] && wait "$GUEST_CAPTURE_POST_PID" || true
+[ -n "${FB_CAPTURE_PRE_PID:-}" ] && wait "$FB_CAPTURE_PRE_PID" || true
+[ -n "${FB_CAPTURE_POST_PID:-}" ] && wait "$FB_CAPTURE_POST_PID" || true
 [ -n "${SUSPEND_PID:-}" ] && wait "$SUSPEND_PID" || true
 [ -n "${DISPLAY_PROBE_PID:-}" ] && kill "$DISPLAY_PROBE_PID" 2>/dev/null || true
 [ -f /var/log/display_probe.log ] && tail -n 120 /var/log/display_probe.log >/dev/console 2>&1 || true
