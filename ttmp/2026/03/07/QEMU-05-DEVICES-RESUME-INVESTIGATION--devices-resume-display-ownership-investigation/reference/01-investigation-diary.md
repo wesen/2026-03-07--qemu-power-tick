@@ -24,8 +24,12 @@ RelatedFiles:
       Note: Diary evidence for the corrected concurrent stage-3 capture runs
     - Path: guest/dump_fb0_snapshot.sh
       Note: Guest-side framebuffer readback helper used to test whether `/dev/fb0` matches the visible plane
+    - Path: guest/dump_drm_state.sh
+      Note: Guest-side DRM debugfs dump helper used to capture active plane and framebuffer state across resume
     - Path: host/extract_fbshot_from_serial.py
       Note: Host-side extractor that reconstructs raw framebuffer dumps and PNG variants from the serial log
+    - Path: host/extract_drmstate_from_serial.py
+      Note: Host-side extractor that reconstructs DRM debugfs state blocks from the serial log
     - Path: ttmp/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/scripts/run_phase3_suspend_capture.sh
       Note: Archived copy of the concurrent capture wrapper used in this ticket
 ExternalSources: []
@@ -944,3 +948,302 @@ Error: screenshot or protocol failure
 ```
 - External reference:
   https://manpages.debian.org/testing/weston/weston.1.en.html
+
+## Step 10: Use DRM Debugfs as the Guest-Side KMS Truth Source
+
+Once `/dev/fb0` was ruled out as the visible plane, the next sensible guest-side layer was DRM debugfs. That path is lower-level than fbdev, does not require Weston screenshot authorization, and can tell us which framebuffer is actually attached to the active plane. If the guest still thought a Weston-owned `1280x800` plane was active after resume, while QMP kept showing `720x400`, the investigation would shift hard toward the host capture path.
+
+That is exactly what happened. The smoke run proved the debugfs files were available and useful. The suspend/resume run then showed that the active plane stayed bound to a Weston-owned `1280x800` XR24 framebuffer across resume. The only meaningful change was a normal weston front/back buffer swap between framebuffer IDs `43` and `42`.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue"
+
+**Assistant interpretation:** Keep pushing the investigation forward from the current checkpoint rather than stopping at the screenshot-authorization correction.
+
+**Inferred user intent:** Use the next most defensible experiment to narrow the remaining uncertainty, and keep the ticket artifacts current while doing it.
+
+### What I did
+- Added [guest/dump_drm_state.sh](../../../../../../guest/dump_drm_state.sh), which:
+  - mounts `debugfs` if needed,
+  - locates `/sys/kernel/debug/dri/0`,
+  - collects readable files such as `state`, `framebuffer`, `clients`, `gem_names`, and `name`,
+  - emits them as a compressed serial block between `@@DRMSTATE_BEGIN/END`.
+- Added [host/extract_drmstate_from_serial.py](../../../../../../host/extract_drmstate_from_serial.py), which:
+  - extracts `@@DRMSTATE` blocks from the serial log,
+  - decompresses them,
+  - writes text and JSON metadata to a result directory.
+- Wired the helper into [guest/build-phase3-rootfs.sh](../../../../../../guest/build-phase3-rootfs.sh) and [guest/init-phase3](../../../../../../guest/init-phase3) with:
+  - `phase3_drm_state_capture=1`
+  - `phase3_drm_state_capture_pre_delay_seconds=...`
+  - `phase3_drm_state_capture_post_delay_seconds=...`
+- Ran a no-suspend smoke test:
+```bash
+bash guest/run-qemu-phase3.sh \
+  --kernel build/vmlinuz \
+  --initramfs build/initramfs-phase3.img \
+  --results-dir results-phase3-drmstate-nosuspend1 \
+  --append-extra 'phase3_client=weston-simple-shm phase3_runtime_seconds=14 phase3_drm_state_capture=1 phase3_drm_state_capture_pre_delay_seconds=6'
+
+python3 host/extract_drmstate_from_serial.py \
+  --serial-log results-phase3-drmstate-nosuspend1/guest-serial.log \
+  --output-dir results-phase3-drmstate-nosuspend1/drmstate
+```
+- Ran the real suspend control:
+```bash
+bash host/run_phase3_suspend_capture.sh \
+  --results-dir results-phase3-drmstate-shm1 \
+  --pre-delay-seconds 8.0 \
+  --post-resume-delay-seconds 1.0 \
+  --append-extra 'phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices phase3_drm_state_capture=1 phase3_drm_state_capture_pre_delay_seconds=8 phase3_drm_state_capture_post_delay_seconds=17'
+
+python3 host/extract_drmstate_from_serial.py \
+  --serial-log results-phase3-drmstate-shm1/guest-serial.log \
+  --output-dir results-phase3-drmstate-shm1/drmstate
+```
+
+### Why
+- `fb0` was already disproven as the visible plane.
+- The next trustworthy guest-side layer was the real DRM/KMS state.
+- This was the cheapest way to test whether the active KMS plane itself had collapsed after resume.
+
+### What worked
+- The smoke run produced a clean state block containing:
+  - `state`
+  - `framebuffer`
+  - `clients`
+  - `gem_names`
+  - `name`
+- The suspend control showed:
+  - host QMP still fell `1280x800 -> 720x400`
+  - guest DRM `crtc[35]` remained `enable=1 active=1`
+  - `connector[36]: Virtual-1` remained on `crtc-0`
+  - the active plane stayed on a Weston-owned framebuffer
+- The meaningful pre/post diff was:
+```text
+plane[31] fb: 43 -> 42
+framebuffer[43] refcount: 2 -> 1
+framebuffer[42] refcount: 1 -> 2
+```
+- The fbcon framebuffer remained present but not selected as the active plane:
+```text
+framebuffer[39]: allocated by = [fbcon]
+```
+
+### What didn't work
+- N/A
+
+### What I learned
+- Guest-side DRM state does not support the “mode collapsed to firmware text” theory.
+- The guest still believes Weston owns the active `1280x800` scanout after resume.
+- That makes the host capture path far more suspicious than the guest restore path.
+
+### What was tricky to build
+- The main sharp edge was not logic but choosing the right guest-side truth source. `fb0` looked attractive but was the wrong layer.
+- The debugfs state files are low-level enough to be valuable, but still small enough to move through serial if compressed.
+
+### What warrants a second pair of eyes
+- Whether the DRM debugfs `state` dump is guaranteed to reflect the exact plane QEMU `screendump` should be showing.
+- Whether `virtio-vga` keeps a second legacy-visible surface that can diverge from the DRM scanout state after resume.
+
+### What should be done in the future
+- Investigate QEMU `screendump` / `virtio-vga` plane selection directly.
+- Optionally add a tighter immediate-post-resume DRM-state dump to reduce the blind gap between wake and the scheduled post capture.
+
+### Code review instructions
+- Start with:
+  - [guest/dump_drm_state.sh](../../../../../../guest/dump_drm_state.sh)
+  - [host/extract_drmstate_from_serial.py](../../../../../../host/extract_drmstate_from_serial.py)
+  - [guest/init-phase3](../../../../../../guest/init-phase3)
+- Then inspect:
+  - `results-phase3-drmstate-nosuspend1/drmstate/drmstate-pre.txt`
+  - `results-phase3-drmstate-shm1/drmstate/drmstate-pre.txt`
+  - `results-phase3-drmstate-shm1/drmstate/drmstate-post.txt`
+  - `results-phase3-drmstate-shm1/00-pre.png`
+  - `results-phase3-drmstate-shm1/01-post.png`
+
+### Technical details
+- Core pre/post diff:
+```text
+plane[31] fb: 43 -> 42
+connector[36]: Virtual-1 unchanged
+crtc[35]: active=1 unchanged
+mode: "1280x800" unchanged
+```
+
+## Step 11: Use Weston’s Own Screenshots Across Suspend to Cross-Check QMP
+
+The DRM debugfs result already suggested that the guest-visible scene was probably fine and the host capture path was the thing going wrong. But there was still one remaining doubt: maybe the KMS state looked healthy while the compositor-visible scene was actually broken. Since the earlier screenshot-authorization question was already resolved, there was a direct way to answer that doubt: capture guest screenshots under explicit Weston `--debug` during the same suspend cycle.
+
+That control removed the ambiguity. Weston’s own screenshots stayed graphical and `1280x800` after resume, while QMP `screendump` in the same run still fell to the firmware-looking `720x400` plane. At that point the investigation stopped being “QMP might be wrong” and became “QMP is almost certainly the wrong layer to trust here.”
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 10)
+
+**Assistant interpretation:** Keep going from the new DRM-state result and use the next strongest control to test whether the guest-visible scene still matches the host-visible capture after resume.
+
+**Inferred user intent:** Convert a strong inference into a near-direct demonstration by comparing compositor-visible output and host-visible output in the same resume run.
+
+### What I did
+- Reused the already-added `phase3_weston_debug=1` and guest screenshot path.
+- Ran:
+```bash
+bash host/run_phase3_suspend_capture.sh \
+  --results-dir results-phase3-guestshot-debug-suspend1 \
+  --pre-delay-seconds 8.0 \
+  --post-resume-delay-seconds 1.0 \
+  --append-extra 'phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices phase3_weston_debug=1 phase3_guest_capture=1 phase3_guest_capture_pre_delay_seconds=8 phase3_guest_capture_post_delay_seconds=17'
+
+python3 host/extract_guestshot_from_serial.py \
+  --serial-log results-phase3-guestshot-debug-suspend1/guest-serial.log \
+  --output-dir results-phase3-guestshot-debug-suspend1/guestshots
+```
+- Compared:
+  - `guestshots/guestshot-pre.png`
+  - `guestshots/guestshot-post.png`
+  - `00-pre.png`
+  - `01-post.png`
+
+### Why
+- DRM state was already pointing toward a host-capture problem.
+- A guest compositor screenshot is the closest thing to “what Weston itself thinks is on screen”.
+- Running both capture paths in the same suspend cycle gives a very strong comparison.
+
+### What worked
+- Guest screenshots succeeded both before and after resume.
+- Guest screenshot sizes:
+  - pre: `1280x800`
+  - post: `1280x800`
+- Guest screenshot luminance stayed high and graphical:
+  - pre mean: `138.93`
+  - post mean: `138.19`
+- Host QMP screenshots in the same run:
+  - pre: `1280x800`
+  - post: `720x400`
+  - post mean: `2.12`
+- Guest pre/post diff:
+```text
+AE(guestshot-pre, guestshot-post) = 942400
+```
+  which indicates scene change, not collapse to black or text mode.
+
+### What didn't work
+- Direct guest-post vs QMP-post image diff is not meaningful with the existing helper because the image sizes differ:
+```text
+size_mismatch (1280, 800) (720, 400)
+```
+- That is still useful evidence, because the size mismatch itself is part of the bug signature.
+
+### What I learned
+- The guest compositor-visible scene remains healthy after resume.
+- The host-side QMP screenshot path is the one diverging.
+- This shifts the main investigation target from “restore guest graphics state” to “understand QEMU `screendump` / `virtio-vga` plane selection after `pm_test=devices`”.
+
+### What was tricky to build
+- The main trap here was avoiding the old assumption that screenshot failure implied shell policy. Without the earlier authorization validation, this control would have looked riskier than it really was.
+
+### What warrants a second pair of eyes
+- Whether enabling Weston `--debug` changes any resume timing or output behavior enough to matter for the comparison.
+- Even if it does, the combination with the DRM debugfs result still strongly points away from guest-side scene loss.
+
+### What should be done in the future
+- Investigate QEMU `screendump` / `virtio-vga` capture behavior directly.
+- Consider comparing against a second host-visible capture route if one exists, to avoid overfitting to QMP alone.
+
+### Code review instructions
+- Start with:
+  - [results-phase3-guestshot-debug-suspend1/guest-serial.log](../../../../../../results-phase3-guestshot-debug-suspend1/guest-serial.log)
+  - [results-phase3-guestshot-debug-suspend1/guestshots/guestshot-pre.png](../../../../../../results-phase3-guestshot-debug-suspend1/guestshots/guestshot-pre.png)
+  - [results-phase3-guestshot-debug-suspend1/guestshots/guestshot-post.png](../../../../../../results-phase3-guestshot-debug-suspend1/guestshots/guestshot-post.png)
+  - [results-phase3-guestshot-debug-suspend1/00-pre.png](../../../../../../results-phase3-guestshot-debug-suspend1/00-pre.png)
+  - [results-phase3-guestshot-debug-suspend1/01-post.png](../../../../../../results-phase3-guestshot-debug-suspend1/01-post.png)
+
+### Technical details
+- Key numeric summary:
+```text
+guest screenshot post size: 1280x800
+guest screenshot post mean luminance: 138.19
+QMP screenshot post size: 720x400
+QMP screenshot post mean luminance: 2.12
+```
+
+## Step 12: Import the KMS Research Note and Collapse the Current State into a Postmortem
+
+At this point the investigation had enough local evidence that the imported research note was no longer useful as a source of speculation. Its value was that it matched the direction the experiments were already pointing toward. That made it worth importing into the ticket and turning into a proper postmortem report rather than leaving the conclusions split across chat, changelog bullets, and diary fragments.
+
+The important outcome of this step was not a new experiment. It was convergence. The imported note, the DRM debugfs state, the guest compositor screenshots, and the QMP screenshots all now support the same working model: the guest display stack is likely healthy after `pm_test=devices`, and the remaining problem is in QEMU’s host-visible capture/scanout path.
+
+### Prompt Context
+
+**User prompt (verbatim):** "run docmgr import file --file /tmp/chat-gpt-research-kms.md --ticket QEMU-05-DEVICES-RESUME-INVESTIGATION and t hen read it, it's the answers to your previous questions, maybe there is something useful in there. Tell me if that helps and what our current state is in the lab, what's missing, what are wedebugging, explain to me"
+
+**Assistant interpretation:** Import the external KMS note into the ticket, read it against the local evidence, and explain whether it changes or reinforces the current understanding of the lab and the active bug.
+
+**Inferred user intent:** Use the external reasoning as a cross-check, not as a replacement for the actual experiments, and then crystallize the current lab state clearly.
+
+### What I did
+- Imported:
+```bash
+docmgr import file --file /tmp/chat-gpt-research-kms.md --ticket QEMU-05-DEVICES-RESUME-INVESTIGATION
+```
+- Read the imported source in:
+  - `sources/local/01-chat-gpt-research-kms.md`
+- Compared it against the latest local evidence:
+  - guest DRM debugfs state
+  - guest Weston screenshots
+  - host QMP screenshots
+- Added the new postmortem report:
+  - `design-doc/02-qmp-capture-path-postmortem-report.md`
+- Linked the report from the ticket index and changelog.
+
+### Why
+- The ticket had reached the point where the remaining uncertainty was about interpretation, not raw data collection.
+- A postmortem document is a better format than another diary step for explaining:
+  - what the lab currently proves,
+  - what is missing,
+  - and why the next debugging step is QEMU-facing.
+
+### What worked
+- The imported note strongly reinforced the local evidence:
+  - trust guest KMS state for guest correctness,
+  - trust QMP only for what QEMU is currently showing the host,
+  - do not use `/dev/fb0` as the tie-breaker in a Weston DRM session.
+- The new postmortem report now captures the current working conclusion in one place.
+
+### What didn't work
+- The imported note did not magically answer the QEMU-side question.
+- It helped mostly by narrowing confidence, not by producing a fix.
+
+### What I learned
+- The investigation is now past the “guest might still be broken” stage.
+- The imported note was useful because it agreed with the guest-side evidence we already had, which makes the host/QEMU direction more defensible.
+
+### What was tricky to build
+- The tricky part was synthesis rather than code: avoiding a report that simply restated the diary without explaining the shift in trust boundaries.
+
+### What warrants a second pair of eyes
+- The imported note is still secondary to the local experiments. The final call should keep the experiments above the prose.
+- The postmortem’s main conclusion should be reviewed with that in mind: it is strong, but it still points to the next experiment rather than a finished root-cause fix.
+
+### What should be done in the future
+- Continue with QEMU `screendump` / `virtio-vga` capture-path investigation.
+- Keep using guest DRM state and guest compositor screenshots as the main guest-side truth sources.
+
+### Code review instructions
+- Read:
+  - [01-chat-gpt-research-kms.md](../sources/local/01-chat-gpt-research-kms.md)
+  - [02-qmp-capture-path-postmortem-report.md](../design-doc/02-qmp-capture-path-postmortem-report.md)
+  - [01-devices-resume-analysis-guide.md](../design-doc/01-devices-resume-analysis-guide.md)
+- Then cross-check the latest result directories:
+  - `results-phase3-drmstate-shm1/`
+  - `results-phase3-guestshot-debug-suspend1/`
+
+### Technical details
+- New working summary:
+```text
+guest DRM state: healthy after resume
+guest compositor screenshots: healthy after resume
+host QMP screenshot: unhealthy after resume
+next debugging layer: QEMU screendump / virtio-vga capture path
+```

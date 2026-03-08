@@ -467,6 +467,90 @@ Interpretation:
 - In this environment, `weston-screenshooter` becomes available once Weston is launched with `--debug`, even with kiosk shell unchanged.
 - This matches Weston’s own manual, which states that `--debug` exposes the `weston-screenshooter` interface and should not be used in production.
 
+### Intervention K: Compare Pre/Post DRM Debugfs State Across `pm_test=devices`
+
+Command:
+```bash
+bash host/run_phase3_suspend_capture.sh \
+  --results-dir results-phase3-drmstate-shm1 \
+  --pre-delay-seconds 8.0 \
+  --post-resume-delay-seconds 1.0 \
+  --append-extra 'phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices phase3_drm_state_capture=1 phase3_drm_state_capture_pre_delay_seconds=8 phase3_drm_state_capture_post_delay_seconds=17'
+
+python3 host/extract_drmstate_from_serial.py \
+  --serial-log results-phase3-drmstate-shm1/guest-serial.log \
+  --output-dir results-phase3-drmstate-shm1/drmstate
+```
+
+Observed:
+- host QMP screenshots in the same run still show:
+  - `00-pre.png`: `1280x800`
+  - `01-post.png`: `720x400`
+  - `resume_ae = 1.024e+06`
+- guest DRM state before resume:
+  - `plane[31] -> fb=43`
+  - `allocated by = weston`
+  - `format = XR24`
+  - `size = 1280x800`
+  - `connector[36]: Virtual-1`
+  - `crtc[35]: enable=1 active=1`
+- guest DRM state after resume:
+  - `plane[31] -> fb=42`
+  - `allocated by = weston`
+  - `format = XR24`
+  - `size = 1280x800`
+  - `connector[36]: Virtual-1`
+  - `crtc[35]: enable=1 active=1`
+- the meaningful diff is only a weston buffer flip:
+```text
+plane[31] fb: 43 -> 42
+framebuffer[43] refcount: 2 -> 1
+framebuffer[42] refcount: 1 -> 2
+```
+- the fbcon framebuffer remains present but not selected as the active plane:
+  - `framebuffer[39]: allocated by = [fbcon]`
+
+Interpretation:
+- Guest-side KMS state does **not** collapse to a `720x400` mode or text-like plane after resume.
+- The active plane remains bound to a Weston-owned `1280x800` XR24 framebuffer across the suspend/resume cycle.
+- The strongest current interpretation is that QMP `screendump` is not reflecting the compositor-visible plane after `pm_test=devices`.
+
+### Intervention L: Compare Guest Compositor Screenshots to Host QMP Screenshots Across Resume
+
+Command:
+```bash
+bash host/run_phase3_suspend_capture.sh \
+  --results-dir results-phase3-guestshot-debug-suspend1 \
+  --pre-delay-seconds 8.0 \
+  --post-resume-delay-seconds 1.0 \
+  --append-extra 'phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices phase3_weston_debug=1 phase3_guest_capture=1 phase3_guest_capture_pre_delay_seconds=8 phase3_guest_capture_post_delay_seconds=17'
+
+python3 host/extract_guestshot_from_serial.py \
+  --serial-log results-phase3-guestshot-debug-suspend1/guest-serial.log \
+  --output-dir results-phase3-guestshot-debug-suspend1/guestshots
+```
+
+Observed:
+- guest compositor screenshots:
+  - `guestshot-pre.png`: `1280x800`
+  - `guestshot-post.png`: `1280x800`
+  - `AE(guestshot-pre, guestshot-post) = 942400`
+  - both are fully nonzero graphical images
+  - mean luminance:
+    - pre: `138.93`
+    - post: `138.19`
+- host QMP screenshots in the same run:
+  - `00-pre.png`: `1280x800`
+  - `01-post.png`: `720x400`
+  - post mean luminance: `2.12`
+- guest pre and QMP pre are same-size and close enough to be recognizably the same scene class:
+  - `AE(00-pre.png, guestshot-pre.png) = 942400`
+
+Interpretation:
+- The guest compositor-visible output remains graphical after resume.
+- The host QMP screenshot path still falls back to the firmware-looking `720x400` plane.
+- Combined with Intervention K, this is near-smoking-gun evidence that the post-resume QMP `screendump` path is the layer that is out of sync with the guest-visible scene.
+
 ## What the Intern Should Conclude Right Now
 
 Do **not** conclude:
@@ -485,6 +569,9 @@ Do conclude:
 - a raw `fb0` readback therefore cannot be used as “what the guest is visibly showing” in this environment,
 - `weston-screenshooter` is available in this stack when Weston is started with `--debug`,
 - the earlier `unauthorized` failure was not a kiosk-shell-specific denial,
+- guest DRM debugfs state remains healthy across resume,
+- guest compositor screenshots remain healthy across resume under explicit debug capture,
+- the host QMP `screendump` path is now the leading suspect for the `720x400` fallback,
 - the stage-2 probe evidence points below simple `vtconsole` ownership,
 - the earlier phase-3 probe gap was a shell bug, not an inherent logging limitation.
 
@@ -514,6 +601,13 @@ Reason:
 - Weston documents that `--debug` exposes the screenshot interface,
 - therefore screenshot authorization here is a compositor debug-policy knob, not a shell-specific capability.
 
+### Decision: prioritize QMP / `virtio-vga` capture-path investigation over guest-side KMS restoration
+
+Reason:
+- guest DRM debugfs state still shows an active Weston-owned `1280x800` XR24 plane after resume,
+- guest compositor screenshots still show a graphical `1280x800` scene after resume,
+- so the strongest remaining inconsistency is in the host-visible capture path.
+
 ## Alternatives Considered
 
 ### Restart stage 2 from scratch
@@ -533,21 +627,26 @@ Rejected because:
 Rejected because:
 - screenshots alone cannot distinguish ownership state from captured output state.
 
+### Assume `kiosk-shell.so` blocks screenshots
+
+Rejected because:
+- the same kiosk-shell session allows screenshots once Weston is started with `--debug`.
+
 ## Implementation Plan
 
 ### Immediate next tests
 
 1. Re-run stage-3 `display_unbind_fbcon=1` with capture attached concurrently, not post-hoc.
-2. If a guest-visible screenshot is needed for comparison, use the explicit investigation-only `phase3_weston_debug=1` knob instead of assuming kiosk shell prevents capture.
-3. Since `/dev/fb0` turned out not to be the visible plane, add a lower-level DRM/KMS readback or plane-state experiment next.
-4. If that still points below QMP, add a tighter post-resume probe for DRM/scanout state during the narrow resume window.
+2. Use the DRM debugfs state dump as the primary guest-side KMS truth source.
+3. If a guest-visible screenshot comparison is needed, use the explicit investigation-only `phase3_weston_debug=1` knob instead of assuming kiosk shell prevents capture.
+4. Investigate QEMU `screendump` / `virtio-vga` plane selection next.
 
 ### Likely follow-up experiments
 
-1. Compare `pm_test=freezer` vs `pm_test=devices` under the same probe instrumentation.
-2. Add a tiny post-resume DRM/fb state dumper that runs immediately after resume and before the main client redraw.
-3. Add a guest-side DRM/KMS capture or state query path, because `fb0` is not sufficient.
-4. If the shared fallback remains, investigate QEMU scanout ownership or `screendump` plane selection instead of staying at the app level.
+1. Compare `pm_test=freezer` vs `pm_test=devices` under the same DRM debugfs and screenshot instrumentation.
+2. Add a tighter immediate-post-resume DRM state capture to reduce the blind window between wake and the scheduled post dump.
+3. Investigate QEMU scanout ownership or `screendump` plane selection directly.
+4. Only return to app-level hypotheses if the host capture path explanation fails.
 
 Pseudo-code for the next disciplined loop:
 
@@ -566,10 +665,10 @@ for each hypothesis in [fbcon_ownership, drm_scanout_restore, client_resource_in
 
 ## Open Questions
 
-- Which guest-side API can capture the compositor-visible KMS plane without requiring Weston `--debug`?
+- Why does QEMU `screendump` show a `720x400` firmware-looking plane when guest DRM debugfs still reports an active Weston-owned `1280x800` XR24 plane?
+- Is `virtio-vga` maintaining a legacy VGA text/firmware surface that QMP `screendump` prefers after `pm_test=devices` resume?
 - Are the `virtio_gpu_dequeue_ctrl_func ... 0x1203` lines in `results-phase3-probe-shm1` caused by the same lower-layer issue as the screenshot fallback, or were they primarily tied to the earlier broken runs?
-- Is QMP `screendump` observing firmware text output after resume while `virtio_gpudrmfb` remains mapped but visually unused?
-- Is there a resume-time DRM or console handoff event occurring in a narrower window than the one-second probe interval can capture?
+- Is there a resume-time host-side display handoff event occurring in a narrower window than the current capture schedule can observe?
 
 ## References
 
@@ -590,4 +689,6 @@ for each hypothesis in [fbcon_ownership, drm_scanout_restore, client_resource_in
 - QMP screenshot/input harness: [host/capture_phase3_suspend_checkpoints.py](../../../../../../host/capture_phase3_suspend_checkpoints.py)
 - Guest framebuffer dump helper: [guest/dump_fb0_snapshot.sh](../../../../../../guest/dump_fb0_snapshot.sh)
 - Host framebuffer extractor: [host/extract_fbshot_from_serial.py](../../../../../../host/extract_fbshot_from_serial.py)
+- Guest DRM state dump helper: [guest/dump_drm_state.sh](../../../../../../guest/dump_drm_state.sh)
+- Host DRM state extractor: [host/extract_drmstate_from_serial.py](../../../../../../host/extract_drmstate_from_serial.py)
 - Weston manual for `--debug` and screenshot exposure: https://manpages.debian.org/testing/weston/weston.1.en.html

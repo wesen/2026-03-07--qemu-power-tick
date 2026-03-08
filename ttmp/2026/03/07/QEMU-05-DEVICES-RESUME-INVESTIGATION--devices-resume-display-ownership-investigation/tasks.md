@@ -19,4 +19,5 @@
 - [x] Refresh the intern guide and bundle after the corrected phase-3 reruns.
 - [x] Run a corrected stage-3 `weston-simple-shm` `display_unbind_fbcon=1` control and compare it to the corrected baseline.
 - [x] Add one guest-visible screenshot or readback experiment to compare guest-side output against QMP `screendump` after resume.
-- [ ] Add a lower-level guest DRM/KMS readback experiment, because `/dev/fb0` does not match the compositor-visible plane even before suspend in the current stage-3 stack.
+- [x] Add a lower-level guest DRM/KMS state experiment, because `/dev/fb0` does not match the compositor-visible plane even before suspend in the current stage-3 stack.
+- [ ] Investigate QEMU `screendump` / `virtio-vga` plane selection now that guest DRM state and guest compositor screenshots both remain healthy after resume.
