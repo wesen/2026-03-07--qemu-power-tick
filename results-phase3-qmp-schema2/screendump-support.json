@@ -1,0 +1,45 @@
+{
+  "query_commands_supported": true,
+  "query_qmp_schema_supported": true,
+  "screendump_command_present": true,
+  "interesting_commands": [
+    "display-reload",
+    "display-update",
+    "query-display-options",
+    "screendump"
+  ],
+  "screendump_schema": {
+    "name": "screendump",
+    "ret-type": "0",
+    "meta-type": "command",
+    "arg-type": "124"
+  },
+  "screendump_arg_type": {
+    "name": "124",
+    "members": [
+      {
+        "name": "filename",
+        "type": "str"
+      },
+      {
+        "name": "device",
+        "default": null,
+        "type": "str"
+      },
+      {
+        "name": "head",
+        "default": null,
+        "type": "int"
+      },
+      {
+        "name": "format",
+        "default": null,
+        "type": "397"
+      }
+    ],
+    "meta-type": "object"
+  },
+  "query_display_options": {
+    "type": "none"
+  }
+}

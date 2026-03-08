@@ -1,0 +1,994 @@
+{
+  "command_names": [
+    "add-fd",
+    "add_client",
+    "announce-self",
+    "balloon",
+    "block-commit",
+    "block-dirty-bitmap-add",
+    "block-dirty-bitmap-clear",
+    "block-dirty-bitmap-disable",
+    "block-dirty-bitmap-enable",
+    "block-dirty-bitmap-merge",
+    "block-dirty-bitmap-remove",
+    "block-export-add",
+    "block-export-del",
+    "block-job-cancel",
+    "block-job-change",
+    "block-job-complete",
+    "block-job-dismiss",
+    "block-job-finalize",
+    "block-job-pause",
+    "block-job-resume",
+    "block-job-set-speed",
+    "block-latency-histogram-set",
+    "block-set-write-threshold",
+    "block-stream",
+    "block_resize",
+    "block_set_io_throttle",
+    "blockdev-add",
+    "blockdev-backup",
+    "blockdev-change-medium",
+    "blockdev-close-tray",
+    "blockdev-create",
+    "blockdev-del",
+    "blockdev-insert-medium",
+    "blockdev-mirror",
+    "blockdev-open-tray",
+    "blockdev-remove-medium",
+    "blockdev-reopen",
+    "blockdev-snapshot",
+    "blockdev-snapshot-delete-internal-sync",
+    "blockdev-snapshot-internal-sync",
+    "blockdev-snapshot-sync",
+    "calc-dirty-rate",
+    "cancel-vcpu-dirty-limit",
+    "change-backing-file",
+    "change-vnc-password",
+    "chardev-add",
+    "chardev-change",
+    "chardev-remove",
+    "chardev-send-break",
+    "client_migrate_info",
+    "closefd",
+    "cont",
+    "cxl-inject-correctable-error",
+    "cxl-inject-dram-event",
+    "cxl-inject-general-media-event",
+    "cxl-inject-memory-module-event",
+    "cxl-inject-poison",
+    "cxl-inject-uncorrectable-errors",
+    "device-list-properties",
+    "device_add",
+    "device_del",
+    "display-reload",
+    "display-update",
+    "drive-backup",
+    "drive-mirror",
+    "dump-guest-memory",
+    "dumpdtb",
+    "eject",
+    "expire_password",
+    "getfd",
+    "human-monitor-command",
+    "inject-nmi",
+    "input-send-event",
+    "job-cancel",
+    "job-complete",
+    "job-dismiss",
+    "job-finalize",
+    "job-pause",
+    "job-resume",
+    "memsave",
+    "migrate",
+    "migrate-continue",
+    "migrate-incoming",
+    "migrate-pause",
+    "migrate-recover",
+    "migrate-set-capabilities",
+    "migrate-set-parameters",
+    "migrate-start-postcopy",
+    "migrate_cancel",
+    "nbd-server-add",
+    "nbd-server-remove",
+    "nbd-server-start",
+    "nbd-server-stop",
+    "netdev_add",
+    "netdev_del",
+    "object-add",
+    "object-del",
+    "pmemsave",
+    "qmp_capabilities",
+    "qom-get",
+    "qom-list",
+    "qom-list-properties",
+    "qom-list-types",
+    "qom-set",
+    "query-acpi-ospm-status",
+    "query-audiodevs",
+    "query-balloon",
+    "query-block",
+    "query-block-exports",
+    "query-block-jobs",
+    "query-blockstats",
+    "query-chardev",
+    "query-chardev-backends",
+    "query-colo-status",
+    "query-command-line-options",
+    "query-commands",
+    "query-cpu-definitions",
+    "query-cpu-model-expansion",
+    "query-cpus-fast",
+    "query-cryptodev",
+    "query-current-machine",
+    "query-dirty-rate",
+    "query-display-options",
+    "query-dump",
+    "query-dump-guest-memory-capability",
+    "query-fdsets",
+    "query-hotpluggable-cpus",
+    "query-hv-balloon-status-report",
+    "query-iothreads",
+    "query-jobs",
+    "query-kvm",
+    "query-machines",
+    "query-memdev",
+    "query-memory-devices",
+    "query-memory-size-summary",
+    "query-mice",
+    "query-migrate",
+    "query-migrate-capabilities",
+    "query-migrate-parameters",
+    "query-migrationthreads",
+    "query-name",
+    "query-named-block-nodes",
+    "query-pci",
+    "query-pr-managers",
+    "query-qmp-schema",
+    "query-replay",
+    "query-rocker",
+    "query-rocker-of-dpa-flows",
+    "query-rocker-of-dpa-groups",
+    "query-rocker-ports",
+    "query-rx-filter",
+    "query-sev",
+    "query-sev-attestation-report",
+    "query-sev-capabilities",
+    "query-sev-launch-measure",
+    "query-sgx",
+    "query-sgx-capabilities",
+    "query-spice",
+    "query-stats",
+    "query-stats-schemas",
+    "query-status",
+    "query-target",
+    "query-tpm",
+    "query-tpm-models",
+    "query-tpm-types",
+    "query-uuid",
+    "query-vcpu-dirty-limit",
+    "query-version",
+    "query-vm-generation-id",
+    "query-vnc",
+    "query-vnc-servers",
+    "query-xen-replication-status",
+    "query-yank",
+    "quit",
+    "remove-fd",
+    "replay-break",
+    "replay-delete-break",
+    "replay-seek",
+    "ringbuf-read",
+    "ringbuf-write",
+    "rtc-reset-reinjection",
+    "screendump",
+    "send-key",
+    "set-action",
+    "set-numa-node",
+    "set-vcpu-dirty-limit",
+    "set_link",
+    "set_password",
+    "sev-inject-launch-secret",
+    "snapshot-delete",
+    "snapshot-load",
+    "snapshot-save",
+    "stop",
+    "system_powerdown",
+    "system_reset",
+    "system_wakeup",
+    "trace-event-get-state",
+    "trace-event-set-state",
+    "transaction",
+    "watchdog-set-action",
+    "x-blockdev-amend",
+    "x-blockdev-change",
+    "x-blockdev-set-iothread",
+    "x-colo-lost-heartbeat",
+    "x-debug-block-dirty-bitmap-sha256",
+    "x-debug-query-block-graph",
+    "x-exit-preconfig",
+    "x-query-irq",
+    "x-query-jit",
+    "x-query-numa",
+    "x-query-opcount",
+    "x-query-ramblock",
+    "x-query-rdma",
+    "x-query-roms",
+    "x-query-usb",
+    "x-query-virtio",
+    "x-query-virtio-queue-element",
+    "x-query-virtio-queue-status",
+    "x-query-virtio-status",
+    "x-query-virtio-vhost-queue-status",
+    "xen-colo-do-checkpoint",
+    "xen-event-inject",
+    "xen-event-list",
+    "xen-load-devices-state",
+    "xen-save-devices-state",
+    "xen-set-global-dirty-log",
+    "xen-set-replication",
+    "yank"
+  ],
+  "hmp_commands": [
+    "info pci",
+    "info qtree"
+  ],
+  "pre": {
+    "query-status": {
+      "return": {
+        "status": "running",
+        "singlestep": false,
+        "running": true
+      }
+    },
+    "query-display-options": {
+      "return": {
+        "type": "none"
+      }
+    },
+    "query-pci": {
+      "return": [
+        {
+          "bus": 0,
+          "devices": [
+            {
+              "irq_pin": 0,
+              "bus": 0,
+              "qdev_id": "",
+              "slot": 0,
+              "class_info": {
+                "class": 1536,
+                "desc": "Host bridge"
+              },
+              "id": {
+                "device": 10688,
+                "subsystem-vendor": 6900,
+                "vendor": 32902,
+                "subsystem": 4352
+              },
+              "function": 0,
+              "regions": []
+            },
+            {
+              "irq_pin": 1,
+              "bus": 0,
+              "qdev_id": "",
+              "irq": 10,
+              "slot": 1,
+              "class_info": {
+                "class": 512,
+                "desc": "Ethernet controller"
+              },
+              "id": {
+                "device": 4096,
+                "subsystem-vendor": 6900,
+                "vendor": 6900,
+                "subsystem": 1
+              },
+              "function": 0,
+              "regions": [
+                {
+                  "bar": 0,
+                  "size": 32,
+                  "address": 49216,
+                  "type": "io"
+                },
+                {
+                  "prefetch": true,
+                  "mem_type_64": true,
+                  "bar": 4,
+                  "size": 16384,
+                  "address": 4273963008,
+                  "type": "memory"
+                },
+                {
+                  "prefetch": false,
+                  "mem_type_64": false,
+                  "bar": 6,
+                  "size": 524288,
+                  "address": -1,
+                  "type": "memory"
+                }
+              ]
+            },
+            {
+              "irq_pin": 1,
+              "bus": 0,
+              "qdev_id": "labgpu",
+              "irq": 11,
+              "slot": 2,
+              "class_info": {
+                "class": 896,
+                "desc": "Display controller"
+              },
+              "id": {
+                "device": 4176,
+                "subsystem-vendor": 6900,
+                "vendor": 6900,
+                "subsystem": 4352
+              },
+              "function": 0,
+              "regions": [
+                {
+                  "prefetch": false,
+                  "mem_type_64": false,
+                  "bar": 1,
+                  "size": 4096,
+                  "address": 4273487872,
+                  "type": "memory"
+                },
+                {
+                  "prefetch": true,
+                  "mem_type_64": true,
+                  "bar": 4,
+                  "size": 16384,
+                  "address": 4273979392,
+                  "type": "memory"
+                }
+              ]
+            },
+            {
+              "irq_pin": 1,
+              "bus": 0,
+              "qdev_id": "",
+              "irq": 11,
+              "slot": 3,
+              "class_info": {
+                "class": 3075,
+                "desc": "USB controller"
+              },
+              "id": {
+                "device": 13,
+                "subsystem-vendor": 6900,
+                "vendor": 6966,
+                "subsystem": 4352
+              },
+              "function": 0,
+              "regions": [
+                {
+                  "prefetch": false,
+                  "mem_type_64": true,
+                  "bar": 0,
+                  "size": 16384,
+                  "address": 4273471488,
+                  "type": "memory"
+                }
+              ]
+            },
+            {
+              "irq_pin": 0,
+              "bus": 0,
+              "qdev_id": "",
+              "slot": 31,
+              "class_info": {
+                "class": 1537,
+                "desc": "ISA bridge"
+              },
+              "id": {
+                "device": 10520,
+                "subsystem-vendor": 6900,
+                "vendor": 32902,
+                "subsystem": 4352
+              },
+              "function": 0,
+              "regions": []
+            },
+            {
+              "irq_pin": 1,
+              "bus": 0,
+              "qdev_id": "",
+              "irq": 10,
+              "slot": 31,
+              "class_info": {
+                "class": 262,
+                "desc": "SATA controller"
+              },
+              "id": {
+                "device": 10530,
+                "subsystem-vendor": 6900,
+                "vendor": 32902,
+                "subsystem": 4352
+              },
+              "function": 2,
+              "regions": [
+                {
+                  "bar": 4,
+                  "size": 32,
+                  "address": 49248,
+                  "type": "io"
+                },
+                {
+                  "prefetch": false,
+                  "mem_type_64": false,
+                  "bar": 5,
+                  "size": 4096,
+                  "address": 4273491968,
+                  "type": "memory"
+                }
+              ]
+            },
+            {
+              "irq_pin": 1,
+              "bus": 0,
+              "qdev_id": "",
+              "irq": 10,
+              "slot": 31,
+              "class_info": {
+                "class": 3077,
+                "desc": "SMBus"
+              },
+              "id": {
+                "device": 10544,
+                "subsystem-vendor": 6900,
+                "vendor": 32902,
+                "subsystem": 4352
+              },
+              "function": 3,
+              "regions": [
+                {
+                  "bar": 4,
+                  "size": 64,
+                  "address": 1792,
+                  "type": "io"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "x-query-virtio": {
+      "return": [
+        {
+          "name": "virtio-net",
+          "path": "/machine/unattached/device[28]/virtio-backend"
+        },
+        {
+          "name": "virtio-gpu",
+          "path": "/machine/peripheral/labgpu/virtio-backend"
+        }
+      ]
+    },
+    "x-query-virtio-status": {
+      "/machine/unattached/device[28]/virtio-backend": {
+        "return": {
+          "device-endian": "little",
+          "bus-name": "",
+          "disable-legacy-check": false,
+          "name": "virtio-net",
+          "started": true,
+          "device-id": 1,
+          "backend-features": {
+            "dev-features": [],
+            "transports": []
+          },
+          "start-on-kick": false,
+          "isr": 0,
+          "broken": false,
+          "status": {
+            "statuses": [
+              "VIRTIO_CONFIG_S_ACKNOWLEDGE: Valid virtio device found",
+              "VIRTIO_CONFIG_S_DRIVER: Guest OS compatible with device",
+              "VIRTIO_CONFIG_S_FEATURES_OK: Feature negotiation complete",
+              "VIRTIO_CONFIG_S_DRIVER_OK: Driver setup and ready"
+            ]
+          },
+          "num-vqs": 3,
+          "guest-features": {
+            "dev-features": [
+              "VIRTIO_NET_F_CTRL_MAC_ADDR: MAC address set through control channel",
+              "VIRTIO_NET_F_GUEST_ANNOUNCE: Driver sending gratuitous packets supported",
+              "VIRTIO_NET_F_CTRL_VLAN: Control channel VLAN filtering supported",
+              "VIRTIO_NET_F_CTRL_RX: Control channel RX mode supported",
+              "VIRTIO_NET_F_CTRL_VQ: Control channel available",
+              "VIRTIO_NET_F_STATUS: Configuration status field available",
+              "VIRTIO_NET_F_MRG_RXBUF: Driver can merge receive buffers",
+              "VIRTIO_NET_F_MAC: Device has given MAC address",
+              "VIRTIO_NET_F_CTRL_GUEST_OFFLOADS: Control channel offloading reconfig. supported"
+            ],
+            "transports": [
+              "VIRTIO_RING_F_EVENT_IDX: Used & avail. event fields enabled",
+              "VIRTIO_RING_F_INDIRECT_DESC: Indirect descriptors supported",
+              "VIRTIO_F_RING_RESET: Driver can reset a queue individually",
+              "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)"
+            ]
+          },
+          "host-features": {
+            "dev-features": [
+              "VHOST_USER_F_PROTOCOL_FEATURES: Vhost-user protocol features negotiation supported",
+              "VIRTIO_NET_F_GSO: Handling GSO-type packets supported",
+              "VIRTIO_NET_F_CTRL_MAC_ADDR: MAC address set through control channel",
+              "VIRTIO_NET_F_GUEST_ANNOUNCE: Driver sending gratuitous packets supported",
+              "VIRTIO_NET_F_CTRL_RX_EXTRA: Extra RX mode control supported",
+              "VIRTIO_NET_F_CTRL_VLAN: Control channel VLAN filtering supported",
+              "VIRTIO_NET_F_CTRL_RX: Control channel RX mode supported",
+              "VIRTIO_NET_F_CTRL_VQ: Control channel available",
+              "VIRTIO_NET_F_STATUS: Configuration status field available",
+              "VIRTIO_NET_F_MRG_RXBUF: Driver can merge receive buffers",
+              "VIRTIO_NET_F_MAC: Device has given MAC address",
+              "VIRTIO_NET_F_CTRL_GUEST_OFFLOADS: Control channel offloading reconfig. supported"
+            ],
+            "transports": [
+              "VIRTIO_RING_F_EVENT_IDX: Used & avail. event fields enabled",
+              "VIRTIO_RING_F_INDIRECT_DESC: Indirect descriptors supported",
+              "VIRTIO_F_RING_RESET: Driver can reset a queue individually",
+              "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)",
+              "VIRTIO_F_ANY_LAYOUT: Device accepts arbitrary desc. layouts",
+              "VIRTIO_F_NOTIFY_ON_EMPTY: Notify when device runs out of avail. descs. on VQ"
+            ]
+          },
+          "use-guest-notifier-mask": true,
+          "vm-running": true,
+          "queue-sel": 2,
+          "disabled": false,
+          "vhost-started": false,
+          "use-started": true
+        }
+      },
+      "/machine/peripheral/labgpu/virtio-backend": {
+        "return": {
+          "device-endian": "little",
+          "bus-name": "",
+          "disable-legacy-check": false,
+          "name": "virtio-gpu",
+          "started": true,
+          "device-id": 16,
+          "backend-features": {
+            "dev-features": [],
+            "transports": []
+          },
+          "start-on-kick": false,
+          "isr": 1,
+          "broken": false,
+          "status": {
+            "statuses": [
+              "VIRTIO_CONFIG_S_ACKNOWLEDGE: Valid virtio device found",
+              "VIRTIO_CONFIG_S_DRIVER: Guest OS compatible with device",
+              "VIRTIO_CONFIG_S_FEATURES_OK: Feature negotiation complete",
+              "VIRTIO_CONFIG_S_DRIVER_OK: Driver setup and ready"
+            ]
+          },
+          "num-vqs": 2,
+          "guest-features": {
+            "dev-features": [
+              "VIRTIO_GPU_F_EDID: EDID metadata supported"
+            ],
+            "transports": [
+              "VIRTIO_RING_F_EVENT_IDX: Used & avail. event fields enabled",
+              "VIRTIO_RING_F_INDIRECT_DESC: Indirect descriptors supported",
+              "VIRTIO_F_RING_RESET: Driver can reset a queue individually",
+              "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)"
+            ]
+          },
+          "host-features": {
+            "dev-features": [
+              "VHOST_USER_F_PROTOCOL_FEATURES: Vhost-user protocol features negotiation supported",
+              "VIRTIO_GPU_F_EDID: EDID metadata supported"
+            ],
+            "transports": [
+              "VIRTIO_RING_F_EVENT_IDX: Used & avail. event fields enabled",
+              "VIRTIO_RING_F_INDIRECT_DESC: Indirect descriptors supported",
+              "VIRTIO_F_RING_RESET: Driver can reset a queue individually",
+              "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)",
+              "VIRTIO_F_ANY_LAYOUT: Device accepts arbitrary desc. layouts",
+              "VIRTIO_F_NOTIFY_ON_EMPTY: Notify when device runs out of avail. descs. on VQ"
+            ]
+          },
+          "use-guest-notifier-mask": true,
+          "vm-running": true,
+          "queue-sel": 1,
+          "disabled": false,
+          "vhost-started": false,
+          "use-started": true
+        }
+      }
+    },
+    "human-monitor-command": {
+      "info pci": {
+        "return": "  Bus  0, device   0, function 0:\r\n    Host bridge: PCI device 8086:29c0\r\n      PCI subsystem 1af4:1100\r\n      id \"\"\r\n  Bus  0, device   1, function 0:\r\n    Ethernet controller: PCI device 1af4:1000\r\n      PCI subsystem 1af4:0001\r\n      IRQ 10, pin A\r\n      BAR0: I/O at 0xc040 [0xc05f].\r\n      BAR4: 64 bit prefetchable memory at 0xfebf8000 [0xfebfbfff].\r\n      BAR6: 32 bit memory at 0xffffffffffffffff [0x0007fffe].\r\n      id \"\"\r\n  Bus  0, device   2, function 0:\r\n    Display controller: PCI device 1af4:1050\r\n      PCI subsystem 1af4:1100\r\n      IRQ 11, pin A\r\n      BAR1: 32 bit memory at 0xfeb84000 [0xfeb84fff].\r\n      BAR4: 64 bit prefetchable memory at 0xfebfc000 [0xfebfffff].\r\n      id \"labgpu\"\r\n  Bus  0, device   3, function 0:\r\n    USB controller: PCI device 1b36:000d\r\n      PCI subsystem 1af4:1100\r\n      IRQ 11, pin A\r\n      BAR0: 64 bit memory at 0xfeb80000 [0xfeb83fff].\r\n      id \"\"\r\n  Bus  0, device  31, function 0:\r\n    ISA bridge: PCI device 8086:2918\r\n      PCI subsystem 1af4:1100\r\n      id \"\"\r\n  Bus  0, device  31, function 2:\r\n    SATA controller: PCI device 8086:2922\r\n      PCI subsystem 1af4:1100\r\n      IRQ 10, pin A\r\n      BAR4: I/O at 0xc060 [0xc07f].\r\n      BAR5: 32 bit memory at 0xfeb85000 [0xfeb85fff].\r\n      id \"\"\r\n  Bus  0, device  31, function 3:\r\n    SMBus: PCI device 8086:2930\r\n      PCI subsystem 1af4:1100\r\n      IRQ 10, pin A\r\n      BAR4: I/O at 0x0700 [0x073f].\r\n      id \"\"\r\n"
+      },
+      "info qtree": {
+        "return": "bus: main-system-bus\r\n  type System\r\n  dev: ps2-mouse, id \"\"\r\n    gpio-out \"\" 1\r\n  dev: ps2-kbd, id \"\"\r\n    gpio-out \"\" 1\r\n  dev: hpet, id \"\"\r\n    gpio-in \"\" 2\r\n    gpio-out \"\" 1\r\n    gpio-out \"sysbus-irq\" 32\r\n    timers = 3 (0x3)\r\n    msi = false\r\n    hpet-intcap = 16711940 (0xff0104)\r\n    hpet-offset-saved = true\r\n    mmio 00000000fed00000/0000000000000400\r\n  dev: kvm-ioapic, id \"\"\r\n    gpio-in \"\" 24\r\n    gsi_base = 0 (0x0)\r\n    mmio 00000000fec00000/0000000000001000\r\n  dev: q35-pcihost, id \"\"\r\n    MCFG = 2952790016 (0xb0000000)\r\n    pci-hole64-size = 34359738368 (32 GiB)\r\n    below-4g-mem-size = 2147483648 (2 GiB)\r\n    above-4g-mem-size = 0 (0 B)\r\n    x-pci-hole64-fix = true\r\n    x-config-reg-migration-enabled = true\r\n    bypass-iommu = false\r\n    bus: pcie.0\r\n      type PCIE\r\n      dev: qemu-xhci, id \"\"\r\n        addr = 03.0\r\n        romfile = \"\"\r\n        romsize = 4294967295 (0xffffffff)\r\n        rombar = 1 (0x1)\r\n        multifunction = false\r\n        x-pcie-lnksta-dllla = true\r\n        x-pcie-extcap-init = true\r\n        failover_pair_id = \"\"\r\n        acpi-index = 0 (0x0)\r\n        x-pcie-err-unc-mask = true\r\n        x-pcie-ari-nextfn-1 = false\r\n        class USB controller, addr 00:03.0, pci id 1b36:000d (sub 1af4:1100)\r\n        bar 0: mem at 0xfeb80000 [0xfeb83fff]\r\n        bus: usb-bus.0\r\n          type usb-bus\r\n          dev: usb-tablet, id \"\"\r\n            usb_version = 2 (0x2)\r\n            display = \"\"\r\n            head = 0 (0x0)\r\n            port = \"\"\r\n            serial = \"\"\r\n            msos-desc = true\r\n            pcap = \"\"\r\n            addr 0.2, port 2, speed 480, name QEMU USB Tablet, attached\r\n          dev: usb-kbd, id \"\"\r\n            usb_version = 2 (0x2)\r\n            display = \"\"\r\n            port = \"\"\r\n            serial = \"\"\r\n            msos-desc = true\r\n            pcap = \"\"\r\n            addr 0.1, port 1, speed 480, name QEMU USB Keyboard, attached\r\n      dev: virtio-gpu-pci, id \"labgpu\"\r\n        disable-legacy = \"on\"\r\n        disable-modern = false\r\n        ioeventfd = false\r\n        vectors = 3 (0x3)\r\n        virtio-pci-bus-master-bug-migration = false\r\n        migrate-extra = true\r\n        modern-pio-notify = false\r\n        x-disable-pcie = false\r\n        page-per-vq = false\r\n        x-ignore-backend-features = false\r\n        ats = false\r\n        x-ats-page-aligned = true\r\n        x-pcie-deverr-init = true\r\n        x-pcie-lnkctl-init = true\r\n        x-pcie-pm-init = true\r\n        x-pcie-flr-init = true\r\n        aer = false\r\n        addr = 02.0\r\n        romfile = \"\"\r\n        romsize = 4294967295 (0xffffffff)\r\n        rombar = 1 (0x1)\r\n        multifunction = false\r\n        x-pcie-lnksta-dllla = true\r\n        x-pcie-extcap-init = true\r\n        failover_pair_id = \"\"\r\n        acpi-index = 0 (0x0)\r\n        x-pcie-err-unc-mask = true\r\n        x-pcie-ari-nextfn-1 = false\r\n        class Display controller, addr 00:02.0, pci id 1af4:1050 (sub 1af4:1100)\r\n        bar 1: mem at 0xfeb84000 [0xfeb84fff]\r\n        bar 4: mem at 0xfebfc000 [0xfebfffff]\r\n        bus: virtio-bus\r\n          type virtio-pci-bus\r\n          dev: virtio-gpu-device, id \"\"\r\n            max_outputs = 1 (0x1)\r\n            edid = true\r\n            xres = 1280 (0x500)\r\n            yres = 800 (0x320)\r\n            max_hostmem = 268435456 (256 MiB)\r\n            blob = false\r\n            hostmem = 0 (0 B)\r\n            indirect_desc = true\r\n            event_idx = true\r\n            notify_on_empty = true\r\n            any_layout = true\r\n            iommu_platform = false\r\n            packed = false\r\n            queue_reset = true\r\n            use-started = true\r\n            use-disabled-flag = true\r\n            x-disable-legacy-check = false\r\n      dev: virtio-net-pci, id \"\"\r\n        disable-legacy = \"off\"\r\n        disable-modern = false\r\n        ioeventfd = true\r\n        vectors = 0 (0x0)\r\n        virtio-pci-bus-master-bug-migration = false\r\n        migrate-extra = true\r\n        modern-pio-notify = false\r\n        x-disable-pcie = false\r\n        page-per-vq = false\r\n        x-ignore-backend-features = false\r\n        ats = false\r\n        x-ats-page-aligned = true\r\n        x-pcie-deverr-init = true\r\n        x-pcie-lnkctl-init = true\r\n        x-pcie-pm-init = true\r\n        x-pcie-flr-init = true\r\n        aer = false\r\n        addr = 01.0\r\n        romfile = \"efi-virtio.rom\"\r\n        romsize = 524288 (0x80000)\r\n        rombar = 1 (0x1)\r\n        multifunction = false\r\n        x-pcie-lnksta-dllla = true\r\n        x-pcie-extcap-init = true\r\n        failover_pair_id = \"\"\r\n        acpi-index = 0 (0x0)\r\n        x-pcie-err-unc-mask = true\r\n        x-pcie-ari-nextfn-1 = false\r\n        class Ethernet controller, addr 00:01.0, pci id 1af4:1000 (sub 1af4:0001)\r\n        bar 0: i/o at 0xc040 [0xc05f]\r\n        bar 4: mem at 0xfebf8000 [0xfebfbfff]\r\n        bar 6: mem at 0xffffffffffffffff [0x7fffe]\r\n        bus: virtio-bus\r\n          type virtio-pci-bus\r\n          dev: virtio-net-device, id \"\"\r\n            csum = true\r\n            guest_csum = true\r\n            gso = true\r\n            guest_tso4 = true\r\n            guest_tso6 = true\r\n            guest_ecn = true\r\n            guest_ufo = true\r\n            guest_announce = true\r\n            host_tso4 = true\r\n            host_tso6 = true\r\n            host_ecn = true\r\n            host_ufo = true\r\n            mrg_rxbuf = true\r\n            status = true\r\n            ctrl_vq = true\r\n            ctrl_rx = true\r\n            ctrl_vlan = true\r\n            ctrl_rx_extra = true\r\n            ctrl_mac_addr = true\r\n            ctrl_guest_offloads = true\r\n            mq = false\r\n            rss = false\r\n            hash = false\r\n            guest_rsc_ext = false\r\n            rsc_interval = 300000 (0x493e0)\r\n            mac = \"52:54:00:12:34:56\"\r\n            netdev = \"#net064\"\r\n            x-txtimer = 150000 (0x249f0)\r\n            x-txburst = 256 (0x100)\r\n            tx = \"\"\r\n            rx_queue_size = 256 (0x100)\r\n            tx_queue_size = 256 (0x100)\r\n            host_mtu = 0 (0x0)\r\n            x-mtu-bypass-backend = true\r\n            speed = -1 (0xffffffffffffffff)\r\n            duplex = \"\"\r\n            failover = false\r\n            guest_uso4 = true\r\n            guest_uso6 = true\r\n            host_uso = true\r\n            indirect_desc = true\r\n            event_idx = true\r\n            notify_on_empty = true\r\n            any_layout = true\r\n            iommu_platform = false\r\n            packed = false\r\n            queue_reset = true\r\n            use-started = true\r\n            use-disabled-flag = true\r\n            x-disable-legacy-check = false\r\n      dev: ICH9-SMB, id \"\"\r\n        addr = 1f.3\r\n        romfile = \"\"\r\n        romsize = 4294967295 (0xffffffff)\r\n        rombar = 1 (0x1)\r\n        multifunction = true\r\n        x-pcie-lnksta-dllla = true\r\n        x-pcie-extcap-init = true\r\n        failover_pair_id = \"\"\r\n        acpi-index = 0 (0x0)\r\n        x-pcie-err-unc-mask = true\r\n        x-pcie-ari-nextfn-1 = false\r\n        class SMBus, addr 00:1f.3, pci id 8086:2930 (sub 1af4:1100)\r\n        bar 4: i/o at 0x700 [0x73f]\r\n        bus: i2c\r\n          type i2c-bus\r\n          dev: smbus-eeprom, id \"\"\r\n            address = 87 (0x57)\r\n          dev: smbus-eeprom, id \"\"\r\n            address = 86 (0x56)\r\n          dev: smbus-eeprom, id \"\"\r\n            address = 85 (0x55)\r\n          dev: smbus-eeprom, id \"\"\r\n            address = 84 (0x54)\r\n          dev: smbus-eeprom, id \"\"\r\n            address = 83 (0x53)\r\n          dev: smbus-eeprom, id \"\"\r\n            address = 82 (0x52)\r\n          dev: smbus-eeprom, id \"\"\r\n            address = 81 (0x51)\r\n          dev: smbus-eeprom, id \"\"\r\n            address = 80 (0x50)\r\n      dev: ich9-ahci, id \"\"\r\n        addr = 1f.2\r\n        romfile = \"\"\r\n        romsize = 4294967295 (0xffffffff)\r\n        rombar = 1 (0x1)\r\n        multifunction = true\r\n        x-pcie-lnksta-dllla = true\r\n        x-pcie-extcap-init = true\r\n        failover_pair_id = \"\"\r\n        acpi-index = 0 (0x0)\r\n        x-pcie-err-unc-mask = true\r\n        x-pcie-ari-nextfn-1 = false\r\n        class SATA controller, addr 00:1f.2, pci id 8086:2922 (sub 1af4:1100)\r\n        bar 4: i/o at 0xc060 [0xc07f]\r\n        bar 5: mem at 0xfeb85000 [0xfeb85fff]\r\n        bus: ide.5\r\n          type IDE\r\n        bus: ide.4\r\n          type IDE\r\n        bus: ide.3\r\n          type IDE\r\n        bus: ide.2\r\n          type IDE\r\n          dev: ide-cd, id \"\"\r\n            drive = \"ide2-cd0\"\r\n            backend_defaults = \"auto\"\r\n            logical_block_size = 512 (512 B)\r\n            physical_block_size = 512 (512 B)\r\n            min_io_size = 0 (0 B)\r\n            opt_io_size = 0 (0 B)\r\n            discard_granularity = 512 (512 B)\r\n            write-cache = \"auto\"\r\n            share-rw = false\r\n            account-invalid = \"auto\"\r\n            account-failed = \"auto\"\r\n            rerror = \"auto\"\r\n            werror = \"auto\"\r\n            ver = \"2.5+\"\r\n            wwn = 0 (0x0)\r\n            serial = \"QM00005\"\r\n            model = \"\"\r\n            unit = 0 (0x0)\r\n        bus: ide.1\r\n          type IDE\r\n        bus: ide.0\r\n          type IDE\r\n      dev: ICH9-LPC, id \"\"\r\n        gpio-out \"gsi\" 24\r\n        noreboot = false\r\n        smm-compat = false\r\n        smm-enabled = true\r\n        x-smi-broadcast = true\r\n        x-smi-cpu-hotplug = true\r\n        x-smi-cpu-hotunplug = true\r\n        addr = 1f.0\r\n        romfile = \"\"\r\n        romsize = 4294967295 (0xffffffff)\r\n        rombar = 1 (0x1)\r\n        multifunction = true\r\n        x-pcie-lnksta-dllla = true\r\n        x-pcie-extcap-init = true\r\n        failover_pair_id = \"\"\r\n        acpi-index = 0 (0x0)\r\n        x-pcie-err-unc-mask = true\r\n        x-pcie-ari-nextfn-1 = false\r\n        class ISA bridge, addr 00:1f.0, pci id 8086:2918 (sub 1af4:1100)\r\n        bus: isa.0\r\n          type ISA\r\n          dev: port92, id \"\"\r\n            gpio-out \"a20\" 1\r\n          dev: vmmouse, id \"\"\r\n          dev: vmport, id \"\"\r\n            x-read-set-eax = true\r\n            x-signal-unsupported-cmd = true\r\n            x-report-vmx-type = true\r\n            x-cmds-v2 = true\r\n            vmware-vmx-version = 6 (0x6)\r\n            vmware-vmx-type = 2 (0x2)\r\n          dev: i8042, id \"\"\r\n            gpio-in \"ps2-mouse-input-irq\" 1\r\n            gpio-in \"ps2-kbd-input-irq\" 1\r\n            gpio-out \"\" 2\r\n            gpio-out \"a20\" 1\r\n            extended-state = true\r\n            kbd-throttle = false\r\n            kbd-irq = 1 (0x1)\r\n            mouse-irq = 12 (0xc)\r\n          dev: isa-parallel, id \"\"\r\n            index = 0 (0x0)\r\n            iobase = 888 (0x378)\r\n            irq = 7 (0x7)\r\n            chardev = \"parallel0\"\r\n          dev: isa-serial, id \"\"\r\n            index = 0 (0x0)\r\n            iobase = 1016 (0x3f8)\r\n            irq = 4 (0x4)\r\n          dev: isa-pcspk, id \"\"\r\n            audiodev = \"\"\r\n            iobase = 97 (0x61)\r\n            migrate = true\r\n          dev: kvm-pit, id \"\"\r\n            gpio-in \"\" 1\r\n            lost_tick_policy = \"delay\"\r\n            iobase = 64 (0x40)\r\n          dev: kvm-i8259, id \"\"\r\n            iobase = 160 (0xa0)\r\n            elcr_addr = 1233 (0x4d1)\r\n            elcr_mask = 222 (0xde)\r\n            master = false\r\n          dev: kvm-i8259, id \"\"\r\n            iobase = 32 (0x20)\r\n            elcr_addr = 1232 (0x4d0)\r\n            elcr_mask = 248 (0xf8)\r\n            master = true\r\n          dev: mc146818rtc, id \"\"\r\n            gpio-out \"\" 1\r\n            base_year = 0 (0x0)\r\n            iobase = 112 (0x70)\r\n            irq = 8 (0x8)\r\n            lost_tick_policy = \"discard\"\r\n          dev: i8257, id \"\"\r\n            base = 192 (0xc0)\r\n            page-base = 136 (0x88)\r\n            pageh-base = -1 (0xffffffffffffffff)\r\n            dshift = 1 (0x1)\r\n          dev: i8257, id \"\"\r\n            base = 0 (0x0)\r\n            page-base = 128 (0x80)\r\n            pageh-base = -1 (0xffffffffffffffff)\r\n            dshift = 0 (0x0)\r\n      dev: mch, id \"\"\r\n        extended-tseg-mbytes = 16 (0x10)\r\n        smbase-smram = true\r\n        addr = 00.0\r\n        romfile = \"\"\r\n        romsize = 4294967295 (0xffffffff)\r\n        rombar = 1 (0x1)\r\n        multifunction = false\r\n        x-pcie-lnksta-dllla = true\r\n        x-pcie-extcap-init = true\r\n        failover_pair_id = \"\"\r\n        acpi-index = 0 (0x0)\r\n        x-pcie-err-unc-mask = true\r\n        x-pcie-ari-nextfn-1 = false\r\n        class Host bridge, addr 00:00.0, pci id 8086:29c0 (sub 1af4:1100)\r\n  dev: fw_cfg_io, id \"\"\r\n    dma_enabled = true\r\n    x-file-slots = 32 (0x20)\r\n    acpi-mr-restore = true\r\n  dev: kvmclock, id \"\"\r\n    x-mach-use-reliable-get-clock = true\r\n  dev: kvmvapic, id \"\"\r\n"
+      }
+    }
+  },
+  "post": {
+    "query-status": {
+      "return": {
+        "status": "running",
+        "singlestep": false,
+        "running": true
+      }
+    },
+    "query-display-options": {
+      "return": {
+        "type": "none"
+      }
+    },
+    "query-pci": {
+      "return": [
+        {
+          "bus": 0,
+          "devices": [
+            {
+              "irq_pin": 0,
+              "bus": 0,
+              "qdev_id": "",
+              "slot": 0,
+              "class_info": {
+                "class": 1536,
+                "desc": "Host bridge"
+              },
+              "id": {
+                "device": 10688,
+                "subsystem-vendor": 6900,
+                "vendor": 32902,
+                "subsystem": 4352
+              },
+              "function": 0,
+              "regions": []
+            },
+            {
+              "irq_pin": 1,
+              "bus": 0,
+              "qdev_id": "",
+              "irq": 10,
+              "slot": 1,
+              "class_info": {
+                "class": 512,
+                "desc": "Ethernet controller"
+              },
+              "id": {
+                "device": 4096,
+                "subsystem-vendor": 6900,
+                "vendor": 6900,
+                "subsystem": 1
+              },
+              "function": 0,
+              "regions": [
+                {
+                  "bar": 0,
+                  "size": 32,
+                  "address": 49216,
+                  "type": "io"
+                },
+                {
+                  "prefetch": true,
+                  "mem_type_64": true,
+                  "bar": 4,
+                  "size": 16384,
+                  "address": 4273963008,
+                  "type": "memory"
+                },
+                {
+                  "prefetch": false,
+                  "mem_type_64": false,
+                  "bar": 6,
+                  "size": 524288,
+                  "address": -1,
+                  "type": "memory"
+                }
+              ]
+            },
+            {
+              "irq_pin": 1,
+              "bus": 0,
+              "qdev_id": "labgpu",
+              "irq": 11,
+              "slot": 2,
+              "class_info": {
+                "class": 896,
+                "desc": "Display controller"
+              },
+              "id": {
+                "device": 4176,
+                "subsystem-vendor": 6900,
+                "vendor": 6900,
+                "subsystem": 4352
+              },
+              "function": 0,
+              "regions": [
+                {
+                  "prefetch": false,
+                  "mem_type_64": false,
+                  "bar": 1,
+                  "size": 4096,
+                  "address": 4273487872,
+                  "type": "memory"
+                },
+                {
+                  "prefetch": true,
+                  "mem_type_64": true,
+                  "bar": 4,
+                  "size": 16384,
+                  "address": 4273979392,
+                  "type": "memory"
+                }
+              ]
+            },
+            {
+              "irq_pin": 1,
+              "bus": 0,
+              "qdev_id": "",
+              "irq": 11,
+              "slot": 3,
+              "class_info": {
+                "class": 3075,
+                "desc": "USB controller"
+              },
+              "id": {
+                "device": 13,
+                "subsystem-vendor": 6900,
+                "vendor": 6966,
+                "subsystem": 4352
+              },
+              "function": 0,
+              "regions": [
+                {
+                  "prefetch": false,
+                  "mem_type_64": true,
+                  "bar": 0,
+                  "size": 16384,
+                  "address": 4273471488,
+                  "type": "memory"
+                }
+              ]
+            },
+            {
+              "irq_pin": 0,
+              "bus": 0,
+              "qdev_id": "",
+              "slot": 31,
+              "class_info": {
+                "class": 1537,
+                "desc": "ISA bridge"
+              },
+              "id": {
+                "device": 10520,
+                "subsystem-vendor": 6900,
+                "vendor": 32902,
+                "subsystem": 4352
+              },
+              "function": 0,
+              "regions": []
+            },
+            {
+              "irq_pin": 1,
+              "bus": 0,
+              "qdev_id": "",
+              "irq": 10,
+              "slot": 31,
+              "class_info": {
+                "class": 262,
+                "desc": "SATA controller"
+              },
+              "id": {
+                "device": 10530,
+                "subsystem-vendor": 6900,
+                "vendor": 32902,
+                "subsystem": 4352
+              },
+              "function": 2,
+              "regions": [
+                {
+                  "bar": 4,
+                  "size": 32,
+                  "address": 49248,
+                  "type": "io"
+                },
+                {
+                  "prefetch": false,
+                  "mem_type_64": false,
+                  "bar": 5,
+                  "size": 4096,
+                  "address": 4273491968,
+                  "type": "memory"
+                }
+              ]
+            },
+            {
+              "irq_pin": 1,
+              "bus": 0,
+              "qdev_id": "",
+              "irq": 10,
+              "slot": 31,
+              "class_info": {
+                "class": 3077,
+                "desc": "SMBus"
+              },
+              "id": {
+                "device": 10544,
+                "subsystem-vendor": 6900,
+                "vendor": 32902,
+                "subsystem": 4352
+              },
+              "function": 3,
+              "regions": [
+                {
+                  "bar": 4,
+                  "size": 64,
+                  "address": 1792,
+                  "type": "io"
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    },
+    "x-query-virtio": {
+      "return": [
+        {
+          "name": "virtio-net",
+          "path": "/machine/unattached/device[28]/virtio-backend"
+        },
+        {
+          "name": "virtio-gpu",
+          "path": "/machine/peripheral/labgpu/virtio-backend"
+        }
+      ]
+    },
+    "x-query-virtio-status": {
+      "/machine/unattached/device[28]/virtio-backend": {
+        "return": {
+          "device-endian": "little",
+          "bus-name": "",
+          "disable-legacy-check": false,
+          "name": "virtio-net",
+          "started": true,
+          "device-id": 1,
+          "backend-features": {
+            "dev-features": [],
+            "transports": []
+          },
+          "start-on-kick": false,
+          "isr": 0,
+          "broken": false,
+          "status": {
+            "statuses": [
+              "VIRTIO_CONFIG_S_ACKNOWLEDGE: Valid virtio device found",
+              "VIRTIO_CONFIG_S_DRIVER: Guest OS compatible with device",
+              "VIRTIO_CONFIG_S_FEATURES_OK: Feature negotiation complete",
+              "VIRTIO_CONFIG_S_DRIVER_OK: Driver setup and ready"
+            ]
+          },
+          "num-vqs": 3,
+          "guest-features": {
+            "dev-features": [
+              "VIRTIO_NET_F_CTRL_MAC_ADDR: MAC address set through control channel",
+              "VIRTIO_NET_F_GUEST_ANNOUNCE: Driver sending gratuitous packets supported",
+              "VIRTIO_NET_F_CTRL_VLAN: Control channel VLAN filtering supported",
+              "VIRTIO_NET_F_CTRL_RX: Control channel RX mode supported",
+              "VIRTIO_NET_F_CTRL_VQ: Control channel available",
+              "VIRTIO_NET_F_STATUS: Configuration status field available",
+              "VIRTIO_NET_F_MRG_RXBUF: Driver can merge receive buffers",
+              "VIRTIO_NET_F_MAC: Device has given MAC address",
+              "VIRTIO_NET_F_CTRL_GUEST_OFFLOADS: Control channel offloading reconfig. supported"
+            ],
+            "transports": [
+              "VIRTIO_RING_F_EVENT_IDX: Used & avail. event fields enabled",
+              "VIRTIO_RING_F_INDIRECT_DESC: Indirect descriptors supported",
+              "VIRTIO_F_RING_RESET: Driver can reset a queue individually",
+              "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)"
+            ]
+          },
+          "host-features": {
+            "dev-features": [
+              "VHOST_USER_F_PROTOCOL_FEATURES: Vhost-user protocol features negotiation supported",
+              "VIRTIO_NET_F_GSO: Handling GSO-type packets supported",
+              "VIRTIO_NET_F_CTRL_MAC_ADDR: MAC address set through control channel",
+              "VIRTIO_NET_F_GUEST_ANNOUNCE: Driver sending gratuitous packets supported",
+              "VIRTIO_NET_F_CTRL_RX_EXTRA: Extra RX mode control supported",
+              "VIRTIO_NET_F_CTRL_VLAN: Control channel VLAN filtering supported",
+              "VIRTIO_NET_F_CTRL_RX: Control channel RX mode supported",
+              "VIRTIO_NET_F_CTRL_VQ: Control channel available",
+              "VIRTIO_NET_F_STATUS: Configuration status field available",
+              "VIRTIO_NET_F_MRG_RXBUF: Driver can merge receive buffers",
+              "VIRTIO_NET_F_MAC: Device has given MAC address",
+              "VIRTIO_NET_F_CTRL_GUEST_OFFLOADS: Control channel offloading reconfig. supported"
+            ],
+            "transports": [
+              "VIRTIO_RING_F_EVENT_IDX: Used & avail. event fields enabled",
+              "VIRTIO_RING_F_INDIRECT_DESC: Indirect descriptors supported",
+              "VIRTIO_F_RING_RESET: Driver can reset a queue individually",
+              "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)",
+              "VIRTIO_F_ANY_LAYOUT: Device accepts arbitrary desc. layouts",
+              "VIRTIO_F_NOTIFY_ON_EMPTY: Notify when device runs out of avail. descs. on VQ"
+            ]
+          },
+          "use-guest-notifier-mask": true,
+          "vm-running": true,
+          "queue-sel": 2,
+          "disabled": false,
+          "vhost-started": false,
+          "use-started": true
+        }
+      },
+      "/machine/peripheral/labgpu/virtio-backend": {
+        "return": {
+          "device-endian": "little",
+          "bus-name": "",
+          "disable-legacy-check": false,
+          "name": "virtio-gpu",
+          "started": true,
+          "device-id": 16,
+          "backend-features": {
+            "dev-features": [],
+            "transports": []
+          },
+          "start-on-kick": false,
+          "isr": 0,
+          "broken": false,
+          "status": {
+            "statuses": [
+              "VIRTIO_CONFIG_S_ACKNOWLEDGE: Valid virtio device found",
+              "VIRTIO_CONFIG_S_DRIVER: Guest OS compatible with device",
+              "VIRTIO_CONFIG_S_FEATURES_OK: Feature negotiation complete",
+              "VIRTIO_CONFIG_S_DRIVER_OK: Driver setup and ready"
+            ]
+          },
+          "num-vqs": 2,
+          "guest-features": {
+            "dev-features": [
+              "VIRTIO_GPU_F_EDID: EDID metadata supported"
+            ],
+            "transports": [
+              "VIRTIO_RING_F_EVENT_IDX: Used & avail. event fields enabled",
+              "VIRTIO_RING_F_INDIRECT_DESC: Indirect descriptors supported",
+              "VIRTIO_F_RING_RESET: Driver can reset a queue individually",
+              "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)"
+            ]
+          },
+          "host-features": {
+            "dev-features": [
+              "VHOST_USER_F_PROTOCOL_FEATURES: Vhost-user protocol features negotiation supported",
+              "VIRTIO_GPU_F_EDID: EDID metadata supported"
+            ],
+            "transports": [
+              "VIRTIO_RING_F_EVENT_IDX: Used & avail. event fields enabled",
+              "VIRTIO_RING_F_INDIRECT_DESC: Indirect descriptors supported",
+              "VIRTIO_F_RING_RESET: Driver can reset a queue individually",
+              "VIRTIO_F_VERSION_1: Device compliant for v1 spec (legacy)",
+              "VIRTIO_F_ANY_LAYOUT: Device accepts arbitrary desc. layouts",
+              "VIRTIO_F_NOTIFY_ON_EMPTY: Notify when device runs out of avail. descs. on VQ"
+            ]
+          },
+          "use-guest-notifier-mask": true,
+          "vm-running": true,
+          "queue-sel": 0,
+          "disabled": false,
+          "vhost-started": false,
+          "use-started": true
+        }
+      }
+    },
+    "human-monitor-command": {
+      "info pci": {
+        "return": "  Bus  0, device   0, function 0:\r\n    Host bridge: PCI device 8086:29c0\r\n      PCI subsystem 1af4:1100\r\n      id \"\"\r\n  Bus  0, device   1, function 0:\r\n    Ethernet controller: PCI device 1af4:1000\r\n      PCI subsystem 1af4:0001\r\n      IRQ 10, pin A\r\n      BAR0: I/O at 0xc040 [0xc05f].\r\n      BAR4: 64 bit prefetchable memory at 0xfebf8000 [0xfebfbfff].\r\n      BAR6: 32 bit memory at 0xffffffffffffffff [0x0007fffe].\r\n      id \"\"\r\n  Bus  0, device   2, function 0:\r\n    Display controller: PCI device 1af4:1050\r\n      PCI subsystem 1af4:1100\r\n      IRQ 11, pin A\r\n      BAR1: 32 bit memory at 0xfeb84000 [0xfeb84fff].\r\n      BAR4: 64 bit prefetchable memory at 0xfebfc000 [0xfebfffff].\r\n      id \"labgpu\"\r\n  Bus  0, device   3, function 0:\r\n    USB controller: PCI device 1b36:000d\r\n      PCI subsystem 1af4:1100\r\n      IRQ 11, pin A\r\n      BAR0: 64 bit memory at 0xfeb80000 [0xfeb83fff].\r\n      id \"\"\r\n  Bus  0, device  31, function 0:\r\n    ISA bridge: PCI device 8086:2918\r\n      PCI subsystem 1af4:1100\r\n      id \"\"\r\n  Bus  0, device  31, function 2:\r\n    SATA controller: PCI device 8086:2922\r\n      PCI subsystem 1af4:1100\r\n      IRQ 10, pin A\r\n      BAR4: I/O at 0xc060 [0xc07f].\r\n      BAR5: 32 bit memory at 0xfeb85000 [0xfeb85fff].\r\n      id \"\"\r\n  Bus  0, device  31, function 3:\r\n    SMBus: PCI device 8086:2930\r\n      PCI subsystem 1af4:1100\r\n      IRQ 10, pin A\r\n      BAR4: I/O at 0x0700 [0x073f].\r\n      id \"\"\r\n"
+      },
+      "info qtree": {
+        "return": "bus: main-system-bus\r\n  type System\r\n  dev: ps2-mouse, id \"\"\r\n    gpio-out \"\" 1\r\n  dev: ps2-kbd, id \"\"\r\n    gpio-out \"\" 1\r\n  dev: hpet, id \"\"\r\n    gpio-in \"\" 2\r\n    gpio-out \"\" 1\r\n    gpio-out \"sysbus-irq\" 32\r\n    timers = 3 (0x3)\r\n    msi = false\r\n    hpet-intcap = 16711940 (0xff0104)\r\n    hpet-offset-saved = true\r\n    mmio 00000000fed00000/0000000000000400\r\n  dev: kvm-ioapic, id \"\"\r\n    gpio-in \"\" 24\r\n    gsi_base = 0 (0x0)\r\n    mmio 00000000fec00000/0000000000001000\r\n  dev: q35-pcihost, id \"\"\r\n    MCFG = 2952790016 (0xb0000000)\r\n    pci-hole64-size = 34359738368 (32 GiB)\r\n    below-4g-mem-size = 2147483648 (2 GiB)\r\n    above-4g-mem-size = 0 (0 B)\r\n    x-pci-hole64-fix = true\r\n    x-config-reg-migration-enabled = true\r\n    bypass-iommu = false\r\n    bus: pcie.0\r\n      type PCIE\r\n      dev: qemu-xhci, id \"\"\r\n        addr = 03.0\r\n        romfile = \"\"\r\n        romsize = 4294967295 (0xffffffff)\r\n        rombar = 1 (0x1)\r\n        multifunction = false\r\n        x-pcie-lnksta-dllla = true\r\n        x-pcie-extcap-init = true\r\n        failover_pair_id = \"\"\r\n        acpi-index = 0 (0x0)\r\n        x-pcie-err-unc-mask = true\r\n        x-pcie-ari-nextfn-1 = false\r\n        class USB controller, addr 00:03.0, pci id 1b36:000d (sub 1af4:1100)\r\n        bar 0: mem at 0xfeb80000 [0xfeb83fff]\r\n        bus: usb-bus.0\r\n          type usb-bus\r\n          dev: usb-tablet, id \"\"\r\n            usb_version = 2 (0x2)\r\n            display = \"\"\r\n            head = 0 (0x0)\r\n            port = \"\"\r\n            serial = \"\"\r\n            msos-desc = true\r\n            pcap = \"\"\r\n            addr 0.1, port 2, speed 480, name QEMU USB Tablet, attached\r\n          dev: usb-kbd, id \"\"\r\n            usb_version = 2 (0x2)\r\n            display = \"\"\r\n            port = \"\"\r\n            serial = \"\"\r\n            msos-desc = true\r\n            pcap = \"\"\r\n            addr 0.2, port 1, speed 480, name QEMU USB Keyboard, attached\r\n      dev: virtio-gpu-pci, id \"labgpu\"\r\n        disable-legacy = \"on\"\r\n        disable-modern = false\r\n        ioeventfd = false\r\n        vectors = 3 (0x3)\r\n        virtio-pci-bus-master-bug-migration = false\r\n        migrate-extra = true\r\n        modern-pio-notify = false\r\n        x-disable-pcie = false\r\n        page-per-vq = false\r\n        x-ignore-backend-features = false\r\n        ats = false\r\n        x-ats-page-aligned = true\r\n        x-pcie-deverr-init = true\r\n        x-pcie-lnkctl-init = true\r\n        x-pcie-pm-init = true\r\n        x-pcie-flr-init = true\r\n        aer = false\r\n        addr = 02.0\r\n        romfile = \"\"\r\n        romsize = 4294967295 (0xffffffff)\r\n        rombar = 1 (0x1)\r\n        multifunction = false\r\n        x-pcie-lnksta-dllla = true\r\n        x-pcie-extcap-init = true\r\n        failover_pair_id = \"\"\r\n        acpi-index = 0 (0x0)\r\n        x-pcie-err-unc-mask = true\r\n        x-pcie-ari-nextfn-1 = false\r\n        class Display controller, addr 00:02.0, pci id 1af4:1050 (sub 1af4:1100)\r\n        bar 1: mem at 0xfeb84000 [0xfeb84fff]\r\n        bar 4: mem at 0xfebfc000 [0xfebfffff]\r\n        bus: virtio-bus\r\n          type virtio-pci-bus\r\n          dev: virtio-gpu-device, id \"\"\r\n            max_outputs = 1 (0x1)\r\n            edid = true\r\n            xres = 1280 (0x500)\r\n            yres = 800 (0x320)\r\n            max_hostmem = 268435456 (256 MiB)\r\n            blob = false\r\n            hostmem = 0 (0 B)\r\n            indirect_desc = true\r\n            event_idx = true\r\n            notify_on_empty = true\r\n            any_layout = true\r\n            iommu_platform = false\r\n            packed = false\r\n            queue_reset = true\r\n            use-started = true\r\n            use-disabled-flag = true\r\n            x-disable-legacy-check = false\r\n      dev: virtio-net-pci, id \"\"\r\n        disable-legacy = \"off\"\r\n        disable-modern = false\r\n        ioeventfd = true\r\n        vectors = 0 (0x0)\r\n        virtio-pci-bus-master-bug-migration = false\r\n        migrate-extra = true\r\n        modern-pio-notify = false\r\n        x-disable-pcie = false\r\n        page-per-vq = false\r\n        x-ignore-backend-features = false\r\n        ats = false\r\n        x-ats-page-aligned = true\r\n        x-pcie-deverr-init = true\r\n        x-pcie-lnkctl-init = true\r\n        x-pcie-pm-init = true\r\n        x-pcie-flr-init = true\r\n        aer = false\r\n        addr = 01.0\r\n        romfile = \"efi-virtio.rom\"\r\n        romsize = 524288 (0x80000)\r\n        rombar = 1 (0x1)\r\n        multifunction = false\r\n        x-pcie-lnksta-dllla = true\r\n        x-pcie-extcap-init = true\r\n        failover_pair_id = \"\"\r\n        acpi-index = 0 (0x0)\r\n        x-pcie-err-unc-mask = true\r\n        x-pcie-ari-nextfn-1 = false\r\n        class Ethernet controller, addr 00:01.0, pci id 1af4:1000 (sub 1af4:0001)\r\n        bar 0: i/o at 0xc040 [0xc05f]\r\n        bar 4: mem at 0xfebf8000 [0xfebfbfff]\r\n        bar 6: mem at 0xffffffffffffffff [0x7fffe]\r\n        bus: virtio-bus\r\n          type virtio-pci-bus\r\n          dev: virtio-net-device, id \"\"\r\n            csum = true\r\n            guest_csum = true\r\n            gso = true\r\n            guest_tso4 = true\r\n            guest_tso6 = true\r\n            guest_ecn = true\r\n            guest_ufo = true\r\n            guest_announce = true\r\n            host_tso4 = true\r\n            host_tso6 = true\r\n            host_ecn = true\r\n            host_ufo = true\r\n            mrg_rxbuf = true\r\n            status = true\r\n            ctrl_vq = true\r\n            ctrl_rx = true\r\n            ctrl_vlan = true\r\n            ctrl_rx_extra = true\r\n            ctrl_mac_addr = true\r\n            ctrl_guest_offloads = true\r\n            mq = false\r\n            rss = false\r\n            hash = false\r\n            guest_rsc_ext = false\r\n            rsc_interval = 300000 (0x493e0)\r\n            mac = \"52:54:00:12:34:56\"\r\n            netdev = \"#net064\"\r\n            x-txtimer = 150000 (0x249f0)\r\n            x-txburst = 256 (0x100)\r\n            tx = \"\"\r\n            rx_queue_size = 256 (0x100)\r\n            tx_queue_size = 256 (0x100)\r\n            host_mtu = 0 (0x0)\r\n            x-mtu-bypass-backend = true\r\n            speed = -1 (0xffffffffffffffff)\r\n            duplex = \"\"\r\n            failover = false\r\n            guest_uso4 = true\r\n            guest_uso6 = true\r\n            host_uso = true\r\n            indirect_desc = true\r\n            event_idx = true\r\n            notify_on_empty = true\r\n            any_layout = true\r\n            iommu_platform = false\r\n            packed = false\r\n            queue_reset = true\r\n            use-started = true\r\n            use-disabled-flag = true\r\n            x-disable-legacy-check = false\r\n      dev: ICH9-SMB, id \"\"\r\n        addr = 1f.3\r\n        romfile = \"\"\r\n        romsize = 4294967295 (0xffffffff)\r\n        rombar = 1 (0x1)\r\n        multifunction = true\r\n        x-pcie-lnksta-dllla = true\r\n        x-pcie-extcap-init = true\r\n        failover_pair_id = \"\"\r\n        acpi-index = 0 (0x0)\r\n        x-pcie-err-unc-mask = true\r\n        x-pcie-ari-nextfn-1 = false\r\n        class SMBus, addr 00:1f.3, pci id 8086:2930 (sub 1af4:1100)\r\n        bar 4: i/o at 0x700 [0x73f]\r\n        bus: i2c\r\n          type i2c-bus\r\n          dev: smbus-eeprom, id \"\"\r\n            address = 87 (0x57)\r\n          dev: smbus-eeprom, id \"\"\r\n            address = 86 (0x56)\r\n          dev: smbus-eeprom, id \"\"\r\n            address = 85 (0x55)\r\n          dev: smbus-eeprom, id \"\"\r\n            address = 84 (0x54)\r\n          dev: smbus-eeprom, id \"\"\r\n            address = 83 (0x53)\r\n          dev: smbus-eeprom, id \"\"\r\n            address = 82 (0x52)\r\n          dev: smbus-eeprom, id \"\"\r\n            address = 81 (0x51)\r\n          dev: smbus-eeprom, id \"\"\r\n            address = 80 (0x50)\r\n      dev: ich9-ahci, id \"\"\r\n        addr = 1f.2\r\n        romfile = \"\"\r\n        romsize = 4294967295 (0xffffffff)\r\n        rombar = 1 (0x1)\r\n        multifunction = true\r\n        x-pcie-lnksta-dllla = true\r\n        x-pcie-extcap-init = true\r\n        failover_pair_id = \"\"\r\n        acpi-index = 0 (0x0)\r\n        x-pcie-err-unc-mask = true\r\n        x-pcie-ari-nextfn-1 = false\r\n        class SATA controller, addr 00:1f.2, pci id 8086:2922 (sub 1af4:1100)\r\n        bar 4: i/o at 0xc060 [0xc07f]\r\n        bar 5: mem at 0xfeb85000 [0xfeb85fff]\r\n        bus: ide.5\r\n          type IDE\r\n        bus: ide.4\r\n          type IDE\r\n        bus: ide.3\r\n          type IDE\r\n        bus: ide.2\r\n          type IDE\r\n          dev: ide-cd, id \"\"\r\n            drive = \"ide2-cd0\"\r\n            backend_defaults = \"auto\"\r\n            logical_block_size = 512 (512 B)\r\n            physical_block_size = 512 (512 B)\r\n            min_io_size = 0 (0 B)\r\n            opt_io_size = 0 (0 B)\r\n            discard_granularity = 512 (512 B)\r\n            write-cache = \"auto\"\r\n            share-rw = false\r\n            account-invalid = \"auto\"\r\n            account-failed = \"auto\"\r\n            rerror = \"auto\"\r\n            werror = \"auto\"\r\n            ver = \"2.5+\"\r\n            wwn = 0 (0x0)\r\n            serial = \"QM00005\"\r\n            model = \"\"\r\n            unit = 0 (0x0)\r\n        bus: ide.1\r\n          type IDE\r\n        bus: ide.0\r\n          type IDE\r\n      dev: ICH9-LPC, id \"\"\r\n        gpio-out \"gsi\" 24\r\n        noreboot = false\r\n        smm-compat = false\r\n        smm-enabled = true\r\n        x-smi-broadcast = true\r\n        x-smi-cpu-hotplug = true\r\n        x-smi-cpu-hotunplug = true\r\n        addr = 1f.0\r\n        romfile = \"\"\r\n        romsize = 4294967295 (0xffffffff)\r\n        rombar = 1 (0x1)\r\n        multifunction = true\r\n        x-pcie-lnksta-dllla = true\r\n        x-pcie-extcap-init = true\r\n        failover_pair_id = \"\"\r\n        acpi-index = 0 (0x0)\r\n        x-pcie-err-unc-mask = true\r\n        x-pcie-ari-nextfn-1 = false\r\n        class ISA bridge, addr 00:1f.0, pci id 8086:2918 (sub 1af4:1100)\r\n        bus: isa.0\r\n          type ISA\r\n          dev: port92, id \"\"\r\n            gpio-out \"a20\" 1\r\n          dev: vmmouse, id \"\"\r\n          dev: vmport, id \"\"\r\n            x-read-set-eax = true\r\n            x-signal-unsupported-cmd = true\r\n            x-report-vmx-type = true\r\n            x-cmds-v2 = true\r\n            vmware-vmx-version = 6 (0x6)\r\n            vmware-vmx-type = 2 (0x2)\r\n          dev: i8042, id \"\"\r\n            gpio-in \"ps2-mouse-input-irq\" 1\r\n            gpio-in \"ps2-kbd-input-irq\" 1\r\n            gpio-out \"\" 2\r\n            gpio-out \"a20\" 1\r\n            extended-state = true\r\n            kbd-throttle = false\r\n            kbd-irq = 1 (0x1)\r\n            mouse-irq = 12 (0xc)\r\n          dev: isa-parallel, id \"\"\r\n            index = 0 (0x0)\r\n            iobase = 888 (0x378)\r\n            irq = 7 (0x7)\r\n            chardev = \"parallel0\"\r\n          dev: isa-serial, id \"\"\r\n            index = 0 (0x0)\r\n            iobase = 1016 (0x3f8)\r\n            irq = 4 (0x4)\r\n          dev: isa-pcspk, id \"\"\r\n            audiodev = \"\"\r\n            iobase = 97 (0x61)\r\n            migrate = true\r\n          dev: kvm-pit, id \"\"\r\n            gpio-in \"\" 1\r\n            lost_tick_policy = \"delay\"\r\n            iobase = 64 (0x40)\r\n          dev: kvm-i8259, id \"\"\r\n            iobase = 160 (0xa0)\r\n            elcr_addr = 1233 (0x4d1)\r\n            elcr_mask = 222 (0xde)\r\n            master = false\r\n          dev: kvm-i8259, id \"\"\r\n            iobase = 32 (0x20)\r\n            elcr_addr = 1232 (0x4d0)\r\n            elcr_mask = 248 (0xf8)\r\n            master = true\r\n          dev: mc146818rtc, id \"\"\r\n            gpio-out \"\" 1\r\n            base_year = 0 (0x0)\r\n            iobase = 112 (0x70)\r\n            irq = 8 (0x8)\r\n            lost_tick_policy = \"discard\"\r\n          dev: i8257, id \"\"\r\n            base = 192 (0xc0)\r\n            page-base = 136 (0x88)\r\n            pageh-base = -1 (0xffffffffffffffff)\r\n            dshift = 1 (0x1)\r\n          dev: i8257, id \"\"\r\n            base = 0 (0x0)\r\n            page-base = 128 (0x80)\r\n            pageh-base = -1 (0xffffffffffffffff)\r\n            dshift = 0 (0x0)\r\n      dev: mch, id \"\"\r\n        extended-tseg-mbytes = 16 (0x10)\r\n        smbase-smram = true\r\n        addr = 00.0\r\n        romfile = \"\"\r\n        romsize = 4294967295 (0xffffffff)\r\n        rombar = 1 (0x1)\r\n        multifunction = false\r\n        x-pcie-lnksta-dllla = true\r\n        x-pcie-extcap-init = true\r\n        failover_pair_id = \"\"\r\n        acpi-index = 0 (0x0)\r\n        x-pcie-err-unc-mask = true\r\n        x-pcie-ari-nextfn-1 = false\r\n        class Host bridge, addr 00:00.0, pci id 8086:29c0 (sub 1af4:1100)\r\n  dev: fw_cfg_io, id \"\"\r\n    dma_enabled = true\r\n    x-file-slots = 32 (0x20)\r\n    acpi-mr-restore = true\r\n  dev: kvmclock, id \"\"\r\n    x-mach-use-reliable-get-clock = true\r\n  dev: kvmvapic, id \"\"\r\n"
+      }
+    }
+  }
+}

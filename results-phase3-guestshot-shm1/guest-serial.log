@@ -1,0 +1,663 @@
+[    0.000000] Linux version 6.8.0-101-generic (buildd@lcy02-amd64-051) (x86_64-linux-gnu-gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04) 13.3.0, GNU ld (GNU Binutils for Ubuntu) 2.42) #101-Ubuntu SMP PREEMPT_DYNAMIC Mon Feb  9 10:15:05 UTC 2026 (Ubuntu 6.8.0-101.101-generic 6.8.12)
+[    0.000000] Command line: console=ttyS0 panic=-1 no_console_suspend rdinit=/init display_probe=1 phase3_guest_capture=1 phase3_guest_capture_pre_delay_seconds=6 phase3_guest_capture_post_delay_seconds=20 phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices
+[    0.000000] KERNEL supported cpus:
+[    0.000000]   Intel GenuineIntel
+[    0.000000]   AMD AuthenticAMD
+[    0.000000]   Hygon HygonGenuine
+[    0.000000]   Centaur CentaurHauls
+[    0.000000]   zhaoxin   Shanghai  
+[    0.000000] BIOS-provided physical RAM map:
+[    0.000000] BIOS-e820: [mem 0x0000000000000000-0x000000000009fbff] usable
+[    0.000000] BIOS-e820: [mem 0x000000000009fc00-0x000000000009ffff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000000f0000-0x00000000000fffff] reserved
+[    0.000000] BIOS-e820: [mem 0x0000000000100000-0x000000007ffddfff] usable
+[    0.000000] BIOS-e820: [mem 0x000000007ffde000-0x000000007fffffff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000b0000000-0x00000000bfffffff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000fed1c000-0x00000000fed1ffff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000feffc000-0x00000000feffffff] reserved
+[    0.000000] BIOS-e820: [mem 0x00000000fffc0000-0x00000000ffffffff] reserved
+[    0.000000] NX (Execute Disable) protection: active
+[    0.000000] APIC: Static calls initialized
+[    0.000000] SMBIOS 3.0.0 present.
+[    0.000000] DMI: QEMU Standard PC (Q35 + ICH9, 2009), BIOS 1.16.3-debian-1.16.3-2 04/01/2014
+[    0.000000] Hypervisor detected: KVM
+[    0.000000] kvm-clock: Using msrs 4b564d01 and 4b564d00
+[    0.000001] kvm-clock: using sched offset of 359097825 cycles
+[    0.000003] clocksource: kvm-clock: mask: 0xffffffffffffffff max_cycles: 0x1cd42e4dffb, max_idle_ns: 881590591483 ns
+[    0.000006] tsc: Detected 2803.200 MHz processor
+[    0.000874] last_pfn = 0x7ffde max_arch_pfn = 0x400000000
+[    0.000921] MTRR map: 4 entries (3 fixed + 1 variable; max 19), built from 8 variable MTRRs
+[    0.000925] x86/PAT: Configuration [0-7]: WB  WC  UC- UC  WB  WP  UC- WT  
+[    0.006721] found SMP MP-table at [mem 0x000f5470-0x000f547f]
+[    0.006745] Using GB pages for direct mapping
+[    0.006897] RAMDISK: [mem 0x75de6000-0x7ffcffff]
+[    0.006908] ACPI: Early table checksum verification disabled
+[    0.006912] ACPI: RSDP 0x00000000000F52B0 000014 (v00 BOCHS )
+[    0.006917] ACPI: RSDT 0x000000007FFE2304 000038 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[    0.006923] ACPI: FACP 0x000000007FFE20FC 0000F4 (v03 BOCHS  BXPC     00000001 BXPC 00000001)
+[    0.006929] ACPI: DSDT 0x000000007FFE0040 0020BC (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[    0.006932] ACPI: FACS 0x000000007FFE0000 000040
+[    0.006935] ACPI: APIC 0x000000007FFE21F0 000078 (v03 BOCHS  BXPC     00000001 BXPC 00000001)
+[    0.006938] ACPI: HPET 0x000000007FFE2268 000038 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[    0.006941] ACPI: MCFG 0x000000007FFE22A0 00003C (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[    0.006945] ACPI: WAET 0x000000007FFE22DC 000028 (v01 BOCHS  BXPC     00000001 BXPC 00000001)
+[    0.006947] ACPI: Reserving FACP table memory at [mem 0x7ffe20fc-0x7ffe21ef]
+[    0.006948] ACPI: Reserving DSDT table memory at [mem 0x7ffe0040-0x7ffe20fb]
+[    0.006949] ACPI: Reserving FACS table memory at [mem 0x7ffe0000-0x7ffe003f]
+[    0.006950] ACPI: Reserving APIC table memory at [mem 0x7ffe21f0-0x7ffe2267]
+[    0.006951] ACPI: Reserving HPET table memory at [mem 0x7ffe2268-0x7ffe229f]
+[    0.006952] ACPI: Reserving MCFG table memory at [mem 0x7ffe22a0-0x7ffe22db]
+[    0.006953] ACPI: Reserving WAET table memory at [mem 0x7ffe22dc-0x7ffe2303]
+[    0.007314] No NUMA configuration found
+[    0.007316] Faking a node at [mem 0x0000000000000000-0x000000007ffddfff]
+[    0.007323] NODE_DATA(0) allocated [mem 0x75dbb000-0x75de5fff]
+[    0.007464] Zone ranges:
+[    0.007465]   DMA      [mem 0x0000000000001000-0x0000000000ffffff]
+[    0.007467]   DMA32    [mem 0x0000000001000000-0x000000007ffddfff]
+[    0.007469]   Normal   empty
+[    0.007470]   Device   empty
+[    0.007471] Movable zone start for each node
+[    0.007472] Early memory node ranges
+[    0.007473]   node   0: [mem 0x0000000000001000-0x000000000009efff]
+[    0.007475]   node   0: [mem 0x0000000000100000-0x000000007ffddfff]
+[    0.007476] Initmem setup node 0 [mem 0x0000000000001000-0x000000007ffddfff]
+[    0.007708] On node 0, zone DMA: 1 pages in unavailable ranges
+[    0.007719] On node 0, zone DMA: 97 pages in unavailable ranges
+[    0.012986] On node 0, zone DMA32: 34 pages in unavailable ranges
+[    0.013314] ACPI: PM-Timer IO Port: 0x608
+[    0.013329] ACPI: LAPIC_NMI (acpi_id[0xff] dfl dfl lint[0x1])
+[    0.013365] IOAPIC[0]: apic_id 0, version 17, address 0xfec00000, GSI 0-23
+[    0.013369] ACPI: INT_SRC_OVR (bus 0 bus_irq 0 global_irq 2 dfl dfl)
+[    0.013370] ACPI: INT_SRC_OVR (bus 0 bus_irq 5 global_irq 5 high level)
+[    0.013372] ACPI: INT_SRC_OVR (bus 0 bus_irq 9 global_irq 9 high level)
+[    0.013373] ACPI: INT_SRC_OVR (bus 0 bus_irq 10 global_irq 10 high level)
+[    0.013374] ACPI: INT_SRC_OVR (bus 0 bus_irq 11 global_irq 11 high level)
+[    0.013378] ACPI: Using ACPI (MADT) for SMP configuration information
+[    0.013379] ACPI: HPET id: 0x8086a201 base: 0xfed00000
+[    0.013383] TSC deadline timer available
+[    0.013384] smpboot: Allowing 1 CPUs, 0 hotplug CPUs
+[    0.013404] kvm-guest: APIC: eoi() replaced with kvm_guest_apic_eoi_write()
+[    0.013430] PM: hibernation: Registered nosave memory: [mem 0x00000000-0x00000fff]
+[    0.013431] PM: hibernation: Registered nosave memory: [mem 0x0009f000-0x000fffff]
+[    0.013433] [mem 0xc0000000-0xfed1bfff] available for PCI devices
+[    0.013435] Booting paravirtualized kernel on KVM
+[    0.013437] clocksource: refined-jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1910969940391419 ns
+[    0.013445] setup_percpu: NR_CPUS:8192 nr_cpumask_bits:1 nr_cpu_ids:1 nr_node_ids:1
+[    0.013819] percpu: Embedded 86 pages/cpu s229376 r8192 d114688 u2097152
+[    0.013870] kvm-guest: PV spinlocks disabled, single CPU
+[    0.013872] Kernel command line: console=ttyS0 panic=-1 no_console_suspend rdinit=/init display_probe=1 phase3_guest_capture=1 phase3_guest_capture_pre_delay_seconds=6 phase3_guest_capture_post_delay_seconds=20 phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices
+[    0.014111] Unknown kernel command line parameters "display_probe=1 phase3_guest_capture=1 phase3_guest_capture_pre_delay_seconds=6 phase3_guest_capture_post_delay_seconds=20 phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices", will be passed to user space.
+[    0.014162] random: crng init done
+[    0.014577] Dentry cache hash table entries: 262144 (order: 9, 2097152 bytes, linear)
+[    0.014741] Inode-cache hash table entries: 131072 (order: 8, 1048576 bytes, linear)
+[    0.014795] Fallback order for Node 0: 0 
+[    0.014799] Built 1 zonelists, mobility grouping on.  Total pages: 515806
+[    0.014800] Policy zone: DMA32
+[    0.014808] mem auto-init: stack:all(zero), heap alloc:on, heap free:off
+[    0.020029] Memory: 1840192K/2096624K available (22528K kernel code, 4439K rwdata, 14400K rodata, 4920K init, 4788K bss, 256172K reserved, 0K cma-reserved)
+[    0.021273] SLUB: HWalign=64, Order=0-3, MinObjects=0, CPUs=1, Nodes=1
+[    0.021322] ftrace: allocating 58250 entries in 228 pages
+[    0.032800] ftrace: allocated 228 pages with 4 groups
+[    0.033821] Dynamic Preempt: voluntary
+[    0.034116] rcu: Preemptible hierarchical RCU implementation.
+[    0.034118] rcu: 	RCU restricting CPUs from NR_CPUS=8192 to nr_cpu_ids=1.
+[    0.034120] 	Trampoline variant of Tasks RCU enabled.
+[    0.034120] 	Rude variant of Tasks RCU enabled.
+[    0.034121] 	Tracing variant of Tasks RCU enabled.
+[    0.034121] rcu: RCU calculated value of scheduler-enlistment delay is 100 jiffies.
+[    0.034122] rcu: Adjusting geometry for rcu_fanout_leaf=16, nr_cpu_ids=1
+[    0.034130] RCU Tasks: Setting shift to 0 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=1.
+[    0.034132] RCU Tasks Rude: Setting shift to 0 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=1.
+[    0.034133] RCU Tasks Trace: Setting shift to 0 and lim to 1 rcu_task_cb_adjust=1 rcu_task_cpu_ids=1.
+[    0.037546] NR_IRQS: 524544, nr_irqs: 256, preallocated irqs: 16
+[    0.037760] rcu: srcu_init: Setting srcu_struct sizes based on contention.
+[    0.047390] Console: colour VGA+ 80x25
+[    0.047462] printk: legacy console [ttyS0] enabled
+[    0.142113] ACPI: Core revision 20230628
+[    0.142672] clocksource: hpet: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 19112604467 ns
+[    0.143760] APIC: Switch to symmetric I/O mode setup
+[    0.144499] x2apic enabled
+[    0.145103] APIC: Switched APIC routing to: physical x2apic
+[    0.146709] ..TIMER: vector=0x30 apic1=0 pin1=2 apic2=-1 pin2=-1
+[    0.147378] clocksource: tsc-early: mask: 0xffffffffffffffff max_cycles: 0x28680fa287f, max_idle_ns: 440795281151 ns
+[    0.148595] Calibrating delay loop (skipped) preset value.. 5606.40 BogoMIPS (lpj=2803200)
+[    0.149757] x86/cpu: User Mode Instruction Prevention (UMIP) activated
+[    0.150721] Last level iTLB entries: 4KB 0, 2MB 0, 4MB 0
+[    0.151592] Last level dTLB entries: 4KB 0, 2MB 0, 4MB 0, 1GB 0
+[    0.152186] Spectre V1 : Mitigation: usercopy/swapgs barriers and __user pointer sanitization
+[    0.152600] Spectre V2 : Spectre BHI mitigation: SW BHB clearing on vm exit
+[    0.153592] Spectre V2 : Spectre BHI mitigation: SW BHB clearing on syscall
+[    0.154592] Spectre V2 : Mitigation: Enhanced / Automatic IBRS
+[    0.155123] Spectre V2 : Spectre v2 / PBRSB-eIBRS: Retire a single CALL on VMEXIT
+[    0.155594] Spectre V2 : mitigation: Enabling conditional Indirect Branch Prediction Barrier
+[    0.156597] Speculative Store Bypass: Mitigation: Speculative Store Bypass disabled via prctl
+[    0.157595] ITS: WARNING: ITS mitigation depends on retpoline and rethunk support
+[    0.158278] ITS: Vulnerable
+[    0.158621] x86/fpu: Supporting XSAVE feature 0x001: 'x87 floating point registers'
+[    0.159393] x86/fpu: Supporting XSAVE feature 0x002: 'SSE registers'
+[    0.159592] x86/fpu: Supporting XSAVE feature 0x004: 'AVX registers'
+[    0.160595] x86/fpu: Supporting XSAVE feature 0x020: 'AVX-512 opmask'
+[    0.161207] x86/fpu: Supporting XSAVE feature 0x040: 'AVX-512 Hi256'
+[    0.161592] x86/fpu: Supporting XSAVE feature 0x080: 'AVX-512 ZMM_Hi256'
+[    0.162592] x86/fpu: Supporting XSAVE feature 0x200: 'Protection Keys User registers'
+[    0.163321] x86/fpu: xstate_offset[2]:  576, xstate_sizes[2]:  256
+[    0.163592] x86/fpu: xstate_offset[5]:  832, xstate_sizes[5]:   64
+[    0.164592] x86/fpu: xstate_offset[6]:  896, xstate_sizes[6]:  512
+[    0.165181] x86/fpu: xstate_offset[7]: 1408, xstate_sizes[7]: 1024
+[    0.165592] x86/fpu: xstate_offset[9]: 2432, xstate_sizes[9]:    8
+[    0.166290] x86/fpu: Enabled xstate features 0x2e7, context size is 2440 bytes, using 'compacted' format.
+[    0.199551] Freeing SMP alternatives memory: 48K
+[    0.199594] pid_max: default: 32768 minimum: 301
+[    0.200084] LSM: initializing lsm=lockdown,capability,landlock,yama,apparmor,integrity
+[    0.200605] landlock: Up and running.
+[    0.201592] Yama: becoming mindful.
+[    0.201962] AppArmor: AppArmor initialized
+[    0.202379] Mount-cache hash table entries: 4096 (order: 3, 32768 bytes, linear)
+[    0.202595] Mountpoint-cache hash table entries: 4096 (order: 3, 32768 bytes, linear)
+[    0.203880] smpboot: CPU0: 11th Gen Intel(R) Core(TM) i7-1165G7 @ 2.80GHz (family: 0x6, model: 0x8c, stepping: 0x1)
+[    0.204978] Performance Events: Icelake events, full-width counters, Intel PMU driver.
+[    0.205596] ... version:                2
+[    0.205975] ... bit width:              48
+[    0.206362] ... generic registers:      8
+[    0.206593] ... value mask:             0000ffffffffffff
+[    0.207178] ... max period:             00007fffffffffff
+[    0.207593] ... fixed-purpose events:   3
+[    0.207972] ... event mask:             00000007000000ff
+[    0.208555] signal: max sigframe size: 3632
+[    0.208648] rcu: Hierarchical SRCU implementation.
+[    0.209095] rcu: 	Max phase no-delay instances is 400.
+[    0.209883] smp: Bringing up secondary CPUs ...
+[    0.210329] smp: Brought up 1 node, 1 CPU
+[    0.210599] smpboot: Max logical packages: 1
+[    0.211006] smpboot: Total of 1 processors activated (5606.40 BogoMIPS)
+[    0.211823] devtmpfs: initialized
+[    0.212186] x86/mm: Memory block size: 128MB
+[    0.213054] clocksource: jiffies: mask: 0xffffffff max_cycles: 0xffffffff, max_idle_ns: 1911260446275000 ns
+[    0.213602] futex hash table entries: 256 (order: 2, 16384 bytes, linear)
+[    0.214300] pinctrl core: initialized pinctrl subsystem
+[    0.214759] PM: RTC time: 04:07:35, date: 2026-03-08
+[    0.215847] NET: Registered PF_NETLINK/PF_ROUTE protocol family
+[    0.216579] DMA: preallocated 256 KiB GFP_KERNEL pool for atomic allocations
+[    0.216629] DMA: preallocated 256 KiB GFP_KERNEL|GFP_DMA pool for atomic allocations
+[    0.217387] DMA: preallocated 256 KiB GFP_KERNEL|GFP_DMA32 pool for atomic allocations
+[    0.217609] audit: initializing netlink subsys (disabled)
+[    0.218175] audit: type=2000 audit(1772942856.320:1): state=initialized audit_enabled=0 res=1
+[    0.218705] thermal_sys: Registered thermal governor 'fair_share'
+[    0.218707] thermal_sys: Registered thermal governor 'bang_bang'
+[    0.219270] thermal_sys: Registered thermal governor 'step_wise'
+[    0.219594] thermal_sys: Registered thermal governor 'user_space'
+[    0.220146] thermal_sys: Registered thermal governor 'power_allocator'
+[    0.220604] cpuidle: using governor ladder
+[    0.221596] cpuidle: using governor menu
+[    0.222078] acpiphp: ACPI Hot Plug PCI Controller Driver version: 0.5
+[    0.222711] PCI: ECAM [mem 0xb0000000-0xbfffffff] (base 0xb0000000) for domain 0000 [bus 00-ff]
+[    0.223523] PCI: ECAM [mem 0xb0000000-0xbfffffff] reserved as E820 entry
+[    0.223603] PCI: Using configuration type 1 for base access
+[    0.224265] kprobes: kprobe jump-optimization is enabled. All kprobes are optimized if possible.
+[    0.261622] HugeTLB: registered 1.00 GiB page size, pre-allocated 0 pages
+[    0.262278] HugeTLB: 16380 KiB vmemmap can be freed for a 1.00 GiB page
+[    0.262599] HugeTLB: registered 2.00 MiB page size, pre-allocated 0 pages
+[    0.263265] HugeTLB: 28 KiB vmemmap can be freed for a 2.00 MiB page
+[    0.265663] ACPI: Added _OSI(Module Device)
+[    0.266058] ACPI: Added _OSI(Processor Device)
+[    0.266466] ACPI: Added _OSI(Processor Aggregator Device)
+[    0.267808] ACPI: 1 ACPI AML tables successfully acquired and loaded
+[    0.269342] ACPI: _OSC evaluation for CPUs failed, trying _PDC
+[    0.269711] ACPI: Interpreter enabled
+[    0.270059] ACPI: PM: (supports S0 S3 S4 S5)
+[    0.270462] ACPI: Using IOAPIC for interrupt routing
+[    0.270687] PCI: Using host bridge windows from ACPI; if necessary, use "pci=nocrs" and report a bug
+[    0.271594] PCI: Using E820 reservations for host bridge windows
+[    0.272224] ACPI: Enabled 2 GPEs in block 00 to 3F
+[    0.274666] ACPI: PCI Root Bridge [PCI0] (domain 0000 [bus 00-ff])
+[    0.275541] acpi PNP0A08:00: _OSC: OS supports [ExtendedConfig ASPM ClockPM Segments MSI EDR HPX-Type3]
+[    0.275679] acpi PNP0A08:00: _OSC: platform does not support [PCIeHotplug LTR DPC]
+[    0.276713] acpi PNP0A08:00: _OSC: OS now controls [SHPCHotplug PME AER PCIeCapability]
+[    0.277847] PCI host bridge to bus 0000:00
+[    0.278404] pci_bus 0000:00: root bus resource [io  0x0000-0x0cf7 window]
+[    0.278596] pci_bus 0000:00: root bus resource [io  0x0d00-0xffff window]
+[    0.279244] pci_bus 0000:00: root bus resource [mem 0x000a0000-0x000bffff window]
+[    0.279600] pci_bus 0000:00: root bus resource [mem 0x80000000-0xafffffff window]
+[    0.280598] pci_bus 0000:00: root bus resource [mem 0xc0000000-0xfebfffff window]
+[    0.281597] pci_bus 0000:00: root bus resource [mem 0x100000000-0x8ffffffff window]
+[    0.282600] pci_bus 0000:00: root bus resource [bus 00-ff]
+[    0.283475] pci 0000:00:00.0: [8086:29c0] type 00 class 0x060000 conventional PCI endpoint
+[    0.284291] pci 0000:00:01.0: [1af4:1000] type 00 class 0x020000 conventional PCI endpoint
+[    0.285608] pci 0000:00:01.0: BAR 0 [io  0xc040-0xc05f]
+[    0.286325] pci 0000:00:01.0: BAR 4 [mem 0xfe800000-0xfe803fff 64bit pref]
+[    0.286609] pci 0000:00:01.0: ROM [mem 0xfeb00000-0xfeb7ffff pref]
+[    0.288216] pci 0000:00:02.0: [1af4:1050] type 00 class 0x030000 conventional PCI endpoint
+[    0.290474] pci 0000:00:02.0: BAR 0 [mem 0xfe000000-0xfe7fffff pref]
+[    0.290612] pci 0000:00:02.0: BAR 2 [mem 0xfe804000-0xfe807fff 64bit pref]
+[    0.291609] pci 0000:00:02.0: BAR 4 [mem 0xfeb94000-0xfeb94fff]
+[    0.292250] pci 0000:00:02.0: ROM [mem 0xfeb80000-0xfeb8ffff pref]
+[    0.292663] pci 0000:00:02.0: Video device with shadowed ROM at [mem 0x000c0000-0x000dffff]
+[    0.293993] pci 0000:00:03.0: [1b36:000d] type 00 class 0x0c0330 PCIe Root Complex Integrated Endpoint
+[    0.295089] pci 0000:00:03.0: BAR 0 [mem 0xfeb90000-0xfeb93fff 64bit]
+[    0.305256] pci 0000:00:1f.0: [8086:2918] type 00 class 0x060100 conventional PCI endpoint
+[    0.305902] pci 0000:00:1f.0: quirk: [io  0x0600-0x067f] claimed by ICH6 ACPI/GPIO/TCO
+[    0.306821] pci 0000:00:1f.2: [8086:2922] type 00 class 0x010601 conventional PCI endpoint
+[    0.308600] pci 0000:00:1f.2: BAR 4 [io  0xc060-0xc07f]
+[    0.309101] pci 0000:00:1f.2: BAR 5 [mem 0xfeb95000-0xfeb95fff]
+[    0.309885] pci 0000:00:1f.3: [8086:2930] type 00 class 0x0c0500 conventional PCI endpoint
+[    0.311103] pci 0000:00:1f.3: BAR 4 [io  0x0700-0x073f]
+[    0.311965] ACPI: PCI: Interrupt link LNKA configured for IRQ 10
+[    0.312610] ACPI: PCI: Interrupt link LNKB configured for IRQ 10
+[    0.313294] ACPI: PCI: Interrupt link LNKC configured for IRQ 11
+[    0.313656] ACPI: PCI: Interrupt link LNKD configured for IRQ 11
+[    0.314282] ACPI: PCI: Interrupt link LNKE configured for IRQ 10
+[    0.314660] ACPI: PCI: Interrupt link LNKF configured for IRQ 10
+[    0.315319] ACPI: PCI: Interrupt link LNKG configured for IRQ 11
+[    0.315665] ACPI: PCI: Interrupt link LNKH configured for IRQ 11
+[    0.316243] ACPI: PCI: Interrupt link GSIA configured for IRQ 16
+[    0.316601] ACPI: PCI: Interrupt link GSIB configured for IRQ 17
+[    0.317173] ACPI: PCI: Interrupt link GSIC configured for IRQ 18
+[    0.317601] ACPI: PCI: Interrupt link GSID configured for IRQ 19
+[    0.318181] ACPI: PCI: Interrupt link GSIE configured for IRQ 20
+[    0.318600] ACPI: PCI: Interrupt link GSIF configured for IRQ 21
+[    0.319249] ACPI: PCI: Interrupt link GSIG configured for IRQ 22
+[    0.319603] ACPI: PCI: Interrupt link GSIH configured for IRQ 23
+[    0.320465] iommu: Default domain type: Translated
+[    0.320594] iommu: DMA domain TLB invalidation policy: lazy mode
+[    0.321320] SCSI subsystem initialized
+[    0.321652] ACPI: bus type USB registered
+[    0.322144] usbcore: registered new interface driver usbfs
+[    0.322599] usbcore: registered new interface driver hub
+[    0.323111] usbcore: registered new device driver usb
+[    0.323610] pps_core: LinuxPPS API ver. 1 registered
+[    0.324086] pps_core: Software ver. 5.3.6 - Copyright 2005-2007 Rodolfo Giometti <giometti@linux.it>
+[    0.324595] PTP clock support registered
+[    0.325028] EDAC MC: Ver: 3.0.0
+[    0.325700] NetLabel: Initializing
+[    0.326030] NetLabel:  domain hash size = 128
+[    0.326432] NetLabel:  protocols = UNLABELED CIPSOv4 CALIPSO
+[    0.326611] NetLabel:  unlabeled traffic allowed by default
+[    0.327178] mctp: management component transport protocol core
+[    0.327594] NET: Registered PF_MCTP protocol family
+[    0.328078] PCI: Using ACPI for IRQ routing
+[    0.458725] pci 0000:00:02.0: vgaarb: setting as boot VGA device
+[    0.459458] pci 0000:00:02.0: vgaarb: bridge control possible
+[    0.459591] pci 0000:00:02.0: vgaarb: VGA device added: decodes=io+mem,owns=io+mem,locks=none
+[    0.459596] vgaarb: loaded
+[    0.460004] hpet0: at MMIO 0xfed00000, IRQs 2, 8, 0
+[    0.460572] hpet0: 3 comparators, 64-bit 100.000000 MHz counter
+[    0.463655] clocksource: Switched to clocksource kvm-clock
+[    0.464757] VFS: Disk quotas dquot_6.6.0
+[    0.465480] VFS: Dquot-cache hash table entries: 512 (order 0, 4096 bytes)
+[    0.466421] AppArmor: AppArmor Filesystem Enabled
+[    0.466886] pnp: PnP ACPI init
+[    0.467339] system 00:05: [mem 0xb0000000-0xbfffffff window] has been reserved
+[    0.468383] pnp: PnP ACPI: found 6 devices
+[    0.474169] clocksource: acpi_pm: mask: 0xffffff max_cycles: 0xffffff, max_idle_ns: 2085701024 ns
+[    0.475056] NET: Registered PF_INET protocol family
+[    0.475808] IP idents hash table entries: 32768 (order: 6, 262144 bytes, linear)
+[    0.490894] tcp_listen_portaddr_hash hash table entries: 1024 (order: 2, 16384 bytes, linear)
+[    0.491920] Table-perturb hash table entries: 65536 (order: 6, 262144 bytes, linear)
+[    0.492756] TCP established hash table entries: 16384 (order: 5, 131072 bytes, linear)
+[    0.493878] TCP bind hash table entries: 16384 (order: 7, 524288 bytes, linear)
+[    0.495010] TCP: Hash tables configured (established 16384 bind 16384)
+[    0.496019] MPTCP token hash table entries: 2048 (order: 3, 49152 bytes, linear)
+[    0.497077] UDP hash table entries: 1024 (order: 3, 32768 bytes, linear)
+[    0.498017] UDP-Lite hash table entries: 1024 (order: 3, 32768 bytes, linear)
+[    0.499063] NET: Registered PF_UNIX/PF_LOCAL protocol family
+[    0.499715] NET: Registered PF_XDP protocol family
+[    0.500168] pci_bus 0000:00: resource 4 [io  0x0000-0x0cf7 window]
+[    0.500881] pci_bus 0000:00: resource 5 [io  0x0d00-0xffff window]
+[    0.501742] pci_bus 0000:00: resource 6 [mem 0x000a0000-0x000bffff window]
+[    0.502693] pci_bus 0000:00: resource 7 [mem 0x80000000-0xafffffff window]
+[    0.503616] pci_bus 0000:00: resource 8 [mem 0xc0000000-0xfebfffff window]
+[    0.504533] pci_bus 0000:00: resource 9 [mem 0x100000000-0x8ffffffff window]
+[    0.505901] ACPI: \_SB_.GSIH: Enabled at IRQ 23
+[    0.507139] PCI: CLS 0 bytes, default 64
+[    0.507585] Trying to unpack rootfs image as initramfs...
+[    0.508190] clocksource: tsc: mask: 0xffffffffffffffff max_cycles: 0x28680fa287f, max_idle_ns: 440795281151 ns
+[    0.511321] Initialise system trusted keyrings
+[    0.512975] Key type blacklist registered
+[    0.513592] workingset: timestamp_bits=36 max_order=19 bucket_order=0
+[    0.515867] zbud: loaded
+[    0.516427] squashfs: version 4.0 (2009/01/31) Phillip Lougher
+[    0.518036] fuse: init (API version 7.39)
+[    0.520170] integrity: Platform Keyring initialized
+[    0.521936] integrity: Machine keyring initialized
+[    0.546907] Key type asymmetric registered
+[    0.547493] Asymmetric key parser 'x509' registered
+[    0.548903] Block layer SCSI generic (bsg) driver version 0.4 loaded (major 243)
+[    0.550924] io scheduler mq-deadline registered
+[    0.553130] shpchp: Standard Hot Plug PCI Controller Driver version: 0.4
+[    0.556152] input: Power Button as /devices/LNXSYSTM:00/LNXPWRBN:00/input/input0
+[    0.557982] ACPI: button: Power Button [PWRF]
+[    0.560363] ACPI: \_SB_.GSIF: Enabled at IRQ 21
+[    0.564446] ACPI: \_SB_.GSIG: Enabled at IRQ 22
+[    0.569353] Serial: 8250/16550 driver, 32 ports, IRQ sharing enabled
+[    0.618138] 00:03: ttyS0 at I/O 0x3f8 (irq = 4, base_baud = 115200) is a 16550A
+[    0.622416] Linux agpgart interface v0.103
+[    0.626130] loop: module loaded
+[    0.627098] ACPI: bus type drm_connector registered
+[    0.627770] tun: Universal TUN/TAP device driver, 1.6
+[    0.630948] PPP generic driver version 2.4.2
+[    0.632088] i8042: PNP: PS/2 Controller [PNP0303:KBD,PNP0f13:MOU] at 0x60,0x64 irq 1,12
+[    0.634488] serio: i8042 KBD port at 0x60,0x64 irq 1
+[    0.636996] serio: i8042 AUX port at 0x60,0x64 irq 12
+[    0.637587] mousedev: PS/2 mouse device common for all mice
+[    0.639245] input: AT Translated Set 2 keyboard as /devices/platform/i8042/serio0/input/input1
+[    0.640437] rtc_cmos 00:04: RTC can wake from S4
+[    0.642057] rtc_cmos 00:04: registered as rtc0
+[    0.642539] rtc_cmos 00:04: setting system clock to 2026-03-08T04:07:36 UTC (1772942856)
+[    0.645005] rtc_cmos 00:04: alarms up to one day, y3k, 242 bytes nvram, hpet irqs
+[    0.645716] i2c_dev: i2c /dev entries driver
+[    0.647989] device-mapper: core: CONFIG_IMA_DISABLE_HTABLE is disabled. Duplicate IMA measurements will not be recorded in the IMA log.
+[    0.649896] device-mapper: uevent: version 1.0.3
+[    0.650980] device-mapper: ioctl: 4.48.0-ioctl (2023-03-01) initialised: dm-devel@redhat.com
+[    0.651865] intel_pstate: CPU model not supported
+[    0.652936] ledtrig-cpu: registered to indicate activity on CPUs
+[    0.653591] drop_monitor: Initializing network drop monitor service
+[    0.655974] NET: Registered PF_INET6 protocol family
+[    2.694327] Freeing initrd memory: 165800K
+[    2.702454] Segment Routing with IPv6
+[    2.702837] In-situ OAM (IOAM) with IPv6
+[    2.703243] NET: Registered PF_PACKET protocol family
+[    2.703772] Key type dns_resolver registered
+[    2.704394] IPI shorthand broadcast: enabled
+[    2.706203] sched_clock: Marking stable (2598004501, 107823538)->(2727313334, -21485295)
+[    2.707261] registered taskstats version 1
+[    2.707741] Loading compiled-in X.509 certificates
+[    2.708906] Loaded X.509 cert 'Build time autogenerated kernel key: 7f71bdefc17a4d88631555bf9efbb1c93d6f5260'
+[    2.710344] Loaded X.509 cert 'Canonical Ltd. Live Patch Signing 2025 Kmod: d541cef61dc7e793b7eb7e899970a2eef0b5dc8c'
+[    2.711969] Loaded X.509 cert 'Canonical Ltd. Live Patch Signing: 14df34d1a87cf37625abec039ef2bf521249b969'
+[    2.713350] Loaded X.509 cert 'Canonical Ltd. Kernel Module Signing: 88f752e560a1e0737e31163a466ad7b70a850c19'
+[    2.714333] blacklist: Loading compiled-in revocation X.509 certificates
+[    2.714983] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing: 61482aa2830d0ab2ad5af10b7250da9033ddcef0'
+[    2.715891] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2017): 242ade75ac4a15e50d50c84b0d45ff3eae707a03'
+[    2.716866] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (ESM 2018): 365188c1d374d6b07c3c8f240f8ef722433d6a8b'
+[    2.717994] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2019): c0746fd6c5da3ae827864651ad66ae47fe24b3e8'
+[    2.719135] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2021 v1): a8d54bbb3825cfb94fa13c9f8a594a195c107b8d'
+[    2.720178] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2021 v2): 4cf046892d6fd3c9a5b03f98d845f90851dc6a8c'
+[    2.721242] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (2021 v3): 100437bb6de6e469b581e61cd66bce3ef4ed53af'
+[    2.722260] Loaded X.509 cert 'Canonical Ltd. Secure Boot Signing (Ubuntu Core 2019): c1d57b8f6b743f23ee41f4f7ee292f06eecadfb9'
+[    2.726054] Key type .fscrypt registered
+[    2.726460] Key type fscrypt-provisioning registered
+[    2.727394] Key type encrypted registered
+[    2.727838] AppArmor: AppArmor sha256 policy hashing enabled
+[    2.728445] ima: No TPM chip found, activating TPM-bypass!
+[    2.728970] Loading compiled-in module X.509 certificates
+[    2.730007] Loaded X.509 cert 'Build time autogenerated kernel key: 7f71bdefc17a4d88631555bf9efbb1c93d6f5260'
+[    2.730949] ima: Allocated hash algorithm: sha256
+[    2.731398] ima: No architecture policies found
+[    2.731840] evm: Initialising EVM extended attributes:
+[    2.732328] evm: security.selinux
+[    2.732629] evm: security.SMACK64
+[    2.732947] evm: security.SMACK64EXEC
+[    2.733287] evm: security.SMACK64TRANSMUTE
+[    2.733669] evm: security.SMACK64MMAP
+[    2.734102] evm: security.apparmor
+[    2.734506] evm: security.ima
+[    2.734795] evm: security.capability
+[    2.735136] evm: HMAC attrs: 0x1
+[    2.735733] PM:   Magic number: 2:69:110
+[    2.738687] RAS: Correctable Errors collector initialized.
+[    2.739376] clk: Disabling unused clocks
+[    2.748407] Freeing unused decrypted memory: 2028K
+[    2.749586] Freeing unused kernel image (initmem) memory: 4920K
+[    2.750182] Write protecting the kernel read-only data: 38912k
+[    2.751013] Freeing unused kernel image (rodata/data gap) memory: 1984K
+[    2.769696] x86/mm: Checked W+X mappings: passed, no W+X pages found.
+[    2.770395] Run /init as init process
+[init-phase3] booted
+[init-phase3] loading module=/lib/modules/6.8.0-101-generic/kernel/drivers/virtio/virtio_dma_buf.ko
+[init-phase3] loading module=/lib/modules/6.8.0-101-generic/kernel/drivers/gpu/drm/virtio/virtio-gpu.ko
+[    2.783229] [drm] pci: virtio-vga detected at 0000:00:02.0
+[    2.783912] virtio-pci 0000:00:02.0: vgaarb: deactivate vga console
+[    2.794669] Console: switching to colour dummy device 80x25
+[    2.795465] [drm] features: -virgl +edid -resource_blob -host_visible
+[    2.795467] [drm] features: -context_init
+[    2.797284] [drm] number of scanouts: 1
+[    2.797685] [drm] number of cap sets: 0
+[    2.798347] [drm] Initialized virtio_gpu 0.1.0 0 for 0000:00:02.0 on minor 0
+[    2.801424] fbcon: virtio_gpudrmfb (fb0) is primary device
+[    2.805438] Console: switching to colour frame buffer device 160x50
+[    2.807604] virtio-pci 0000:00:02.0: [drm] fb0: virtio_gpudrmfb frame buffer device
+[init-phase3] loading module=/lib/modules/6.8.0-101-generic/kernel/drivers/hid/hid.ko
+[    2.816644] hid: raw HID events driver (C) Jiri Kosina
+[init-phase3] loading module=/lib/modules/6.8.0-101-generic/kernel/drivers/hid/hid-generic.ko
+[init-phase3] loading module=/lib/modules/6.8.0-101-generic/kernel/drivers/hid/usbhid/usbhid.ko
+[    2.823014] usbcore: registered new interface driver usbhid
+[    2.823602] usbhid: USB HID core driver
+[init-phase3] loading module=/lib/modules/6.8.0-101-generic/kernel/drivers/hid/usbhid/usbkbd.ko
+[    2.826975] usbcore: registered new interface driver usbkbd
+[init-phase3] loading module=/lib/modules/6.8.0-101-generic/kernel/drivers/hid/usbhid/usbmouse.ko
+[    2.830801] usbcore: registered new interface driver usbmouse
+[init-phase3] loading module=/lib/modules/6.8.0-101-generic/kernel/drivers/input/mouse/psmouse.ko
+[    2.837742] input: VirtualPS/2 VMware VMMouse as /devices/platform/i8042/serio1/input/input4
+[init-phase3] loading module=/lib/modules/6.8.0-101-generic/kernel/drivers/usb/host/xhci-pci-renesas.ko
+[    2.841143] input: VirtualPS/2 VMware VMMouse as /devices/platform/i8042/serio1/input/input3
+[init-phase3] loading module=/lib/modules/6.8.0-101-generic/kernel/drivers/usb/host/xhci-pci.ko
+[    2.845754] xhci_hcd 0000:00:03.0: xHCI Host Controller
+[    2.846379] xhci_hcd 0000:00:03.0: new USB bus registered, assigned bus number 1
+[    2.847523] xhci_hcd 0000:00:03.0: hcc params 0x00087001 hci version 0x100 quirks 0x0000000000000010
+[    2.849185] xhci_hcd 0000:00:03.0: xHCI Host Controller
+[    2.849734] xhci_hcd 0000:00:03.0: new USB bus registered, assigned bus number 2
+[    2.850540] xhci_hcd 0000:00:03.0: Host supports USB 3.0 SuperSpeed
+[    2.851327] usb usb1: New USB device found, idVendor=1d6b, idProduct=0002, bcdDevice= 6.08
+[    2.852189] usb usb1: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[    2.852863] usb usb1: Product: xHCI Host Controller
+[    2.853339] usb usb1: Manufacturer: Linux 6.8.0-101-generic xhci-hcd
+[    2.853977] usb usb1: SerialNumber: 0000:00:03.0
+[    2.854668] hub 1-0:1.0: USB hub found
+[    2.855137] hub 1-0:1.0: 4 ports detected
+[    2.855830] usb usb2: We don't know the algorithms for LPM for this host, disabling LPM.
+[    2.856762] usb usb2: New USB device found, idVendor=1d6b, idProduct=0003, bcdDevice= 6.08
+[    2.857606] usb usb2: New USB device strings: Mfr=3, Product=2, SerialNumber=1
+[    2.858392] usb usb2: Product: xHCI Host Controller
+[    2.858974] usb usb2: Manufacturer: Linux 6.8.0-101-generic xhci-hcd
+[    2.859648] usb usb2: SerialNumber: 0000:00:03.0
+[    2.860323] hub 2-0:1.0: USB hub found
+[    2.860773] hub 2-0:1.0: 4 ports detected
+Starting systemd-udevd version 255.4-1ubuntu8.8
+total 0
+drwxr-xr-x    2 root     root            80 Mar  8 04:07 by-path
+crw-rw----    1 root     video     226,   0 Mar  8 04:07 card0
+crw-rw----    1 root     root      226, 128 Mar  8 04:07 renderD128
+total 0
+drwxr-xr-x    2 root     root           100 Mar  8 04:07 by-path
+crw-rw----    1 root     input      13,  64 Mar  8 04:07 event0
+crw-rw----    1 root     input      13,  65 Mar  8 04:07 event1
+crw-rw----    1 root     input      13,  66 Mar  8 04:07 event2
+crw-rw----    1 root     input      13,  67 Mar  8 04:07 event3
+crw-rw----    1 root     input      13,  63 Mar  8 04:07 mice
+crw-rw----    1 root     input      13,  32 Mar  8 04:07 mouse0
+crw-rw----    1 root     input      13,  33 Mar  8 04:07 mouse1
+[init-phase3] seatd pid=121
+[init-phase3] weston pid=122
+[init-phase3] wayland ready
+Date: 2026-03-08 UTC
+[04:07:38.798] weston 13.0.0
+               https://wayland.freedesktop.org
+               Bug reports to: https://gitlab.freedesktop.org/wayland/weston/issues/
+               Build: 13.0.0
+[04:07:38.798] Command line: /usr/bin/weston --backend=drm --renderer=pixman --shell=kiosk-shell.so --socket=wayland-1 --continue-without-input --log=/var/log/weston.log
+[04:07:38.798] OS: Linux, 6.8.0-101-generic, #101-Ubuntu SMP PREEMPT_DYNAMIC Mon Feb  9 10:15:05 UTC 2026, x86_64
+[04:07:38.798] Flight recorder: enabled
+[04:07:38.798] Using config file '/etc/xdg/weston/weston.ini'
+[04:07:38.798] Output repaint window is 7 ms maximum.
+[04:07:38.798] Loading module '/usr/lib/x86_64-linux-gnu/libweston-13/drm-backend.so'
+[04:07:38.799] initializing drm backend
+[04:07:38.799] Trying libseat launcher...
+[04:07:38.799] [libseat/libseat.c:62] Seat opened with backend 'seatd'
+[04:07:38.799] [libseat/backend/seatd.c:212] Enabling seat
+[04:07:38.799] libseat: session control granted
+[04:07:38.800] using /dev/dri/card0
+[04:07:38.800] DRM: supports atomic modesetting
+[04:07:38.800] DRM: does not support GBM modifiers
+[04:07:38.800] DRM: does not support async page flipping
+[04:07:38.800] DRM: supports picture aspect ratio
+[04:07:38.800] Using Pixman renderer
+[04:07:38.804] event0  - Power Button: is tagged by udev as: Keyboard
+[04:07:38.804] event0  - Power Button: device is a keyboard
+[04:07:38.805] event1  - AT Translated Set 2 keyboard: is tagged by udev as: Keyboard
+[04:07:38.805] event1  - AT Translated Set 2 keyboard: device is a keyboard
+[04:07:38.807] event3  - VirtualPS/2 VMware VMMouse: is tagged by udev as: Mouse
+[04:07:38.807] event3  - VirtualPS/2 VMware VMMouse: device is a pointer
+[04:07:38.808] event2  - VirtualPS/2 VMware VMMouse: is tagged by udev as: Mouse
+[04:07:38.808] event2  - VirtualPS/2 VMware VMMouse: device is a pointer
+[04:07:38.814] libinput: configuring device "Power Button".
+[04:07:38.814] libinput: configuring device "AT Translated Set 2 keyboard".
+[04:07:38.814] libinput: configuring device "VirtualPS/2 VMware VMMouse".
+[04:07:38.814] libinput: configuring device "VirtualPS/2 VMware VMMouse".
+[04:07:38.814] input device event2 has no enabled output associated (none named), skipping calibration for now.
+[04:07:38.815] DRM: head 'Virtual-1' found, connector 36 is connected, EDID make 'RHT', model 'QEMU Monitor', serial ''
+               Supported EOTF modes: SDR
+[04:07:38.815] Registered plugin API 'weston_drm_output_api_v1' of size 40
+[04:07:38.815] Registered plugin API 'weston_drm_virtual_output_api_v2' of size 48
+[04:07:38.815] Color manager: no-op
+[04:07:38.815] Output 'Virtual-1' attempts EOTF mode: SDR
+[04:07:38.815] Output 'Virtual-1' using color profile: stock sRGB color profile
+[04:07:38.818] DRM: output Virtual-1 uses shadow framebuffer.
+[04:07:38.818] Output Virtual-1 (crtc 35) video modes:
+               1280x800@75.0, preferred, current, 107.3 MHz
+               5120x2160@50.0 64:27, 742.5 MHz
+               4096x2160@50.0 256:135, 594.0 MHz
+               3840x2160@60.0 16:9, 594.0 MHz
+               3840x2160@59.9 16:9, 593.4 MHz
+               3840x2160@50.0 16:9, 594.0 MHz
+               1920x1440@60.0, 234.0 MHz
+               2560x1080@50.0 64:27, 185.6 MHz
+               1856x1392@60.0, 218.2 MHz
+               1792x1344@60.0, 204.8 MHz
+               2048x1152@60.0, 162.0 MHz
+               1920x1200@59.9, 193.2 MHz
+               1920x1080@60.0, 148.5 MHz
+               1920x1080@50.0 16:9, 148.5 MHz
+               1600x1200@60.0, 162.0 MHz
+               1680x1050@60.0, 146.2 MHz
+               1400x1050@60.0, 121.8 MHz
+               1280x1024@60.0, 108.0 MHz
+               1440x900@59.9, 106.5 MHz
+               1280x960@60.0, 108.0 MHz
+               1360x768@60.0, 85.5 MHz
+               1280x768@59.9, 79.5 MHz
+               1024x768@60.0, 65.0 MHz
+               800x600@60.3, 40.0 MHz
+               640x480@60.0 4:3, 25.2 MHz
+               640x480@59.9, 25.2 MHz
+[04:07:38.818] associating input device event0 with output Virtual-1 (none by udev)
+[04:07:38.818] associating input device event1 with output Virtual-1 (none by udev)
+[04:07:38.818] associating input device event3 with output Virtual-1 (none by udev)
+[04:07:38.818] associating input device event2 with output Virtual-1 (none by udev)
+[04:07:38.818] Output 'Virtual-1' enabled with head(s) Virtual-1
+[04:07:38.818] Compositor capabilities:
+               arbitrary surface rotation: yes
+               screen capture uses y-flip: no
+               cursor planes: yes
+               arbitrary resolutions: no
+               view mask clipping: yes
+               explicit sync: no
+               color operations: no
+               presentation clock: CLOCK_MONOTONIC, id 1
+               presentation clock resolution: 0.000000001 s
+[04:07:38.818] Loading module '/usr/lib/x86_64-linux-gnu/weston/kiosk-shell.so'[    3.092962] usb 1-1: new high-speed USB device number 2 using xhci_hcd
+
+[init-phase3] display_probe pid=125
+[init-phase3] launching client=weston-simple-shm url=about:blank runtime=35 suspend_delay=10 wake=5 pm_test=devices no_suspend=
+[init-phase3] app pid=132 client=weston-simple-shm
+[    3.220638] usb 1-1: New USB device found, idVendor=0627, idProduct=0001, bcdDevice= 0.00
+[    3.221265] usb 1-1: New USB device strings: Mfr=1, Product=4, SerialNumber=11
+[    3.221786] usb 1-1: Product: QEMU USB Keyboard
+[    3.222120] usb 1-1: Manufacturer: QEMU
+[    3.222400] usb 1-1: SerialNumber: 68284-0000:00:03.0-1
+[    3.224524] input: QEMU QEMU USB Keyboard as /devices/pci0000:00/0000:00:03.0/usb1/1-1/1-1:1.0/0003:0627:0001.0001/input/input5
+[    3.280187] hid-generic 0003:0627:0001.0001: input,hidraw0: USB HID v1.11 Keyboard [QEMU QEMU USB Keyboard] on usb-0000:00:03.0-1/input0
+[    3.395843] usb 1-2: new high-speed USB device number 3 using xhci_hcd
+[    3.523939] usb 1-2: New USB device found, idVendor=0627, idProduct=0001, bcdDevice= 0.00
+[    3.524544] usb 1-2: New USB device strings: Mfr=1, Product=3, SerialNumber=10
+[    3.525075] usb 1-2: Product: QEMU USB Tablet
+[    3.525390] usb 1-2: Manufacturer: QEMU
+[    3.525698] usb 1-2: SerialNumber: 28754-0000:00:03.0-2
+[    3.528075] input: QEMU QEMU USB Tablet as /devices/pci0000:00/0000:00:03.0/usb1/1-2/1-2:1.0/0003:0627:0001.0002/input/input6
+[    3.531106] hid-generic 0003:0627:0001.0002: input,hidraw1: USB HID v0.01 Mouse [QEMU QEMU USB Tablet] on usb-0000:00:03.0-2/input0
+[init-phase3] guest-capture tag=pre delay=6
+@@GUESTSHOT_ERROR tag=pre reason=missing-output
+[init-phase3] guest-capture tag=post delay=20
+@@GUESTSHOT_ERROR tag=post reason=missing-output
+[init-phase3] scheduling suspend args=--delay-seconds 10 --wake-seconds 5 --pm-test devices
+@@LOG kind=state wakealarm_seconds=5
+@@LOG kind=state state=SUSPENDING cycle=1
+[   39.138188] PM: suspend entry (s2idle)
+[   39.138489] Filesystems sync: 0.000 seconds
+[   39.152460] Freezing user space processes
+[   39.153885] Freezing user space processes completed (elapsed 0.001 seconds)
+[   39.154364] OOM killer disabled.
+[   39.154603] Freezing remaining freezable tasks
+[   39.155973] Freezing remaining freezable tasks completed (elapsed 0.001 seconds)
+[   39.262625] PM: suspend debug: Waiting for 5 second(s).
+[   44.267383] xhci_hcd 0000:00:03.0: xHC error in resume, USBSTS 0x401, Reinit
+[   44.267830] usb usb1: root hub lost power or was reset
+[   44.268148] usb usb2: root hub lost power or was reset
+[   44.535955] usb 1-2: reset high-speed USB device number 3 using xhci_hcd
+[   44.775941] usb 1-1: reset high-speed USB device number 2 using xhci_hcd
+[   44.902599] OOM killer enabled.
+[   44.902876] Restarting tasks ... done.
+[   44.906056] random: crng reseeded on system resumption
+[   44.908065] PM: suspend exit
+@@LOG kind=state state=RESUMED cycle=1 sleep_ms=5771 resume_gap_ms=5771
+@@METRIC name=sleep_duration value_ms=5771 cycle=1
+@@METRIC name=suspend_resume_gap value_ms=5771 cycle=1
+[init-phase3] runtime limit reached, terminating client=weston-simple-shm
+Terminated
+@@DISPLAY sample=1 uptime_s=2.98 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=2 uptime_s=4.01 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=3 uptime_s=5.03 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=4 uptime_s=6.05 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=5 uptime_s=7.07 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=6 uptime_s=8.09 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=7 uptime_s=9.11 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=8 uptime_s=10.13 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=9 uptime_s=11.16 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=10 uptime_s=12.18 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=11 uptime_s=13.20 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=12 uptime_s=14.22 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=13 uptime_s=15.24 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=14 uptime_s=16.26 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=15 uptime_s=17.28 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=16 uptime_s=18.30 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=17 uptime_s=19.33 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=18 uptime_s=20.35 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=19 uptime_s=21.37 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=20 uptime_s=22.39 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=21 uptime_s=23.41 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=22 uptime_s=24.43 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=23 uptime_s=25.45 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=24 uptime_s=26.47 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=25 uptime_s=27.50 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=26 uptime_s=28.52 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=27 uptime_s=29.54 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=28 uptime_s=30.56 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=29 uptime_s=31.59 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=30 uptime_s=32.61 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=31 uptime_s=33.63 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=32 uptime_s=34.65 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=33 uptime_s=35.67 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=34 uptime_s=36.69 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=35 uptime_s=37.71 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=36 uptime_s=38.73 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=37 uptime_s=44.80 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=38 uptime_s=45.82 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=39 uptime_s=46.83 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=40 uptime_s=47.84 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=41 uptime_s=48.86 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=42 uptime_s=49.87 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=43 uptime_s=50.88 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=44 uptime_s=51.89 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=45 uptime_s=52.90 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=46 uptime_s=53.92 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=47 uptime_s=54.93 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=48 uptime_s=55.94 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=49 uptime_s=56.95 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=50 uptime_s=57.97 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=51 uptime_s=58.98 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=52 uptime_s=59.99 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=53 uptime_s=61.00 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=54 uptime_s=62.02 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+@@DISPLAY sample=55 uptime_s=63.03 fb0=virtio_gpudrmfb_ proc_fb=0_virtio_gpudrmfb_ vt=vtcon0nameM_frame_buffer_device_bind1__vtcon1nameM_dummy_device_bind0__ drm=card0-Virtual-1statusconnected_enabledenabled_dpmsOn__
+[init-phase3] client exited client=weston-simple-shm
+[   64.220756] ACPI: PM: Preparing to enter system sleep state S5
+[   64.221216] reboot: Power down

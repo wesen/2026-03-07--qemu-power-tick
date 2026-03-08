@@ -1,0 +1,17 @@
+{
+  "query_commands_supported": true,
+  "query_qmp_schema_supported": true,
+  "screendump_command_present": true,
+  "interesting_commands": [
+    "display-reload",
+    "display-update",
+    "query-display-options",
+    "screendump"
+  ],
+  "screendump_schema": {
+    "name": "screendump",
+    "ret-type": "0",
+    "meta-type": "command",
+    "arg-type": "124"
+  }
+}

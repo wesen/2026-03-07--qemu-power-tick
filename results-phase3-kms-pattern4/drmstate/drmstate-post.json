@@ -1,0 +1,12 @@
+{
+  "base": "/sys/kernel/debug/dri/0",
+  "card": "0",
+  "compression": "gzip",
+  "files": "state,framebuffer,clients,gem_names,name",
+  "gzip_bytes": 757,
+  "gzip_size": "757",
+  "sha256_txt": "4bd671ae171a48d63aece112208db1916e09ac8fd862539c3594d88ab05d82e5",
+  "tag": "post",
+  "text_bytes": 1915,
+  "text_size": "1915"
+}

@@ -1,0 +1,142 @@
+{
+  "device_id": "labgpu",
+  "head": 0,
+  "records": [
+    {
+      "stage": "pre",
+      "variant": "default",
+      "arguments": {},
+      "response": {
+        "return": {}
+      },
+      "ppm": "results-phase3-screendump-kms-gpu-pci1/pre-default.ppm",
+      "png": "results-phase3-screendump-kms-gpu-pci1/pre-default.png",
+      "image": {
+        "exists": true,
+        "width": 1280,
+        "height": 800,
+        "mean": 32767.5
+      }
+    },
+    {
+      "stage": "pre",
+      "variant": "head-0",
+      "arguments": {
+        "head": 0
+      },
+      "response": {
+        "error": {
+          "class": "GenericError",
+          "desc": "'head' must be specified together with 'device'"
+        }
+      },
+      "ppm": "results-phase3-screendump-kms-gpu-pci1/pre-head-0.ppm",
+      "png": "results-phase3-screendump-kms-gpu-pci1/pre-head-0.png"
+    },
+    {
+      "stage": "pre",
+      "variant": "device-labgpu",
+      "arguments": {
+        "device": "labgpu"
+      },
+      "response": {
+        "return": {}
+      },
+      "ppm": "results-phase3-screendump-kms-gpu-pci1/pre-device-labgpu.ppm",
+      "png": "results-phase3-screendump-kms-gpu-pci1/pre-device-labgpu.png",
+      "image": {
+        "exists": true,
+        "width": 1280,
+        "height": 800,
+        "mean": 32767.5
+      }
+    },
+    {
+      "stage": "pre",
+      "variant": "device-labgpu-head-0",
+      "arguments": {
+        "device": "labgpu",
+        "head": 0
+      },
+      "response": {
+        "return": {}
+      },
+      "ppm": "results-phase3-screendump-kms-gpu-pci1/pre-device-labgpu-head-0.ppm",
+      "png": "results-phase3-screendump-kms-gpu-pci1/pre-device-labgpu-head-0.png",
+      "image": {
+        "exists": true,
+        "width": 1280,
+        "height": 800,
+        "mean": 32767.5
+      }
+    },
+    {
+      "stage": "post",
+      "variant": "default",
+      "arguments": {},
+      "response": {
+        "return": {}
+      },
+      "ppm": "results-phase3-screendump-kms-gpu-pci1/post-default.ppm",
+      "png": "results-phase3-screendump-kms-gpu-pci1/post-default.png",
+      "image": {
+        "exists": true,
+        "width": 1280,
+        "height": 800,
+        "mean": 29.1836
+      }
+    },
+    {
+      "stage": "post",
+      "variant": "head-0",
+      "arguments": {
+        "head": 0
+      },
+      "response": {
+        "error": {
+          "class": "GenericError",
+          "desc": "'head' must be specified together with 'device'"
+        }
+      },
+      "ppm": "results-phase3-screendump-kms-gpu-pci1/post-head-0.ppm",
+      "png": "results-phase3-screendump-kms-gpu-pci1/post-head-0.png"
+    },
+    {
+      "stage": "post",
+      "variant": "device-labgpu",
+      "arguments": {
+        "device": "labgpu"
+      },
+      "response": {
+        "return": {}
+      },
+      "ppm": "results-phase3-screendump-kms-gpu-pci1/post-device-labgpu.ppm",
+      "png": "results-phase3-screendump-kms-gpu-pci1/post-device-labgpu.png",
+      "image": {
+        "exists": true,
+        "width": 1280,
+        "height": 800,
+        "mean": 29.1836
+      }
+    },
+    {
+      "stage": "post",
+      "variant": "device-labgpu-head-0",
+      "arguments": {
+        "device": "labgpu",
+        "head": 0
+      },
+      "response": {
+        "return": {}
+      },
+      "ppm": "results-phase3-screendump-kms-gpu-pci1/post-device-labgpu-head-0.ppm",
+      "png": "results-phase3-screendump-kms-gpu-pci1/post-device-labgpu-head-0.png",
+      "image": {
+        "exists": true,
+        "width": 1280,
+        "height": 800,
+        "mean": 29.1836
+      }
+    }
+  ]
+}

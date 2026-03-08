@@ -1,0 +1,47 @@
+{
+  "states_seen": [],
+  "metrics": {
+    "sleep_duration": [
+      {
+        "cycle": 1,
+        "value_ms": 5755
+      }
+    ],
+    "suspend_resume_gap": [
+      {
+        "cycle": 1,
+        "value_ms": 5755
+      }
+    ],
+    "resume_to_redraw": [
+      {
+        "cycle": 1,
+        "value_ms": 5
+      }
+    ],
+    "resume_to_reconnect": [
+      {
+        "cycle": 1,
+        "value_ms": 1243
+      }
+    ]
+  },
+  "latest": {
+    "sleep_duration": {
+      "cycle": 1,
+      "value_ms": 5755
+    },
+    "suspend_resume_gap": {
+      "cycle": 1,
+      "value_ms": 5755
+    },
+    "resume_to_redraw": {
+      "cycle": 1,
+      "value_ms": 5
+    },
+    "resume_to_reconnect": {
+      "cycle": 1,
+      "value_ms": 1243
+    }
+  }
+}

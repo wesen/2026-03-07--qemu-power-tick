@@ -1,0 +1,60 @@
+{
+  "states_seen": [
+    "STARTING",
+    "CONNECTING",
+    "CONNECTED",
+    "DISCONNECTED",
+    "SUSPENDING",
+    "RESUMED",
+    "CONNECTING",
+    "CONNECTED",
+    "DISCONNECTED",
+    "CONNECTING",
+    "CONNECTED",
+    "EXITING"
+  ],
+  "metrics": {
+    "sleep_duration": [
+      {
+        "cycle": 1,
+        "value_ms": 5024
+      }
+    ],
+    "suspend_resume_gap": [
+      {
+        "cycle": 1,
+        "value_ms": 5024
+      }
+    ],
+    "resume_to_redraw": [
+      {
+        "cycle": 1,
+        "value_ms": 4
+      }
+    ],
+    "resume_to_reconnect": [
+      {
+        "cycle": 1,
+        "value_ms": 5
+      }
+    ]
+  },
+  "latest": {
+    "sleep_duration": {
+      "cycle": 1,
+      "value_ms": 5024
+    },
+    "suspend_resume_gap": {
+      "cycle": 1,
+      "value_ms": 5024
+    },
+    "resume_to_redraw": {
+      "cycle": 1,
+      "value_ms": 4
+    },
+    "resume_to_reconnect": {
+      "cycle": 1,
+      "value_ms": 5
+    }
+  }
+}

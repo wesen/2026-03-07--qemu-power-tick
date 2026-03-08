@@ -1,0 +1,142 @@
+{
+  "device_id": "labvga",
+  "head": 0,
+  "records": [
+    {
+      "stage": "pre",
+      "variant": "default",
+      "arguments": {},
+      "response": {
+        "return": {}
+      },
+      "ppm": "results-phase3-screendump-vga1/pre-default.ppm",
+      "png": "results-phase3-screendump-vga1/pre-default.png",
+      "image": {
+        "exists": true,
+        "width": 1280,
+        "height": 800,
+        "mean": 35224.6
+      }
+    },
+    {
+      "stage": "pre",
+      "variant": "head-0",
+      "arguments": {
+        "head": 0
+      },
+      "response": {
+        "error": {
+          "class": "GenericError",
+          "desc": "'head' must be specified together with 'device'"
+        }
+      },
+      "ppm": "results-phase3-screendump-vga1/pre-head-0.ppm",
+      "png": "results-phase3-screendump-vga1/pre-head-0.png"
+    },
+    {
+      "stage": "pre",
+      "variant": "device-labvga",
+      "arguments": {
+        "device": "labvga"
+      },
+      "response": {
+        "return": {}
+      },
+      "ppm": "results-phase3-screendump-vga1/pre-device-labvga.ppm",
+      "png": "results-phase3-screendump-vga1/pre-device-labvga.png",
+      "image": {
+        "exists": true,
+        "width": 1280,
+        "height": 800,
+        "mean": 35155.4
+      }
+    },
+    {
+      "stage": "pre",
+      "variant": "device-labvga-head-0",
+      "arguments": {
+        "device": "labvga",
+        "head": 0
+      },
+      "response": {
+        "return": {}
+      },
+      "ppm": "results-phase3-screendump-vga1/pre-device-labvga-head-0.ppm",
+      "png": "results-phase3-screendump-vga1/pre-device-labvga-head-0.png",
+      "image": {
+        "exists": true,
+        "width": 1280,
+        "height": 800,
+        "mean": 35331.0
+      }
+    },
+    {
+      "stage": "post",
+      "variant": "default",
+      "arguments": {},
+      "response": {
+        "return": {}
+      },
+      "ppm": "results-phase3-screendump-vga1/post-default.ppm",
+      "png": "results-phase3-screendump-vga1/post-default.png",
+      "image": {
+        "exists": true,
+        "width": 720,
+        "height": 400,
+        "mean": 544.347
+      }
+    },
+    {
+      "stage": "post",
+      "variant": "head-0",
+      "arguments": {
+        "head": 0
+      },
+      "response": {
+        "error": {
+          "class": "GenericError",
+          "desc": "'head' must be specified together with 'device'"
+        }
+      },
+      "ppm": "results-phase3-screendump-vga1/post-head-0.ppm",
+      "png": "results-phase3-screendump-vga1/post-head-0.png"
+    },
+    {
+      "stage": "post",
+      "variant": "device-labvga",
+      "arguments": {
+        "device": "labvga"
+      },
+      "response": {
+        "return": {}
+      },
+      "ppm": "results-phase3-screendump-vga1/post-device-labvga.ppm",
+      "png": "results-phase3-screendump-vga1/post-device-labvga.png",
+      "image": {
+        "exists": true,
+        "width": 720,
+        "height": 400,
+        "mean": 544.347
+      }
+    },
+    {
+      "stage": "post",
+      "variant": "device-labvga-head-0",
+      "arguments": {
+        "device": "labvga",
+        "head": 0
+      },
+      "response": {
+        "return": {}
+      },
+      "ppm": "results-phase3-screendump-vga1/post-device-labvga-head-0.ppm",
+      "png": "results-phase3-screendump-vga1/post-device-labvga-head-0.png",
+      "image": {
+        "exists": true,
+        "width": 720,
+        "height": 400,
+        "mean": 544.347
+      }
+    }
+  ]
+}

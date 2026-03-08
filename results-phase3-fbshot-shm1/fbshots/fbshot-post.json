@@ -1,0 +1,24 @@
+{
+  "bpp": "32",
+  "compression": "gzip",
+  "gzip_bytes": 5824,
+  "gzip_size": "5824",
+  "mode": "U:1280x800p-0",
+  "name": "virtio_gpudrmfb_",
+  "png_variants": [
+    "fbshot-post-bgrx.png",
+    "fbshot-post-rgbx.png",
+    "fbshot-post-xrgb.png"
+  ],
+  "proc_fb": "0_virtio_gpudrmfb_",
+  "raw_bytes": 4096000,
+  "raw_size": "4096000",
+  "sha256_raw": "2acef41c4128716e648faccbc5c40a24d53862c57037cd362f31c83fad2237cb",
+  "stride": "5120",
+  "tag": "post",
+  "total_bytes": "4096000",
+  "virtual_height": "800",
+  "virtual_width": "1280",
+  "visible_height": "800",
+  "visible_width": "1280"
+}
