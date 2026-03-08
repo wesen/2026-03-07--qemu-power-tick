@@ -295,6 +295,8 @@ This step matters because it removes one future ambiguity. If direct DRM Chromiu
 
 **Inferred user intent:** Maintain momentum by turning the design into real implementation slices with diary entries, scripts, and commits.
 
+**Commit (code):** `879f500` - `Add phase 4 DRM skeleton and smoke harness`
+
 ### What I did
 - Added the phase-4 runtime files:
   - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase4-drm`
@@ -411,6 +413,8 @@ This step therefore adds a dedicated payload/runtime probe. Its first run is int
 
 **Inferred user intent:** Use the waiting time to eliminate local ambiguity and leave the next direct-DRM Chromium failure mode easier to diagnose.
 
+**Commit (code):** `b4ef3e8` - `Add phase 4 payload probe`
+
 ### What I did
 - Added the probe helper:
   - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/probe_phase4_chromium_payload.py`
@@ -506,6 +510,8 @@ This was a good example of why the diary matters. Without writing down the trans
 **Assistant interpretation:** Keep iterating pragmatically while the Chromium checkout is the current bottleneck.
 
 **Inferred user intent:** Improve the actual workflow when a better path becomes obvious, instead of stubbornly continuing with an inefficient first attempt.
+
+**Commit (code):** `69a8e05` - `Optimize Chromium bootstrap fetch path`
 
 ### What I did
 - Checked `fetch --help` and confirmed that the Chromium bootstrap supports reduced history:
