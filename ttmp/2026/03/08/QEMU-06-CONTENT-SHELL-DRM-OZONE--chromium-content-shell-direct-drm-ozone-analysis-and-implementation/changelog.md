@@ -24,3 +24,10 @@
   - quick check identified the expected missing Linux build packages
   - full install attempt stopped at the `sudo` password boundary
 - Added `host/build_phase4_chromium_targets.sh`, which scripts `gclient runhooks`, `configure_phase4_chromium_build.sh`, and the initial `autoninja` target set.
+- The Chromium checkout completed far enough for a real source-tree build: `gclient sync --nohooks --no-history` succeeded and `gclient runhooks` reached `113/113`.
+- Updated `host/configure_phase4_chromium_build.sh` to match Chromium's documented DRM path:
+  - `target_os = "chromeos"`
+  - no forced `toolkit_views = false`
+  - direct fallback to `src/buildtools/linux64/gn` when depot_tools `gn` is only a thin wrapper
+- Generated `/home/manuel/chromium/src/out/Phase4DRM/build.ninja` successfully.
+- Started the first real `autoninja` build for `content_shell`, `chrome_sandbox`, and `chrome_crashpad_handler`.

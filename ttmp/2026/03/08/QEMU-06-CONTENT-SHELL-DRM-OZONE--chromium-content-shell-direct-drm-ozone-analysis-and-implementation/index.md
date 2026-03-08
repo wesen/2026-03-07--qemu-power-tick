@@ -51,7 +51,9 @@ Current status:
 - initial verified target set is `content_shell`, `chrome_sandbox`, and `chrome_crashpad_handler`
 - a first-pass phase-4 `args.gn` writer now creates `~/chromium/src/out/Phase4DRM/args.gn`
 - a phase-4 build driver now scripts `gclient runhooks -> gn gen -> autoninja`
-- official Chromium build-deps installer was checked; the remaining local blocker there is sudo/password access, not missing docs
+- official Chromium build-deps installer has now been run with sudo help from the user
+- `gclient sync --nohooks --no-history` and `gclient runhooks` are complete
+- `out/Phase4DRM/build.ninja` exists and the first `autoninja` build is in flight
 
 ## Key Links
 

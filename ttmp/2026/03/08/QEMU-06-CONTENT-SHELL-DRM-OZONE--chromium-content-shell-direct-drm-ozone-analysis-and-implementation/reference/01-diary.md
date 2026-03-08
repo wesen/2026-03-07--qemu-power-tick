@@ -854,3 +854,184 @@ bash -n /home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/build_phase4_ch
 ```text
 /home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/build_phase4_chromium_targets.sh
 ```
+
+## Step 8: Finish the Chromium Sync and Run Hooks on the Real Source Tree
+
+At this point the ticket stopped being hypothetical. The Chromium checkout was no longer just a bootstrap helper and a long-running fetch; it became a usable source tree. That matters because the rest of phase 4 depends on real Chromium build metadata rather than guesses from old blog posts or half-remembered flags.
+
+The practical result of this step is simple: the reduced-history checkout path worked, the source tree under `/home/manuel/chromium/src` is now real enough to drive `gclient runhooks`, and the remaining build-path work moved from "checkout plumbing" into "Chromium configuration."
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok it' sdone"
+
+**Assistant interpretation:** The user finished the privileged `install-build-deps.sh` step, so the local blocker moved from package installation back to the unprivileged Chromium build path.
+
+**Inferred user intent:** Resume immediately from the first point where unprivileged work can continue: verify the checkout state, finish sync/hooks, and push into the real build.
+
+### What I did
+- Confirmed the reduced-history sync completed successfully:
+```text
+PATH=/home/manuel/depot_tools:$PATH gclient sync --nohooks --no-history
+```
+- Ran the Chromium hooks successfully:
+```text
+PATH=/home/manuel/depot_tools:$PATH gclient runhooks
+```
+- Verified the hooks finished cleanly at:
+```text
+Running hooks: 113/113 (100%) done
+```
+- Checked the real tree and tool locations:
+  - `/home/manuel/chromium/src/.gn`
+  - `/home/manuel/chromium/src/buildtools/linux64/gn`
+- Confirmed that the depot_tools `gn` wrapper was still not usable directly in this environment even though the source-tree `gn` binary exists and works.
+
+### Why
+- The ticket needed to move from source acquisition to source configuration.
+- `gclient runhooks` is the line between "there is a checkout on disk" and "the checkout is ready to generate build files."
+- I wanted to prove the official Chromium path itself was viable before editing more repo-side phase-4 code.
+
+### What worked
+- `gclient sync --nohooks --no-history` completed.
+- `gclient runhooks` completed.
+- The source tree now contains the expected build metadata and tool binaries.
+
+### What didn't work
+- The depot_tools `gn` wrapper still reported:
+```text
+gn.py: Unable to find gn in your $PATH
+```
+- That was not a real Chromium checkout failure, but it did mean the phase-4 helper needed to be less naive about where `gn` comes from.
+
+### What I learned
+- The reduced-history checkout path was the right call for this ticket; it got us to a buildable tree without dragging around the full history.
+- The right source of truth for `gn` here is the checked-out Chromium tool binary, not the environment wrapper.
+
+### What should be done in the future
+- Update the phase-4 GN helper to use the real `src/buildtools/linux64/gn` binary when the wrapper is unreliable.
+- Generate the first `out/Phase4DRM` build directory.
+- Start the first `autoninja` compile.
+
+### Technical details
+- Working Chromium root:
+```text
+/home/manuel/chromium/src
+```
+- Verified local `gn` binary:
+```text
+/home/manuel/chromium/src/buildtools/linux64/gn
+```
+
+## Step 9: Correct the GN Args for Ozone DRM and Start the First Real Build
+
+This was the first Chromium-specific configuration step that actually taught us something about the direct DRM path. The original helper was too optimistic: it assumed generic Linux Ozone settings would be enough and it assumed the depot_tools `gn` wrapper would be the only entry point we needed. Both assumptions were wrong.
+
+The Chromium tree itself was explicit about the two fixes. First, the DRM platform configuration under this checkout wants the ChromeOS target path rather than a generic Linux build. Second, the source tree already contains a working `gn` binary, so the helper should use it directly instead of treating the wrapper as mandatory. Once those were fixed, `gn gen` succeeded and the first `autoninja` build became real.
+
+### Prompt Context
+
+**User prompt (verbatim):** "did you look on instructions on the web on how to build chrome and all that? what is depot_tools?" and then "save the instructions in the ticket with docmgr import file --file ... --ticket ... as well, for future reference. then continue, ocntinue keeping the diary"
+
+**Assistant interpretation:** Use the official Chromium docs as the primary source, save them into the ticket, and then keep moving through the real build path instead of stalling at general explanations.
+
+**Inferred user intent:** Validate the build process against upstream documentation and capture the exact local adjustments we needed so the next person does not have to rediscover them.
+
+### What I did
+- Read the official Chromium sources that matter for this path:
+  - `/home/manuel/chromium/src/docs/linux/build_instructions.md`
+  - `/home/manuel/chromium/src/docs/ozone_overview.md`
+  - `/home/manuel/chromium/src/docs/linux/ozone_drm.md`
+- Confirmed the source-tree `gn` binary works:
+```text
+/home/manuel/chromium/src/buildtools/linux64/gn --version
+2341 (d8c2f07d6535)
+```
+- Updated `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/configure_phase4_chromium_build.sh` so it:
+  - writes `target_os = "chromeos"`
+  - removes the bad `toolkit_views = false` assumption
+  - uses `src/buildtools/linux64/gn` when the depot_tools wrapper is not usable
+- Mirrored the updated helper into the ticket `scripts/` archive.
+- Generated the first build directory successfully:
+```text
+PATH=/home/manuel/depot_tools:$PATH ./host/configure_phase4_chromium_build.sh --src /home/manuel/chromium/src --out /home/manuel/chromium/src/out/Phase4DRM
+```
+- Verified the generated build output exists:
+```text
+/home/manuel/chromium/src/out/Phase4DRM/build.ninja
+```
+- Started the first real build:
+```text
+PATH=/home/manuel/depot_tools:$PATH ./host/build_phase4_chromium_targets.sh --src /home/manuel/chromium/src --out /home/manuel/chromium/src/out/Phase4DRM --skip-hooks
+```
+
+### Why
+- The phase-4 ticket needed to be tied to Chromium's actual documented DRM path, not a guessed Linux desktop configuration.
+- `gn gen` is the first real proof that the build configuration is coherent.
+- Starting `autoninja` is the clean boundary between "config path exists" and "payload may actually be buildable."
+
+### What worked
+- The source-tree `gn` binary worked reliably.
+- The corrected helper produced `args.gn` and `build.ninja`.
+- The first `autoninja` build is now genuinely running against the target set:
+```text
+content_shell
+chrome_sandbox
+chrome_crashpad_handler
+```
+
+### What didn't work
+- The initial GN args were wrong in two ways:
+  - forcing `toolkit_views = false` triggered a grit/toolkit assertion
+  - omitting `target_os = "chromeos"` tripped:
+```text
+assert(is_chromeos, "Ozone DRM platform is ChromeOS-only")
+```
+- That means the old helper would have sent the next person down the wrong path if it had not been corrected now.
+
+### What I learned
+- For this checkout, "direct DRM/Ozone" is not just "Linux with a DRM flag." Chromium's own build graph wants the ChromeOS target path for the DRM backend.
+- The upstream source tree is the best guide here. The local fixes matched the checked-in docs and the checked-in `BUILD.gn` behavior.
+
+### What warrants a second pair of eyes
+- Once the first build finishes, the actual runtime payload composition should be checked carefully:
+  - `content_shell`
+  - `chrome_sandbox`
+  - `chrome_crashpad_handler`
+  - `icudtl.dat`
+  - `resources.pak`
+  - `v8_context_snapshot.bin`
+  - locale assets
+- The eventual guest launcher flags should also be reviewed against the built binary's available switches, not just old assumptions from the Wayland phase.
+
+### What should be done in the future
+- Let the first `autoninja` run finish or fail with a concrete compiler error.
+- Probe the output directory once artifacts appear.
+- Wire that payload into `guest/build-phase4-rootfs.sh`.
+- Attempt the first direct DRM/Ozone `content_shell` boot.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/configure_phase4_chromium_build.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/build_phase4_chromium_targets.sh`
+  - `/home/manuel/chromium/src/docs/linux/ozone_drm.md`
+- Validation commands:
+```text
+/home/manuel/chromium/src/buildtools/linux64/gn --version
+PATH=/home/manuel/depot_tools:$PATH ./host/configure_phase4_chromium_build.sh --src /home/manuel/chromium/src --out /home/manuel/chromium/src/out/Phase4DRM
+PATH=/home/manuel/depot_tools:$PATH ./host/build_phase4_chromium_targets.sh --src /home/manuel/chromium/src --out /home/manuel/chromium/src/out/Phase4DRM --skip-hooks
+```
+
+### Technical details
+- Corrected key args:
+```text
+target_os = "chromeos"
+use_ozone = true
+ozone_platform_drm = true
+ozone_platform = "drm"
+use_system_minigbm = false
+```
+- Generated build directory:
+```text
+/home/manuel/chromium/src/out/Phase4DRM
+```

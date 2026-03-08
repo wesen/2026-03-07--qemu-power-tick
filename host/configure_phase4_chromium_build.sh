@@ -54,13 +54,16 @@ mkdir -p "$OUT_DIR"
 
 cat >"$OUT_DIR/args.gn" <<'EOF'
 use_ozone = true
+target_os = "chromeos"
 ozone_auto_platforms = false
 ozone_platform_drm = true
 ozone_platform_headless = false
 ozone_platform_wayland = false
 ozone_platform_x11 = false
 ozone_platform = "drm"
-toolkit_views = false
+use_system_minigbm = false
+use_xkbcommon = true
+use_pulseaudio = false
 is_debug = false
 is_component_build = false
 symbol_level = 0
@@ -80,12 +83,17 @@ if [[ "$WRITE_ONLY" == "1" ]]; then
 fi
 
 export PATH="$HOME/depot_tools:$PATH"
-if ! command -v gn >/dev/null 2>&1; then
-  echo "gn not found in PATH; ensure depot_tools is installed and first in PATH" >&2
+GN_BIN=
+if command -v gn >/dev/null 2>&1 && gn --version >/dev/null 2>&1; then
+  GN_BIN=$(command -v gn)
+elif [[ -x "$SRC_DIR/buildtools/linux64/gn" ]]; then
+  GN_BIN="$SRC_DIR/buildtools/linux64/gn"
+else
+  echo "No usable gn found via depot_tools or $SRC_DIR/buildtools/linux64/gn" >&2
   exit 1
 fi
 
 (
   cd "$SRC_DIR"
-  gn gen "$OUT_DIR"
+  "$GN_BIN" gen "$OUT_DIR"
 )
