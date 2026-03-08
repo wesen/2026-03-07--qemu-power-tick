@@ -14,7 +14,7 @@ RelatedFiles: []
 ExternalSources:
     - local:01-lab2.md
 Summary: Chronological implementation diary for phase 2, including decisions, commands, failures, validation notes, and lessons learned.
-LastUpdated: 2026-03-07T18:55:00-05:00
+LastUpdated: 2026-03-07T19:55:00-05:00
 WhatFor: Maintain a step-by-step implementation diary for phase 2, including failures, commands, lessons, and validation notes.
 WhenToUse: Update this whenever a meaningful design, implementation, or validation step completes during the phase-2 work.
 ---
@@ -1015,7 +1015,7 @@ The first outcome is real progress, not just structural work. The phase-2 guest 
 
 **Inferred user intent:** Move forward on the actual suspend/measurement requirements while keeping the work traceable and disciplined.
 
-**Commit (code):** Pending at this step
+**Commit (code):** `1daaa74` — `Apply phase 2 postmortem cleanup`
 
 ### What I did
 - Added the new suspend module:
@@ -1296,3 +1296,103 @@ This step therefore became more valuable than a pure cleanup pass. It tightened 
   - `@@LOG kind=state runtime_limit_reached=true`
   - `@@LOG kind=state runtime_limit_action=poweroff`
   - `reboot: Power down`
+
+## Step 17: Automated The No-Suspend Screenshot Checkpoint Set
+
+After the cleanup pass, I used the cleaner host/guest boundary to close one of the remaining open phase-2 tasks: the screenshot/checkpoint set for normal, non-suspend interaction. Rather than collecting those screenshots by hand, I wrote a dedicated host runner that boots the guest in a no-suspend scenario, waits for the right serial-log markers, starts the drip server at the right time, injects keyboard and pointer input, and saves the resulting framebuffer snapshots.
+
+This step took two iterations, which was useful. The first run captured boot, first frame, network, and keyboard, but the pointer stage timed out. The guest log later showed that the pointer event had actually arrived, which meant the real bug was in my host harness assumptions. I fixed the log-watching logic and changed the pointer stage from a brittle “wait for this intermediate seat event” approach to a retrying “inject and observe the actual button event” approach. The third run completed cleanly and produced the full checkpoint set.
+
+### Prompt Context
+
+**User prompt (verbatim):** "continue keeping a diary, backfill if needed, btw ."
+
+**Assistant interpretation:** Keep progressing on phase 2 while making sure the diary stays current and backfilled where necessary.
+
+**Inferred user intent:** Prevent undocumented progress and keep the ticket useful as a real engineering record while implementation continues.
+
+**Commit (code):** Pending at this step
+
+### What I did
+- Added [host/capture_phase2_checkpoints.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/capture_phase2_checkpoints.py).
+- Mirrored it into the ticket-local scripts directory:
+  - [scripts/capture_phase2_checkpoints.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/scripts/capture_phase2_checkpoints.py)
+- Made the script:
+  - boot QEMU with `phase2_no_suspend=1`,
+  - wait for `wayland ready`,
+  - capture `00-boot.ppm`,
+  - wait for the client and capture `01-first-frame.ppm`,
+  - start `drip_server.py` and wait for `connected`,
+  - capture `02-network.ppm`,
+  - inject keyboard input and capture `03-keyboard.ppm`,
+  - inject pointer motion/button input and capture `04-pointer.ppm`,
+  - wait for the runtime-limited guest to power off cleanly.
+- First attempted:
+  - `python3 host/capture_phase2_checkpoints.py --kernel build/vmlinuz --initramfs build/initramfs-phase2-client.cpio.gz --results-dir results-phase2-checkpoints1 --runtime-seconds 28`
+- Diagnosed the first failure from:
+  - `results-phase2-checkpoints1/guest-serial.log`
+  - the partial screenshot set in `results-phase2-checkpoints1/`
+- Simplified log watching so it scans the full file each pass instead of relying on offset bookkeeping.
+- Replaced the pointer-step gate with retrying pointer injection plus observed button-event detection.
+- Re-ran successfully with:
+  - `python3 host/capture_phase2_checkpoints.py --kernel build/vmlinuz --initramfs build/initramfs-phase2-client.cpio.gz --results-dir results-phase2-checkpoints3 --runtime-seconds 28`
+
+### Why
+- This screenshot matrix was still an open task.
+- A dedicated host runner is more valuable than a one-off transcript because it gives the final report a reproducible artifact pipeline.
+- The no-suspend scenario is the right place to capture normal interactive checkpoints without suspend/resume timing races affecting the result.
+
+### What worked
+- `results-phase2-checkpoints3/` now contains:
+  - `00-boot.ppm`
+  - `01-first-frame.ppm`
+  - `02-network.ppm`
+  - `03-keyboard.ppm`
+  - `04-pointer.ppm`
+  - `guest-serial.log`
+- The successful guest log includes:
+  - `@@LOG kind=state connected`
+  - `@@LOG kind=input KEY=30 STATE=1`
+  - `@@LOG kind=input BUTTON 272 STATE 1`
+- The runtime-limit shutdown path still powers the guest off cleanly at the end of the automated run.
+
+### What didn't work
+- The first harness pass failed with:
+  - `RuntimeError: timed out waiting for log marker 'kind=input BUTTON 272 STATE 1'`
+- The second pass failed because I overconstrained the pointer stage and waited for a seat marker that did not appear reliably in the no-suspend run:
+  - `RuntimeError: timed out waiting for log marker 'seat-capabilities=3'`
+
+### What I learned
+- For this environment, pointer readiness is better inferred from observed button delivery than from one specific intermediate seat-capability marker.
+- The host harness should wait for externally visible outcomes, not just internal hints, whenever possible.
+- The cleaned-up runtime-limit path made this kind of automation much easier because the VM now shuts down cleanly on its own at the end of the scenario.
+
+### What was tricky to build
+- The main trap was assuming the same intermediate seat markers would always appear in the same order across slightly different scenarios. That assumption was too strong. The better contract is to look for the thing I actually care about, which is whether the client receives the input event. Once I changed the pointer stage to inject and then check for the button log line, the harness became more robust and more honest about what it was validating.
+
+### What warrants a second pair of eyes
+- Whether [host/qmp_harness.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/qmp_harness.py) and [host/capture_phase2_checkpoints.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/capture_phase2_checkpoints.py) should eventually share a common Python QMP helper instead of duplicating the client class.
+
+### What should be done in the future
+- Commit this checkpoint-capture harness.
+- Add the suspend-aware pre/post-resume screenshot set so the remaining screenshot task is closed too.
+- Use these artifacts in the phase-2 final report.
+
+### Code review instructions
+- Start with [host/capture_phase2_checkpoints.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/capture_phase2_checkpoints.py).
+- Then inspect:
+  - `results-phase2-checkpoints1/guest-serial.log`
+  - `results-phase2-checkpoints3/guest-serial.log`
+  - the `.ppm` files in `results-phase2-checkpoints3/`
+- Reproduce with:
+  - `python3 host/capture_phase2_checkpoints.py --kernel build/vmlinuz --initramfs build/initramfs-phase2-client.cpio.gz --results-dir results-phase2-checkpoints3 --runtime-seconds 28`
+
+### Technical details
+- The successful no-suspend launch line in the guest log is:
+  - `[init-phase2] launching client=/bin/wl_sleepdemo args= --idle-seconds 60 --max-suspend-cycles 0 --runtime-seconds 28 --no-suspend`
+- The successful interactive checkpoint markers in `results-phase2-checkpoints3/guest-serial.log` include:
+  - `@@LOG kind=state connected`
+  - `@@LOG kind=input KEY=30 STATE=1`
+  - `@@LOG kind=state seat-capabilities=3`
+  - `@@LOG kind=state pointer-rebound`
+  - `@@LOG kind=input BUTTON 272 STATE 1`

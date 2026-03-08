@@ -11,7 +11,7 @@
 - [x] Add host-side QMP automation for screendump, keyboard injection, pointer injection, wake attempts, and scripted checkpoints.
 - [x] Integrate the existing host drip server with the Wayland client state machine and verify reconnect behavior after resume with a clean timing scenario that produces a meaningful reconnect metric.
 - [x] Apply the phase-2 postmortem cleanup pass: remove unconditional redraw wakeups, move suspend scenario control out of `/init` and into the host launcher/kernel cmdline, and fix the PID-1 runtime-limit shutdown path.
-- [ ] Capture screenshots and logs for boot, first frame, first network event, post-keyboard event, and post-pointer event.
+- [x] Capture screenshots and logs for boot, first frame, first network event, post-keyboard event, and post-pointer event.
 - [ ] Extend the checkpoint capture set with pre-suspend and post-resume artifacts once phase-2 suspend is wired into the Wayland client.
 - [x] Measure redraw latency, reconnect latency, sleep interval, and any additional phase-2 GUI timing metrics from the resulting logs.
 - [x] Commit the input-complete milestone before changing suspend/resume behavior so the current interactive stack has a stable rollback point.
