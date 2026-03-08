@@ -282,6 +282,14 @@ The first real implementation slice established the Chromium bootstrap path:
 
 That means the ticket has moved past "missing local tooling" and into "long-running Chromium checkout/build execution." This distinction matters because it cleanly separates local setup bugs from remote sync latency and later build failures.
 
+The bootstrap helper has already been corrected once based on real execution evidence:
+- default fetch mode is now `--nohooks --no-history`
+- `depot_tools` refresh now uses `fetch origin main` + `checkout -B main origin/main` instead of assuming a branch-attached `git pull`
+
+Those changes came from two observed problems:
+- the first full-history Chromium fetch was on track to transfer the entire 61 GiB remote history, which is unnecessary for this ticket
+- the cloned `depot_tools` checkout ended up in detached HEAD state, so plain `git pull --ff-only` was not robust enough
+
 ## Current Validation Status
 
 The first local runtime validation for phase 4 is already complete even without Chromium:

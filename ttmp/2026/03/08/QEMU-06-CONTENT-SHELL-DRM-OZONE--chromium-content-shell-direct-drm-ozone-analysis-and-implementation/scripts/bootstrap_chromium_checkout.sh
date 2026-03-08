@@ -9,7 +9,7 @@ Environment overrides:
   DEPOT_TOOLS_DIR   Where depot_tools should live (default: $HOME/depot_tools)
   CHECKOUT_DIR      Chromium checkout root (default: $HOME/chromium)
   FETCH_TARGET      fetch target (default: chromium)
-  FETCH_FLAGS       Extra flags passed to fetch (default: --nohooks)
+  FETCH_FLAGS       Extra flags passed to fetch (default: --nohooks --no-history)
   SYNC_FLAGS        Extra flags passed to gclient sync (default: --nohooks --with_branch_heads --with_tags)
 
 This helper is idempotent:
@@ -27,7 +27,7 @@ fi
 DEPOT_TOOLS_DIR=${DEPOT_TOOLS_DIR:-"$HOME/depot_tools"}
 CHECKOUT_DIR=${CHECKOUT_DIR:-"${1:-$HOME/chromium}"}
 FETCH_TARGET=${FETCH_TARGET:-chromium}
-FETCH_FLAGS=${FETCH_FLAGS:---nohooks}
+FETCH_FLAGS=${FETCH_FLAGS:---nohooks --no-history}
 SYNC_FLAGS=${SYNC_FLAGS:---nohooks --with_branch_heads --with_tags}
 
 mkdir -p "$(dirname "$DEPOT_TOOLS_DIR")" "$(dirname "$CHECKOUT_DIR")"
@@ -35,7 +35,8 @@ mkdir -p "$(dirname "$DEPOT_TOOLS_DIR")" "$(dirname "$CHECKOUT_DIR")"
 if [[ ! -d "$DEPOT_TOOLS_DIR/.git" ]]; then
   git clone https://chromium.googlesource.com/chromium/tools/depot_tools.git "$DEPOT_TOOLS_DIR"
 else
-  git -C "$DEPOT_TOOLS_DIR" pull --ff-only
+  git -C "$DEPOT_TOOLS_DIR" fetch origin main
+  git -C "$DEPOT_TOOLS_DIR" checkout -B main origin/main
 fi
 
 export PATH="$DEPOT_TOOLS_DIR:$PATH"

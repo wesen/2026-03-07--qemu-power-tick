@@ -15,3 +15,5 @@
 - Built a kms-only phase-4 initramfs and validated the no-Weston boot path with a successful `1280x800` QMP screenshot in `results-phase4-kms1/`.
 - Added `host/probe_phase4_chromium_payload.py` and mirrored it into the ticket `scripts/` folder.
 - Captured a baseline runtime probe in `results-phase4-runtime-probe1/probe.json`; current result is that host DRM/GBM/EGL prerequisites are present and the Chromium payload directory is still absent.
+- Updated `host/bootstrap_chromium_checkout.sh` to default to `--nohooks --no-history` and to refresh `depot_tools` safely from `origin/main` even when the local checkout is detached.
+- Aborted the wasteful full-history Chromium fetch after proving it was transferring the full 61 GiB history, then restarted the checkout on the reduced-history path.

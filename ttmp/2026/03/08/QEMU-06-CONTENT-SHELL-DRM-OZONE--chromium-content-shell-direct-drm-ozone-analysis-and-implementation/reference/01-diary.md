@@ -492,3 +492,112 @@ Chromium payload directory is still absent
 ```text
 results-phase4-runtime-probe1/probe.json
 ```
+
+## Step 5: Correct the Chromium Bootstrap Strategy Before It Burns Hours
+
+The first Chromium fetch path succeeded in one important sense: it proved the bootstrap helper worked and that the machine could start a real Chromium sync. But it also revealed two process bugs that were worth fixing immediately instead of waiting for a very expensive mistake to finish. The first was that the initial helper defaulted to a full-history fetch. The second was that `depot_tools` landed in detached HEAD, which broke the helper's original `git pull --ff-only` update logic.
+
+This was a good example of why the diary matters. Without writing down the transfer size and the detached-HEAD behavior, the next rerun could easily have repeated the same wasteful path and looked "normal" just because Chromium is large.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 3)
+
+**Assistant interpretation:** Keep iterating pragmatically while the Chromium checkout is the current bottleneck.
+
+**Inferred user intent:** Improve the actual workflow when a better path becomes obvious, instead of stubbornly continuing with an inefficient first attempt.
+
+### What I did
+- Checked `fetch --help` and confirmed that the Chromium bootstrap supports reduced history:
+```text
+usage: fetch.py [-h] [-n] [--nohooks] [--nohistory] [--force]
+  --nohistory, --no-history
+                        history.
+```
+- Measured the cost of the first in-flight full-history attempt:
+```text
+2.4G  /home/manuel/chromium/_gclient_src_pf2wv8k_
+```
+- Stopped the full-history transfer after it had already proven the wrong thing:
+```text
+remote: Sending approximately 61.14 GiB ...
+```
+- Updated the bootstrap helper defaults in:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/bootstrap_chromium_checkout.sh`
+  so that `FETCH_FLAGS` now defaults to:
+```text
+--nohooks --no-history
+```
+- Fixed the `depot_tools` refresh logic so it no longer assumes an attached local branch:
+```text
+git -C "$DEPOT_TOOLS_DIR" fetch origin main
+git -C "$DEPOT_TOOLS_DIR" checkout -B main origin/main
+```
+- Moved the aborted full-history checkout aside:
+```text
+/home/manuel/chromium.fullhistory-aborted
+```
+- Restarted the Chromium bootstrap on the cheaper path:
+```text
+./host/bootstrap_chromium_checkout.sh
+Running: gclient sync --nohooks --no-history
+```
+
+### Why
+- A full-history Chromium fetch is not necessary for this ticket and would waste hours.
+- The helper should be safe to rerun even if `depot_tools` is detached, because that state is what the actual clone produced here.
+- Fixing the bootstrap path early is better than accepting a bad default and "documenting around it."
+
+### What worked
+- `fetch` explicitly supports the reduced-history mode we want.
+- The detached-HEAD problem in `depot_tools` is now understood and handled.
+- The no-history retry is running with the corrected helper and a fresh checkout root.
+
+### What didn't work
+- The first Chromium sync strategy was too expensive for the task:
+```text
+remote: Sending approximately 61.14 GiB ...
+```
+- The original `depot_tools` update block failed when rerun:
+```text
+You are not currently on a branch.
+Please specify which branch you want to merge with.
+```
+- That failure exposed a real bug in the helper rather than just a transient environment problem.
+
+### What I learned
+- For this ticket, "a working bootstrap" is not enough. It also needs to be cheap enough to use repeatedly.
+- The actual `depot_tools` clone shape on this machine matters more than my assumption that `git pull --ff-only` would always work.
+- The safest path is to treat bootstrap scripts like real code under investigation, not just disposable setup snippets.
+
+### What was tricky to build
+- The tricky part here was deciding to stop a command that was technically making progress. The full-history transfer was not "broken," but it was the wrong optimization target for this ticket. The evidence that justified stopping it was the observed `61.14 GiB` history transfer plus the fact that `fetch` already supports `--no-history`.
+- Another subtle point was cleanup. A direct recursive delete was blocked by policy, so I moved the aborted checkout aside instead. That preserved the evidence and still let the no-history retry start cleanly.
+
+### What warrants a second pair of eyes
+- Once the no-history checkout finishes enough to inspect the tree, it is still worth confirming that this reduced-history mode is sufficient for the GN/ninja workflow we need.
+- The renamed aborted checkout can be deleted later if disk pressure matters, but it should stay out of the documented critical path.
+
+### What should be done in the future
+- Let the no-history Chromium sync materialize a real `src/` tree.
+- Then verify the initial target set in that checkout.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/bootstrap_chromium_checkout.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/scripts/bootstrap_chromium_checkout.sh`
+- Validate with:
+```text
+~/depot_tools/fetch --help | rg 'nohistory|no-history'
+git -C /home/manuel/depot_tools status --short --branch
+```
+
+### Technical details
+- Aborted full-history checkout archive:
+```text
+/home/manuel/chromium.fullhistory-aborted
+```
+- Current intended fetch mode:
+```text
+gclient sync --nohooks --no-history
+```
