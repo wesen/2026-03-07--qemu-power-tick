@@ -48,7 +48,8 @@ Current strongest conclusion:
 - guest DRM debugfs state remains healthy after resume,
 - guest compositor screenshots also remain healthy after resume when explicitly captured,
 - the host-side QMP `screendump` path is therefore the leading suspect for the `720x400` fallback view,
-- and the newer device-variant controls now show that removing legacy VGA changes the failure shape but does not make the default post-resume capture correct.
+- the newer device-variant controls show that removing legacy VGA changes the failure shape but does not make the default post-resume capture correct,
+- and the newest explicit `screendump --device/--head` runs show that stable device targeting does not repair the capture on either `virtio-vga` or `virtio-gpu-pci`.
 
 ## Key Links
 

@@ -16,20 +16,24 @@ RelatedFiles:
       Note: Phase-2 rootfs rebuild step that added the display probe
     - Path: guest/build-phase3-rootfs.sh
       Note: Phase-3 rootfs rebuild step that added the display probe
+    - Path: guest/dump_drm_state.sh
+      Note: Guest-side DRM debugfs dump helper used to capture active plane and framebuffer state across resume
+    - Path: guest/dump_fb0_snapshot.sh
+      Note: Guest-side framebuffer readback helper used to test whether `/dev/fb0` matches the visible plane
     - Path: guest/init-phase2
       Note: Diary evidence for the corrected fbcon-unbind experiment
     - Path: guest/init-phase3
       Note: Diary evidence for the stage-3 probe and log-only unbind attempt
-    - Path: host/run_phase3_suspend_capture.sh
-      Note: Diary evidence for the corrected concurrent stage-3 capture runs
-    - Path: guest/dump_fb0_snapshot.sh
-      Note: Guest-side framebuffer readback helper used to test whether `/dev/fb0` matches the visible plane
-    - Path: guest/dump_drm_state.sh
-      Note: Guest-side DRM debugfs dump helper used to capture active plane and framebuffer state across resume
-    - Path: host/extract_fbshot_from_serial.py
-      Note: Host-side extractor that reconstructs raw framebuffer dumps and PNG variants from the serial log
+    - Path: host/capture_qmp_screendump_variants.py
+      Note: Explicit QMP screendump variant capture helper used in Step 15
     - Path: host/extract_drmstate_from_serial.py
       Note: Host-side extractor that reconstructs DRM debugfs state blocks from the serial log
+    - Path: host/extract_fbshot_from_serial.py
+      Note: Host-side extractor that reconstructs raw framebuffer dumps and PNG variants from the serial log
+    - Path: host/run_phase3_screendump_variant_capture.sh
+      Note: Wrapper that launches phase 3 with stable display-device ids for Step 15
+    - Path: host/run_phase3_suspend_capture.sh
+      Note: Diary evidence for the corrected concurrent stage-3 capture runs
     - Path: ttmp/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/scripts/run_phase3_suspend_capture.sh
       Note: Archived copy of the concurrent capture wrapper used in this ticket
 ExternalSources: []
@@ -38,6 +42,7 @@ LastUpdated: 2026-03-07T22:12:20.785209247-05:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 
@@ -1486,4 +1491,156 @@ crtc[35]
   active=1
 mode: "1280x800"
 connector[36]: Virtual-1
+```
+
+## Step 15: Prove That Explicit `screendump --device/--head` Targeting Does Not Fix the Resume Capture
+
+The next unresolved branch in the ticket was very specific: QEMU 8.2.2 had already told us through QMP schema that `screendump` accepts `device` and `head`, but we still had not exercised those arguments against a VM with stable display-device ids. That left open an annoying ambiguity: maybe the bad post-resume screenshots were only a default-target-selection bug, and the real scene would come back as soon as I pointed `screendump` at the correct device explicitly.
+
+This step closed that gap. I added a small capture helper that records default and explicit `screendump` variants before and after resume, ran it against `virtio-gpu-pci,id=labgpu`, then ran the same matrix against `virtio-vga,id=labvga`, and finally repeated the GPU-PCI case with bare KMS to avoid leaning only on Weston. The result is strong and disappointingly simple: explicit `device/head` targeting works syntactically, but it does not repair the post-resume capture in any of the tested configurations.
+
+### Prompt Context
+
+**User prompt (verbatim):** "alright try it"
+
+**Assistant interpretation:** Run the planned explicit `screendump --device/--head` experiments with stable QEMU display ids and see whether targeted capture changes the bad post-resume result.
+
+**Inferred user intent:** Eliminate the “wrong implicit screendump target” hypothesis before investing in deeper QEMU-side debugging.
+
+**Commit (code):** `b8fd382` — `Add explicit QMP screendump variant harness`
+
+### What I did
+- Added `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/capture_qmp_screendump_variants.py`, which:
+  - waits for the QMP socket,
+  - optionally captures explicit variants before suspend,
+  - waits for `state=RESUMED` in the serial log,
+  - captures default and explicit `screendump` variants after resume,
+  - stores QMP responses plus image dimensions and mean brightness in `screendump-variants.json`.
+- Added `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/run_phase3_screendump_variant_capture.sh`, which:
+  - launches phase 3 with a stable display-device id,
+  - forwards `--disable-default-vga` when requested,
+  - runs the new capture helper against the live VM.
+- Mirrored both helpers into the ticket-local `scripts/` archive.
+- Ran the explicit-target Weston control on `virtio-gpu-pci`:
+```bash
+timeout 120 bash host/run_phase3_screendump_variant_capture.sh \
+  --results-dir results-phase3-screendump-gpu-pci1 \
+  --display-device virtio-gpu-pci \
+  --display-device-id labgpu \
+  --disable-default-vga \
+  --capture-pre-variants \
+  --append-extra 'phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices'
+```
+- Ran the explicit-target Weston control on `virtio-vga`:
+```bash
+timeout 120 bash host/run_phase3_screendump_variant_capture.sh \
+  --results-dir results-phase3-screendump-vga1 \
+  --display-device virtio-vga \
+  --display-device-id labvga \
+  --capture-pre-variants \
+  --append-extra 'phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices'
+```
+- Ran the explicit-target bare-KMS control on `virtio-gpu-pci`:
+```bash
+timeout 120 bash host/run_phase3_screendump_variant_capture.sh \
+  --results-dir results-phase3-screendump-kms-gpu-pci1 \
+  --display-device virtio-gpu-pci \
+  --display-device-id labgpu \
+  --disable-default-vga \
+  --capture-pre-variants \
+  --append-extra 'phase3_client=kms-pattern phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices'
+```
+
+### Why
+- The remaining “easy explanation” was that default `screendump` was choosing the wrong post-resume display target.
+- If explicit targeting fixed the image, the ticket would immediately shift from “QEMU capture path is wrong” to “QEMU default display selection is wrong.”
+- If explicit targeting failed too, the next QEMU-facing work would need to look below target selection and into scanout/capture internals.
+
+### What worked
+- The new helpers produced reusable JSON summaries in:
+  - `results-phase3-screendump-gpu-pci1/screendump-variants.json`
+  - `results-phase3-screendump-vga1/screendump-variants.json`
+  - `results-phase3-screendump-kms-gpu-pci1/screendump-variants.json`
+- QMP accepted explicit `device` and `device+head` capture when the display device had a stable id.
+- The runs confirmed one concrete API rule I had not proven before:
+```text
+'head' must be specified together with 'device'
+```
+- On `virtio-gpu-pci,id=labgpu`, the explicit variants were identical to the default capture:
+  - pre: `1280x800`
+  - post: `1280x800`
+  - post mean: `29.1836`
+  - `post-default`, `post-device-labgpu`, and `post-device-labgpu-head-0` all matched
+- On `virtio-vga,id=labvga`, the explicit variants were also identical to the default capture:
+  - pre: `1280x800`
+  - post: `720x400`
+  - post mean: `544.347`
+  - `post-default`, `post-device-labvga`, and `post-device-labvga-head-0` all matched
+- The bare-KMS GPU-PCI control matched the Weston GPU-PCI result:
+  - explicit device targeting still produced the same almost-black `1280x800` post-resume image as the default capture
+
+### What didn't work
+- The capture wrapper still does not guarantee a graceful guest shutdown in these runs. The VM often sits after the client is terminated, so the `timeout` wrapper eventually sends SIGTERM.
+- `head`-only capture was not supported, so there was no separate “default device but explicit head” path to try:
+```text
+'head' must be specified together with 'device'
+```
+- The explicit targeting result is negative rather than reparative: it ruled out the easier hypothesis, but it did not improve the post-resume capture.
+
+### What I learned
+- Explicit `device/head` support in QMP is real, but it is not enough to recover the correct post-resume scene in the tested configurations.
+- The `virtio-gpu-pci` black-frame case is not just “default screendump picked the wrong surface.” Explicit device targeting lands on the same wrong result.
+- The `virtio-vga` `720x400` fallback also survives explicit device targeting, which makes the problem look more like a deeper host-visible capture/surface-restoration issue than a selector bug.
+- The bare-KMS GPU-PCI control keeps this conclusion from being Weston-specific.
+
+### What was tricky to build
+- The helper needed to preserve both the QMP response and the decoded image metadata, otherwise a failed command and a successful-but-wrong image would blur together in the diary.
+- The most important subtlety was avoiding another “seems plausible” result. I wanted the same helper to prove:
+  - whether explicit targeting is accepted,
+  - whether it changes dimensions,
+  - whether it changes image brightness/content,
+  - and whether those answers stay the same across Weston and bare KMS.
+
+### What warrants a second pair of eyes
+- The negative result is strong, but it still depends on the assumption that the `device` argument really refers to the QEMU display device id we set with `id=labgpu` / `id=labvga`. The fact that the command succeeds strongly suggests that is true, but it is still worth checking against QEMU internals or docs.
+- The wrapper shutdown behavior is still rough. It does not invalidate the captured results, but it does add noise to the run lifecycle.
+
+### What should be done in the future
+- Move the investigation below target selection and into QEMU’s capture/scanout restoration behavior after `pm_test=devices`.
+- Inspect whether QEMU `screendump` is tied to a legacy or stale host-visible surface that survives resume differently from the guest’s active DRM plane.
+- Decide whether the next step should be:
+  - QEMU/HMP display-tree inspection,
+  - QEMU source-level `screendump` path review,
+  - or documentation of a host-capture limitation if the behavior proves stable and unfixed.
+
+### Code review instructions
+- Start with the new helpers:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/capture_qmp_screendump_variants.py`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/run_phase3_screendump_variant_capture.sh`
+- Then inspect the three result summaries:
+  - `results-phase3-screendump-gpu-pci1/screendump-variants.json`
+  - `results-phase3-screendump-vga1/screendump-variants.json`
+  - `results-phase3-screendump-kms-gpu-pci1/screendump-variants.json`
+- Cross-check representative images:
+  - `results-phase3-screendump-gpu-pci1/post-default.png`
+  - `results-phase3-screendump-gpu-pci1/post-device-labgpu-head-0.png`
+  - `results-phase3-screendump-vga1/post-default.png`
+  - `results-phase3-screendump-vga1/post-device-labvga-head-0.png`
+
+### Technical details
+- Representative QMP rule discovered during the runs:
+```text
+GenericError: 'head' must be specified together with 'device'
+```
+- GPU-PCI post-resume summary:
+```text
+post-default                  1280x800 mean=29.1836
+post-device-labgpu            1280x800 mean=29.1836
+post-device-labgpu-head-0     1280x800 mean=29.1836
+```
+- VGA post-resume summary:
+```text
+post-default                  720x400 mean=544.347
+post-device-labvga            720x400 mean=544.347
+post-device-labvga-head-0     720x400 mean=544.347
 ```
