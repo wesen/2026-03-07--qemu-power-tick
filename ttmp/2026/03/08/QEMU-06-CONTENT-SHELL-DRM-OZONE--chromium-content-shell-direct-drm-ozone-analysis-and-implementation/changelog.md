@@ -31,3 +31,4 @@
   - direct fallback to `src/buildtools/linux64/gn` when depot_tools `gn` is only a thin wrapper
 - Generated `/home/manuel/chromium/src/out/Phase4DRM/build.ninja` successfully.
 - Started the first real `autoninja` build for `content_shell`, `chrome_sandbox`, and `chrome_crashpad_handler`.
+- Added `host/stage_phase4_chromium_payload.sh` to copy the first Chromium build artifacts into `build/phase4/chromium-direct` and immediately probe the staged payload.

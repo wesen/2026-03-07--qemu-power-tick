@@ -13,6 +13,7 @@
 - [x] Add an initial phase-4 GN args helper that writes a direct DRM/Ozone `args.gn` baseline and expected target list.
 - [x] Add an end-to-end phase-4 Chromium build driver helper for `runhooks -> gn gen -> autoninja`.
 - [x] Run `gclient runhooks` and generate the first `out/Phase4DRM` build directory.
+- [x] Add a payload staging helper that can copy the first built Chromium artifacts into `build/phase4/chromium-direct`.
 - [ ] Finish the first `autoninja` build for `content_shell`, `chrome_sandbox`, and `chrome_crashpad_handler`.
 - [ ] Probe the built Chromium output directory and wire it into the phase-4 rootfs builder.
 - [x] Add phase-4 runtime files:

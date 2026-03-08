@@ -1035,3 +1035,80 @@ use_system_minigbm = false
 ```text
 /home/manuel/chromium/src/out/Phase4DRM
 ```
+
+## Step 10: Script the Chromium Payload Staging Path Before the Build Finishes
+
+By the time the first `autoninja` run started, the next bottleneck was already visible. Even if the compile succeeded, phase 4 would still need a clean way to move the Chromium runtime payload out of `out/Phase4DRM` and into the repo-local directory that `guest/build-phase4-rootfs.sh` already knows how to consume. That is the sort of step that easily turns into undocumented shell history if it is not scripted early.
+
+So I used the build time to add the staging helper before the build produced artifacts. That keeps the workflow deterministic: build output directory in, staged phase-4 payload directory out, then probe the result immediately.
+
+### Prompt Context
+
+**User prompt (verbatim):** "alright, let's go then."
+
+**Assistant interpretation:** Keep making forward progress instead of idling on the long Chromium compile.
+
+**Inferred user intent:** Use the waiting time productively so the next post-build step is already automated when the compile finishes.
+
+### What I did
+- Added:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/stage_phase4_chromium_payload.sh`
+- Mirrored it into the ticket archive:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/scripts/stage_phase4_chromium_payload.sh`
+- The helper now:
+  - reads from `~/chromium/src/out/Phase4DRM` by default
+  - stages into `build/phase4/chromium-direct` by default
+  - copies the first-pass required runtime set:
+    - `content_shell`
+    - `chrome_sandbox`
+    - `icudtl.dat`
+    - `resources.pak`
+    - `v8_context_snapshot.bin`
+    - `chrome_100_percent.pak`
+    - `chrome_200_percent.pak`
+    - `locales/`
+  - copies optional helpers if present:
+    - `chrome`
+    - `chrome_crashpad_handler`
+    - `nacl_helper`
+  - immediately runs the existing payload probe on the staged directory
+
+### Why
+- The phase-4 rootfs builder is already designed around `CHROMIUM_PAYLOAD_DIR`; the only missing piece was turning Chromium's output directory into that payload consistently.
+- This is a mechanical boundary, so it should be scripted once rather than improvised after the first successful build.
+
+### What worked
+- The packaging assumptions in `guest/build-phase4-rootfs.sh` already matched the staging helper well.
+- The helper reuses `host/probe_phase4_chromium_payload.py` instead of inventing a second validation path.
+
+### What didn't work
+- I caught one bug immediately while writing it: the initial shell expansion would have passed `--allow-missing-payload` even when the flag was logically false because the variable was non-empty. I fixed that before using the script by switching to an explicit `probe_args` array.
+
+### What I learned
+- The phase-4 packaging path is in good shape already. The rootfs builder does not need a redesign; it just needs the Chromium output copied into the right shape.
+- That means the next real post-build steps are straightforward:
+  1. stage the payload
+  2. probe it
+  3. rebuild the phase-4 initramfs with `CHROMIUM_PAYLOAD_DIR`
+  4. attempt the first direct DRM `content_shell` boot
+
+### What should be done in the future
+- Let `autoninja` finish.
+- Run the new staging helper against `out/Phase4DRM`.
+- Use the staged payload to build the first real Chromium-backed phase-4 initramfs.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/stage_phase4_chromium_payload.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-phase4-rootfs.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/probe_phase4_chromium_payload.py`
+
+### Technical details
+- Default staging destination:
+```text
+/home/manuel/code/wesen/2026-03-07--qemu-power-tick/build/phase4/chromium-direct
+```
+- Default source build directory:
+```text
+/home/manuel/chromium/src/out/Phase4DRM
+```
