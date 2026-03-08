@@ -7,6 +7,7 @@ mount -t sysfs sysfs /sys
 mount -t devtmpfs devtmpfs /dev
 mount -t tmpfs tmpfs /run
 mount -t tmpfs tmpfs /tmp
+mount -t debugfs debugfs /sys/kernel/debug 2>/dev/null || true
 mkdir -p /dev/pts /run/user/0 /var/log /var/lib /etc/xdg/weston
 mkdir -p /run/udev
 mount -t devpts devpts /dev/pts || true
@@ -44,6 +45,9 @@ GUEST_CAPTURE_POST_DELAY=
 FB_CAPTURE=
 FB_CAPTURE_PRE_DELAY=
 FB_CAPTURE_POST_DELAY=
+DRM_STATE_CAPTURE=
+DRM_STATE_CAPTURE_PRE_DELAY=
+DRM_STATE_CAPTURE_POST_DELAY=
 WESTON_DEBUG=
 
 KERNEL_RELEASE=$(uname -r)
@@ -123,6 +127,9 @@ for arg in $(cat /proc/cmdline); do
     phase3_fb_capture=1) FB_CAPTURE=1 ;;
     phase3_fb_capture_pre_delay_seconds=*) FB_CAPTURE_PRE_DELAY=${arg#phase3_fb_capture_pre_delay_seconds=} ;;
     phase3_fb_capture_post_delay_seconds=*) FB_CAPTURE_POST_DELAY=${arg#phase3_fb_capture_post_delay_seconds=} ;;
+    phase3_drm_state_capture=1) DRM_STATE_CAPTURE=1 ;;
+    phase3_drm_state_capture_pre_delay_seconds=*) DRM_STATE_CAPTURE_PRE_DELAY=${arg#phase3_drm_state_capture_pre_delay_seconds=} ;;
+    phase3_drm_state_capture_post_delay_seconds=*) DRM_STATE_CAPTURE_POST_DELAY=${arg#phase3_drm_state_capture_post_delay_seconds=} ;;
     phase3_weston_debug=1) WESTON_DEBUG=1 ;;
   esac
 done
@@ -196,6 +203,17 @@ schedule_fb_capture() {
   echo $!
 }
 
+schedule_drm_state_capture() {
+  tag=$1
+  delay=$2
+  (
+    sleep "$delay"
+    echo "[init-phase3] drm-state-capture tag=$tag delay=$delay" >/dev/console
+    /usr/bin/dump_drm_state.sh "$tag" >/dev/console 2>&1 || true
+  ) &
+  echo $!
+}
+
 if [ -n "${GUEST_CAPTURE:-}" ]; then
   GUEST_CAPTURE_PRE_PID=
   GUEST_CAPTURE_POST_PID=
@@ -224,6 +242,20 @@ else
   FB_CAPTURE_POST_PID=
 fi
 
+if [ -n "${DRM_STATE_CAPTURE:-}" ]; then
+  DRM_STATE_CAPTURE_PRE_PID=
+  DRM_STATE_CAPTURE_POST_PID=
+  if [ -n "${DRM_STATE_CAPTURE_PRE_DELAY:-}" ]; then
+    DRM_STATE_CAPTURE_PRE_PID=$(schedule_drm_state_capture pre "$DRM_STATE_CAPTURE_PRE_DELAY")
+  fi
+  if [ -n "${DRM_STATE_CAPTURE_POST_DELAY:-}" ]; then
+    DRM_STATE_CAPTURE_POST_PID=$(schedule_drm_state_capture post "$DRM_STATE_CAPTURE_POST_DELAY")
+  fi
+else
+  DRM_STATE_CAPTURE_PRE_PID=
+  DRM_STATE_CAPTURE_POST_PID=
+fi
+
 if [ -n "${SUSPEND_DELAY_SECONDS:-}" ]; then
   SUSPEND_ARGS="--delay-seconds $SUSPEND_DELAY_SECONDS"
   [ -n "${WAKE_SECONDS:-}" ] && SUSPEND_ARGS="$SUSPEND_ARGS --wake-seconds $WAKE_SECONDS"
@@ -249,6 +281,8 @@ wait "$APP_PID" || true
 [ -n "${GUEST_CAPTURE_POST_PID:-}" ] && wait "$GUEST_CAPTURE_POST_PID" || true
 [ -n "${FB_CAPTURE_PRE_PID:-}" ] && wait "$FB_CAPTURE_PRE_PID" || true
 [ -n "${FB_CAPTURE_POST_PID:-}" ] && wait "$FB_CAPTURE_POST_PID" || true
+[ -n "${DRM_STATE_CAPTURE_PRE_PID:-}" ] && wait "$DRM_STATE_CAPTURE_PRE_PID" || true
+[ -n "${DRM_STATE_CAPTURE_POST_PID:-}" ] && wait "$DRM_STATE_CAPTURE_POST_PID" || true
 [ -n "${SUSPEND_PID:-}" ] && wait "$SUSPEND_PID" || true
 [ -n "${DISPLAY_PROBE_PID:-}" ] && kill "$DISPLAY_PROBE_PID" 2>/dev/null || true
 [ -f /var/log/display_probe.log ] && tail -n 120 /var/log/display_probe.log >/dev/console 2>&1 || true
