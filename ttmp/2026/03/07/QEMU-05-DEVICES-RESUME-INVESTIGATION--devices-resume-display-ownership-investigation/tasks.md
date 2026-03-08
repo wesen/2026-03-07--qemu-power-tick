@@ -13,6 +13,7 @@
 - [x] Run one `display_unbind_fbcon=1` experiment against the shared-control path.
 - [x] Compare the probe outputs against the QMP screenshot outcomes and decide whether the next layer to debug is fbcon ownership, Weston scanout restoration, or Chromium buffer reuse.
 - [x] Update the diary and changelog with the control results and probe evidence.
-- [ ] Run a stage-3 `display_unbind_fbcon=1` experiment with concurrent screenshot capture, not just a log-only run.
+- [x] Run a stage-3 `display_unbind_fbcon=1` experiment with concurrent screenshot capture, not just a log-only run.
 - [x] Validate the new ticket with `docmgr doctor`.
 - [x] Upload the investigation bundle to reMarkable.
+- [ ] Refresh the intern guide and bundle after the corrected phase-3 reruns.

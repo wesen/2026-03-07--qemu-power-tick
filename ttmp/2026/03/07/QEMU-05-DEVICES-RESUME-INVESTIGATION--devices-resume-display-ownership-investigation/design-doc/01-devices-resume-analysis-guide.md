@@ -20,12 +20,17 @@ RelatedFiles:
       Note: Phase-3 probe and fbcon-unbind wiring used in the stage-3 controls
     - Path: host/capture_phase3_suspend_checkpoints.py
       Note: Host QMP screenshot harness used for pre/post suspend captures
+    - Path: host/run_phase3_suspend_capture.sh
+      Note: Concurrent stage-3 QEMU plus capture wrapper used for the corrected reruns
+    - Path: ttmp/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/scripts/compare_image_ae.py
+      Note: Ticket-local image difference helper used to compare corrected baseline and unbind screenshots
 ExternalSources: []
 Summary: ""
 LastUpdated: 2026-03-07T22:12:20.785397822-05:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Devices Resume Analysis Guide
@@ -163,6 +168,22 @@ Status:
 - partially supported.
 - phase-3 `weston-simple-shm` also showed `0x1203` in `results-phase3-probe-shm1`, which weakens the earlier “Chromium-only” framing.
 
+### Correction: a phase-3 parser bug invalidated part of the earlier evidence
+
+The first phase-3 probe/unbind runs were later found to be partially invalid. In [guest/init-phase3](../../../../../../guest/init-phase3), `DISPLAY_PROBE` and `UNBIND_FBCON` were assigned inside a command substitution:
+
+```sh
+CONFIG=$(build_browser_args)
+```
+
+That runs the function in a subshell. The returned config string survived, but the parent shell never received the `DISPLAY_PROBE=1` or `UNBIND_FBCON=1` side effects. After fixing that bug and rerunning the stage-3 controls, the phase-3 evidence changed:
+
+- `@@DISPLAY` now appears correctly in serial logs
+- `display_unbind_fbcon=1` now really unbinds `vtcon0`
+- the corrected reruns do not reproduce the old `0x1203` DRM errors
+
+So any intern reading this ticket should treat the old `results-phase3-probe-shm1` and `results-phase3-probe-chromium1` interpretations as provisional, not final.
+
 ## Probe Design
 
 The probe was designed to avoid modifying the visible runtime path.
@@ -276,18 +297,92 @@ Interpretation:
 - fbcon binding affects what QMP sees before suspend,
 - but unbinding fbcon alone does not fix the post-resume fallback.
 
+### Control E: Corrected stage-3 `weston-simple-shm`
+
+Command:
+```bash
+bash host/run_phase3_suspend_capture.sh \
+  --results-dir results-phase3-probe-shm2 \
+  --append-extra 'display_probe=1 phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices'
+```
+
+Observed:
+- `display_probe pid=...` and `@@DISPLAY` are present
+- `00-pre.png`: `1280x800`
+- `01-post.png`: `720x400`
+- stable guest-side state across resume:
+  - `vtcon0 bind=1`
+  - `vtcon1 bind=0`
+  - `fb0=virtio_gpudrmfb`
+  - `Virtual-1 status=connected enabled=enabled dpms=On`
+- no `0x1203` DRM error lines in this corrected run
+
+Interpretation:
+- the shared visual fallback survives the corrected phase-3 rerun,
+- but the old “stage 3 also reliably throws `0x1203`” claim is now too strong.
+
+### Control F: Corrected stage-3 Chromium baseline
+
+Command:
+```bash
+bash host/run_phase3_suspend_capture.sh \
+  --results-dir results-phase3-probe-chromium2 \
+  --append-extra 'display_probe=1 phase3_runtime_seconds=40 phase3_url=data:text/html;base64,... phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices'
+```
+
+Observed:
+- `@@DISPLAY` now appears correctly
+- stable guest-side state across resume:
+  - `vtcon0 bind=1`
+  - `vtcon1 bind=0`
+  - `fb0=virtio_gpudrmfb`
+  - `Virtual-1 status=connected enabled=enabled dpms=On`
+- `00-pre.png`: `1280x800`
+- `01-post.png`: `720x400`
+- no `0x1203` DRM error lines
+
+Interpretation:
+- corrected Chromium still reproduces the same visual fallback,
+- but without the old probe/unbind bug or the old `0x1203` error signature.
+
+### Intervention G: Corrected stage-3 Chromium with `display_unbind_fbcon=1`
+
+Command:
+```bash
+bash host/run_phase3_suspend_capture.sh \
+  --results-dir results-phase3-probe-chromium-unbind2 \
+  --append-extra 'display_probe=1 display_unbind_fbcon=1 phase3_runtime_seconds=40 phase3_url=data:text/html;base64,... phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices'
+```
+
+Observed:
+- `[init-phase3] unbound vtcon0 framebuffer console`
+- probe shows:
+  - `vtcon0 bind=0`
+  - `vtcon1 bind=1`
+- screenshots are unchanged compared with the corrected Chromium baseline:
+  - `AE(pre_baseline, pre_unbind) = 0`
+  - `AE(post_baseline, post_unbind) = 0`
+- `00-pre.png`: `1280x800`
+- `01-post.png`: `720x400`
+
+Interpretation:
+- in corrected stage 3, changing fbcon ownership does **not** change the visible screenshots,
+- which differs from corrected phase 2, where unbinding changed the pre-suspend visible plane.
+
 ## What the Intern Should Conclude Right Now
 
 Do **not** conclude:
 - “Chromium is the root cause.”
 - “fbcon is definitely rebinding after resume.”
 - “Weston failed to resume” based only on screenshots.
+- “phase 3 definitely throws `0x1203` on every corrected rerun.”
 
 Do conclude:
 - there is a shared lower-layer post-resume visibility problem,
-- fbcon ownership influences the visible pre-suspend plane,
+- fbcon ownership influences the visible pre-suspend plane in corrected phase 2,
+- corrected phase 3 does not show the same visible sensitivity to fbcon unbinding,
 - the stage-2 probe evidence points below simple `vtconsole` ownership,
-- the extra `virtio_gpu` resource errors are real but are not yet isolated cleanly enough to blame on Chromium alone.
+- the earlier phase-3 probe gap was a shell bug, not an inherent logging limitation.
 
 ## Design Decisions
 
@@ -332,8 +427,8 @@ Rejected because:
 ### Immediate next tests
 
 1. Re-run stage-3 `display_unbind_fbcon=1` with capture attached concurrently, not post-hoc.
-2. Fix or explain the missing phase-3 `@@DISPLAY` dump.
-3. Add one direct phase-3 probe-validation run whose purpose is only to prove probe output reaches serial.
+2. Compare corrected phase 2 and corrected phase 3 unbind behavior directly.
+3. Add a tighter post-resume probe if the next target is DRM/scanout state during the narrow resume window.
 
 ### Likely follow-up experiments
 

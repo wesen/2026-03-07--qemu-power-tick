@@ -20,12 +20,17 @@ RelatedFiles:
       Note: Diary evidence for the corrected fbcon-unbind experiment
     - Path: guest/init-phase3
       Note: Diary evidence for the stage-3 probe and log-only unbind attempt
+    - Path: host/run_phase3_suspend_capture.sh
+      Note: Diary evidence for the corrected concurrent stage-3 capture runs
+    - Path: ttmp/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/scripts/run_phase3_suspend_capture.sh
+      Note: Archived copy of the concurrent capture wrapper used in this ticket
 ExternalSources: []
 Summary: ""
 LastUpdated: 2026-03-07T22:12:20.785209247-05:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 # Investigation Diary
@@ -422,4 +427,119 @@ Error: no matches for 'QEMU-05-DEVICES-RESUME-INVESTIGATION'
 - Upload artifact name:
 ```text
 QEMU-05 Devices Resume Investigation Bundle
+```
+
+## Step 5: Fix the Phase-3 Parser Bug and Rerun the Controls Correctly
+
+The missing phase-3 probe output turned out not to be a mysterious logging race. It was a shell bug in [guest/init-phase3](../../../../../../guest/init-phase3). I had placed the cmdline parser inside `CONFIG=$(build_browser_args)`, which means the function ran in a command-substitution subshell. The echoed config string came back, but assignments like `DISPLAY_PROBE=1` and `UNBIND_FBCON=1` stayed trapped in the subshell and never affected the parent shell.
+
+That bug invalidated an important part of the earlier phase-3 interpretation. The stage-3 runs had not actually been applying `display_probe=1` or `display_unbind_fbcon=1` at all. Once fixed, the phase-3 story changed materially: the probe started working, the unbind flag actually took effect, and the corrected reruns no longer reproduced the old `0x1203` DRM error lines.
+
+### Prompt Context
+
+**User prompt (verbatim):** "Ok, let's go"
+
+**Assistant interpretation:** Continue the investigation immediately from the new ticket and execute the next focused tests.
+
+**Inferred user intent:** Keep pushing the narrowed debug loop forward instead of stopping at documentation.
+
+### What I did
+- Identified the bug in `init-phase3`:
+  - `DISPLAY_PROBE` and `UNBIND_FBCON` were being assigned inside a command-substitution subshell.
+- Rewrote the phase-3 cmdline parsing to happen in the parent shell.
+- Added [host/run_phase3_suspend_capture.sh](../../../../../../host/run_phase3_suspend_capture.sh) to launch QEMU and the capture helper concurrently.
+- Rebuilt `build/initramfs-phase3.img`.
+- Ran a corrected phase-3 `weston-simple-shm` control:
+```bash
+bash host/run_phase3_suspend_capture.sh \
+  --results-dir results-phase3-probe-shm2 \
+  --append-extra 'display_probe=1 phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices'
+```
+- Ran a corrected phase-3 Chromium baseline:
+```bash
+bash host/run_phase3_suspend_capture.sh \
+  --results-dir results-phase3-probe-chromium2 \
+  --append-extra 'display_probe=1 phase3_runtime_seconds=40 phase3_url=data:text/html;base64,... phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices'
+```
+- Ran a corrected phase-3 Chromium unbind case:
+```bash
+bash host/run_phase3_suspend_capture.sh \
+  --results-dir results-phase3-probe-chromium-unbind2 \
+  --append-extra 'display_probe=1 display_unbind_fbcon=1 phase3_runtime_seconds=40 phase3_url=data:text/html;base64,... phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices'
+```
+- Stored the temporary image-diff helper as [scripts/compare_image_ae.py](../scripts/compare_image_ae.py) so the screenshot comparisons are reproducible.
+
+### Why
+- The old phase-3 evidence was partially invalid.
+- We needed one corrected baseline and one corrected unbind run before trusting any stage-3 conclusion.
+
+### What worked
+- The fixed phase-3 runs now emit:
+  - `[init-phase3] display_probe pid=...`
+  - `@@DISPLAY ...`
+- The corrected `weston-simple-shm` run `results-phase3-probe-shm2` shows:
+  - stable `fb0`, `vtconsole`, and DRM connector state across suspend/resume
+  - `00-pre.png` at `1280x800`
+  - `01-post.png` at `720x400`
+  - no `virtio_gpu_dequeue_ctrl_func ... 0x1203` lines
+- The corrected Chromium baseline `results-phase3-probe-chromium2` shows:
+  - stable `vtcon0 bind=1`, `vtcon1 bind=0`
+  - the same `1280x800 -> 720x400` screenshot fallback
+  - no `0x1203` DRM errors
+- The corrected Chromium unbind run `results-phase3-probe-chromium-unbind2` shows:
+  - `[init-phase3] unbound vtcon0 framebuffer console`
+  - `vtcon0 bind=0`, `vtcon1 bind=1`
+  - the same `1280x800 -> 720x400` screenshot fallback
+  - no `0x1203` DRM errors
+- The corrected baseline and corrected unbind screenshots are identical:
+```text
+AE(results-phase3-probe-chromium2/00-pre.png, results-phase3-probe-chromium-unbind2/00-pre.png) = 0
+AE(results-phase3-probe-chromium2/01-post.png, results-phase3-probe-chromium-unbind2/01-post.png) = 0
+```
+
+### What didn't work
+- The earlier phase-3 conclusion about “missing probe output” was wrong because the flags were never reaching the parent shell.
+- The earlier phase-3 `0x1203` interpretation is now weaker, because the corrected reruns no longer reproduce it.
+
+### What I learned
+- A shell subshell bug can silently invalidate an entire branch of an investigation while still leaving the rest of the init logic apparently functional.
+- In corrected phase 3, fbcon unbinding changes the recorded ownership state, but it does **not** change the visible screenshots at all.
+- That makes stage 3 look different from the corrected phase-2 unbind result, where unbinding changed the pre-suspend visible plane dramatically.
+
+### What was tricky to build
+- The bug was subtle because `phase3_client`, `phase3_url`, and the other config values still seemed to work. Only the flags that were supposed to mutate parent-shell state were lost.
+- The concurrent capture wrapper was necessary because the post-hoc screenshot attempt was too race-prone once the VM powered off quickly.
+
+### What warrants a second pair of eyes
+- The corrected stage-3 evidence now suggests:
+  - the shared post-resume fallback survives even when fbcon ownership changes in stage 3,
+  - the old `0x1203` error may have been situational rather than essential.
+- That is a meaningful shift in the investigation and deserves a review before more theories are built on top of it.
+
+### What should be done in the future
+- Refresh the intern guide to demote the old phase-3 error claims and replace them with the corrected rerun results.
+- Compare corrected stage 2 and corrected stage 3 side by side, because their response to `display_unbind_fbcon=1` now appears different.
+
+### Code review instructions
+- Start with [guest/init-phase3](../../../../../../guest/init-phase3) and confirm the parser now runs in the parent shell.
+- Review [host/run_phase3_suspend_capture.sh](../../../../../../host/run_phase3_suspend_capture.sh).
+- Validate the corrected reruns by checking:
+  - `results-phase3-probe-shm2/guest-serial.log`
+  - `results-phase3-probe-chromium2/guest-serial.log`
+  - `results-phase3-probe-chromium-unbind2/guest-serial.log`
+
+### Technical details
+- Screenshot dimensions:
+```text
+results-phase3-probe-shm2/00-pre.png:              1280 x 800
+results-phase3-probe-shm2/01-post.png:              720 x 400
+results-phase3-probe-chromium2/00-pre.png:         1280 x 800
+results-phase3-probe-chromium2/01-post.png:         720 x 400
+results-phase3-probe-chromium-unbind2/00-pre.png:  1280 x 800
+results-phase3-probe-chromium-unbind2/01-post.png:  720 x 400
+```
+- New stage-3 conclusion:
+```text
+corrected Chromium baseline == corrected Chromium unbind in screenshots
+but both still fall back after resume
 ```

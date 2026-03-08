@@ -31,6 +31,13 @@ export FONTCONFIG_PATH=/etc/fonts
 
 DISPLAY_PROBE=0
 UNBIND_FBCON=0
+URL=about:blank
+CLIENT=chromium
+RUNTIME_SECONDS=
+SUSPEND_DELAY_SECONDS=
+WAKE_SECONDS=
+PM_TEST=
+NO_SUSPEND=
 
 KERNEL_RELEASE=$(uname -r)
 for module in \
@@ -85,45 +92,19 @@ if [ ! -S "$XDG_RUNTIME_DIR/$WAYLAND_DISPLAY" ]; then
   poweroff -f
 fi
 
-build_browser_args() {
-  URL=about:blank
-  CLIENT=chromium
-  RUNTIME_SECONDS=
-  SUSPEND_DELAY_SECONDS=
-  WAKE_SECONDS=
-  PM_TEST=
-  NO_SUSPEND=
-
-  for arg in $(cat /proc/cmdline); do
-    case "$arg" in
-      display_probe=1) DISPLAY_PROBE=1 ;;
-      display_unbind_fbcon=1) UNBIND_FBCON=1 ;;
-      phase3_client=*) CLIENT=${arg#phase3_client=} ;;
-      phase3_url=*) URL=${arg#phase3_url=} ;;
-      phase3_runtime_seconds=*) RUNTIME_SECONDS=${arg#phase3_runtime_seconds=} ;;
-      phase3_suspend_delay_seconds=*) SUSPEND_DELAY_SECONDS=${arg#phase3_suspend_delay_seconds=} ;;
-      phase3_wake_seconds=*) WAKE_SECONDS=${arg#phase3_wake_seconds=} ;;
-      phase3_pm_test=*) PM_TEST=${arg#phase3_pm_test=} ;;
-      phase3_no_suspend=1) NO_SUSPEND=1 ;;
-    esac
-  done
-
-  echo "$CLIENT|$URL|$RUNTIME_SECONDS|$SUSPEND_DELAY_SECONDS|$WAKE_SECONDS|$PM_TEST|$NO_SUSPEND"
-}
-
-CONFIG=$(build_browser_args)
-CLIENT=${CONFIG%%|*}
-REST=${CONFIG#*|}
-URL=${REST%%|*}
-REST=${REST#*|}
-RUNTIME_SECONDS=${REST%%|*}
-REST=${REST#*|}
-SUSPEND_DELAY_SECONDS=${REST%%|*}
-REST=${REST#*|}
-WAKE_SECONDS=${REST%%|*}
-REST=${REST#*|}
-PM_TEST=${REST%%|*}
-NO_SUSPEND=${REST#*|}
+for arg in $(cat /proc/cmdline); do
+  case "$arg" in
+    display_probe=1) DISPLAY_PROBE=1 ;;
+    display_unbind_fbcon=1) UNBIND_FBCON=1 ;;
+    phase3_client=*) CLIENT=${arg#phase3_client=} ;;
+    phase3_url=*) URL=${arg#phase3_url=} ;;
+    phase3_runtime_seconds=*) RUNTIME_SECONDS=${arg#phase3_runtime_seconds=} ;;
+    phase3_suspend_delay_seconds=*) SUSPEND_DELAY_SECONDS=${arg#phase3_suspend_delay_seconds=} ;;
+    phase3_wake_seconds=*) WAKE_SECONDS=${arg#phase3_wake_seconds=} ;;
+    phase3_pm_test=*) PM_TEST=${arg#phase3_pm_test=} ;;
+    phase3_no_suspend=1) NO_SUSPEND=1 ;;
+  esac
+done
 
 echo "[init-phase3] wayland ready" >/dev/console
 sed -n '1,160p' /var/log/weston.log >/dev/console 2>&1 || true
