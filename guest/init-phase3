@@ -178,7 +178,8 @@ case "$CLIENT" in
     APP_LOG=/var/log/kms-pattern.log
     /usr/bin/kms_pattern --pattern pre >"$APP_LOG" 2>&1 || true
     if [ -n "$SUSPEND_DELAY_SECONDS" ]; then
-      POST_DELAY_SECONDS=$((SUSPEND_DELAY_SECONDS + 1))
+      WAKE_DELAY_SECONDS=${WAKE_SECONDS:-0}
+      POST_DELAY_SECONDS=$((SUSPEND_DELAY_SECONDS + WAKE_DELAY_SECONDS + 1))
       (
         sleep "$POST_DELAY_SECONDS"
         echo "[init-phase3] kms-pattern post delay=$POST_DELAY_SECONDS" >/dev/console
@@ -208,7 +209,7 @@ schedule_guest_capture() {
     echo "[init-phase3] guest-capture tag=$tag delay=$delay" >/dev/console
     /usr/bin/dump_wayland_screenshot.sh "$tag" /var/log/guestshots >/dev/console 2>&1 || true
   ) &
-  echo $!
+  SCHEDULED_PID=$!
 }
 
 schedule_fb_capture() {
@@ -219,7 +220,7 @@ schedule_fb_capture() {
     echo "[init-phase3] fb-capture tag=$tag delay=$delay" >/dev/console
     /usr/bin/dump_fb0_snapshot.sh "$tag" >/dev/console 2>&1 || true
   ) &
-  echo $!
+  SCHEDULED_PID=$!
 }
 
 schedule_drm_state_capture() {
@@ -230,17 +231,19 @@ schedule_drm_state_capture() {
     echo "[init-phase3] drm-state-capture tag=$tag delay=$delay" >/dev/console
     /usr/bin/dump_drm_state.sh "$tag" >/dev/console 2>&1 || true
   ) &
-  echo $!
+  SCHEDULED_PID=$!
 }
 
 if [ -n "${GUEST_CAPTURE:-}" ]; then
   GUEST_CAPTURE_PRE_PID=
   GUEST_CAPTURE_POST_PID=
   if [ -n "${GUEST_CAPTURE_PRE_DELAY:-}" ]; then
-    GUEST_CAPTURE_PRE_PID=$(schedule_guest_capture pre "$GUEST_CAPTURE_PRE_DELAY")
+    schedule_guest_capture pre "$GUEST_CAPTURE_PRE_DELAY"
+    GUEST_CAPTURE_PRE_PID=$SCHEDULED_PID
   fi
   if [ -n "${GUEST_CAPTURE_POST_DELAY:-}" ]; then
-    GUEST_CAPTURE_POST_PID=$(schedule_guest_capture post "$GUEST_CAPTURE_POST_DELAY")
+    schedule_guest_capture post "$GUEST_CAPTURE_POST_DELAY"
+    GUEST_CAPTURE_POST_PID=$SCHEDULED_PID
   fi
 else
   GUEST_CAPTURE_PRE_PID=
@@ -251,10 +254,12 @@ if [ -n "${FB_CAPTURE:-}" ]; then
   FB_CAPTURE_PRE_PID=
   FB_CAPTURE_POST_PID=
   if [ -n "${FB_CAPTURE_PRE_DELAY:-}" ]; then
-    FB_CAPTURE_PRE_PID=$(schedule_fb_capture pre "$FB_CAPTURE_PRE_DELAY")
+    schedule_fb_capture pre "$FB_CAPTURE_PRE_DELAY"
+    FB_CAPTURE_PRE_PID=$SCHEDULED_PID
   fi
   if [ -n "${FB_CAPTURE_POST_DELAY:-}" ]; then
-    FB_CAPTURE_POST_PID=$(schedule_fb_capture post "$FB_CAPTURE_POST_DELAY")
+    schedule_fb_capture post "$FB_CAPTURE_POST_DELAY"
+    FB_CAPTURE_POST_PID=$SCHEDULED_PID
   fi
 else
   FB_CAPTURE_PRE_PID=
@@ -265,10 +270,12 @@ if [ -n "${DRM_STATE_CAPTURE:-}" ]; then
   DRM_STATE_CAPTURE_PRE_PID=
   DRM_STATE_CAPTURE_POST_PID=
   if [ -n "${DRM_STATE_CAPTURE_PRE_DELAY:-}" ]; then
-    DRM_STATE_CAPTURE_PRE_PID=$(schedule_drm_state_capture pre "$DRM_STATE_CAPTURE_PRE_DELAY")
+    schedule_drm_state_capture pre "$DRM_STATE_CAPTURE_PRE_DELAY"
+    DRM_STATE_CAPTURE_PRE_PID=$SCHEDULED_PID
   fi
   if [ -n "${DRM_STATE_CAPTURE_POST_DELAY:-}" ]; then
-    DRM_STATE_CAPTURE_POST_PID=$(schedule_drm_state_capture post "$DRM_STATE_CAPTURE_POST_DELAY")
+    schedule_drm_state_capture post "$DRM_STATE_CAPTURE_POST_DELAY"
+    DRM_STATE_CAPTURE_POST_PID=$SCHEDULED_PID
   fi
 else
   DRM_STATE_CAPTURE_PRE_PID=
