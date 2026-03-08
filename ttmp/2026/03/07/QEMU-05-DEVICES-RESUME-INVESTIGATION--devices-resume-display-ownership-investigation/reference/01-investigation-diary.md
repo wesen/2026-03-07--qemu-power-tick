@@ -329,3 +329,97 @@ results-phase2-probe-unbind2/01-post.png: 720 x 400
 @@DISPLAY sample=1 ... vt=vtcon0{name=frame_buffer_device,bind=0} vtcon1{name=dummy_device,bind=1} ...
 @@DISPLAY sample=6 ... vt=vtcon0{name=frame_buffer_device,bind=0} vtcon1{name=dummy_device,bind=1} ...
 ```
+
+## Step 4: Validate the Ticket and Upload the Bundle
+
+Once the guide, diary, and script archive were in place, the last step was to make the ticket usable as a handoff artifact instead of a local scratchpad. That meant fixing the `docmgr` vocabulary warnings rather than deleting topics, validating the ticket cleanly, committing the work, and uploading a bundle that includes the overview, guide, diary, tasks, and changelog.
+
+This step is boring compared to the probe experiments, but it matters. A ticket that cannot pass `doctor`, cannot be located on reMarkable, or cannot be replayed from its own scripts is not a good handoff, no matter how interesting the debugging was.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 1)
+
+**Assistant interpretation:** Finish the ticket as a usable package, not just a local branch of experiments.
+
+**Inferred user intent:** Make the investigation durable for another person to pick up.
+
+**Commit (code):** `634eddb` — `Add devices resume probe investigation`
+
+### What I did
+- Related the key files to the guide and diary with `docmgr doc relate`.
+- Added missing vocabulary topics:
+  - `chromium`
+  - `linux`
+  - `power-management`
+  - `wayland`
+- Ran:
+```bash
+docmgr doctor --ticket QEMU-05-DEVICES-RESUME-INVESTIGATION --stale-after 30
+```
+- Committed the probe wiring and ticket docs.
+- Ran a dry-run bundle upload, then the real upload:
+```bash
+remarquee upload bundle --dry-run ... --name 'QEMU-05 Devices Resume Investigation Bundle' --remote-dir '/ai/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION' --toc-depth 2
+remarquee upload bundle ... --name 'QEMU-05 Devices Resume Investigation Bundle' --remote-dir '/ai/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION' --toc-depth 2
+remarquee cloud ls /ai/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION --long --non-interactive
+```
+
+### Why
+- The ticket needed to be valid and portable.
+- The user explicitly asked for the bundle to be uploaded to reMarkable.
+
+### What worked
+- `docmgr doctor` passed cleanly after the vocabulary fix.
+- The bundle upload succeeded.
+- The remote listing shows:
+```text
+[f]    QEMU-05 Devices Resume Investigation Bundle
+```
+
+### What didn't work
+- I raced the first remote listing call against the in-flight upload and got:
+```text
+Error: no matches for 'QEMU-05-DEVICES-RESUME-INVESTIGATION'
+```
+- Rerunning the listing after the upload completed fixed that.
+
+### What I learned
+- `docmgr` vocabulary drift is worth fixing directly when the terms are legitimate, instead of flattening the metadata to whatever already exists.
+- The upload/listing sequence needs to respect timing; checking the remote path before the upload lands can produce a misleading false failure.
+
+### What was tricky to build
+- The interesting part here was not the commands themselves but the discipline of turning a live investigation into a reliable handoff package.
+- The ticket now has the necessary minimum:
+  - overview
+  - guide
+  - diary
+  - tasks
+  - changelog
+  - mirrored scripts
+
+### What warrants a second pair of eyes
+- The remaining technical gap is still the unresolved stage-3 concurrent-capture unbind run.
+- The documentation itself is now in good enough shape for review and continuation.
+
+### What should be done in the future
+- Do the pending stage-3 concurrent-capture unbind experiment as the next focused step.
+
+### Code review instructions
+- Run `docmgr doctor` again and confirm it passes.
+- Check the remote listing under `/ai/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION`.
+- Review commit `634eddb` for the exact code and ticket payload.
+
+### Technical details
+- Validation result:
+```text
+## Doctor Report (1 findings)
+
+### QEMU-05-DEVICES-RESUME-INVESTIGATION
+
+- ✅ All checks passed
+```
+- Upload artifact name:
+```text
+QEMU-05 Devices Resume Investigation Bundle
+```

@@ -8,3 +8,4 @@
 - Ran phase-3 `weston-simple-shm` and Chromium probe validations and confirmed the same visual fallback pattern, with `weston-simple-shm` also surfacing `virtio_gpu_dequeue_ctrl_func ... response 0x1203`.
 - Corrected the `display_unbind_fbcon=1` experiment to target the actual framebuffer `vtconsole`, proving that fbcon ownership changes the visible pre-suspend plane but does not fix the post-resume fallback.
 - Wrote the intern-facing analysis guide and investigation diary for follow-on debugging.
+- Validated the ticket with `docmgr doctor` and uploaded `QEMU-05 Devices Resume Investigation Bundle` to reMarkable under `/ai/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION`.
