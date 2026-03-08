@@ -20,11 +20,13 @@ RelatedFiles:
       Note: Ticket-local copy of phase-3 init used in the experiments
 ExternalSources:
     - local:01-chat-gpt-research-kms.md
+    - local:qemu-debug.md
 Summary: ""
-LastUpdated: 2026-03-07T23:46:37.961789847-05:00
+LastUpdated: 2026-03-08T12:13:01.441812704-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
+
 
 
 

@@ -23,6 +23,10 @@ topics:
       description: Wayland compositor and client stack work
     - slug: power-management
       description: Suspend, resume, wake, and low-power behavior investigations
+    - slug: drm
+      description: Direct Rendering Manager and KMS/graphics device integration work
+    - slug: graphics
+      description: Graphics stack, rendering, display, and GPU-related investigations
 docTypes:
     - slug: design-doc
       description: Structured rationale and architecture notes
