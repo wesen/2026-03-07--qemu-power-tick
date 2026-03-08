@@ -17,3 +17,5 @@
 - [x] Validate the new ticket with `docmgr doctor`.
 - [x] Upload the investigation bundle to reMarkable.
 - [x] Refresh the intern guide and bundle after the corrected phase-3 reruns.
+- [x] Run a corrected stage-3 `weston-simple-shm` `display_unbind_fbcon=1` control and compare it to the corrected baseline.
+- [ ] Add one guest-visible screenshot or readback experiment to compare guest-side output against QMP `screendump` after resume.

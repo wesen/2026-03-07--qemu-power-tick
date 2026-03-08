@@ -610,3 +610,89 @@ init-phase2
 init-phase3
 run_phase3_suspend_capture.sh
 ```
+
+## Step 7: Use `weston-simple-shm` to Separate Stage-3 Stack Behavior from Chromium Behavior
+
+Once the corrected Chromium baseline and corrected Chromium unbind runs were in place, the next question was obvious: is the “no visible difference when unbinding fbcon” result specific to Chromium, or is it true for the whole stage-3 stack? The cleanest way to answer that was to keep the same corrected phase-3 init path and swap only the client back to `weston-simple-shm`.
+
+That experiment turned out to be highly informative. Corrected stage-3 `weston-simple-shm` *does* react to `display_unbind_fbcon=1` in the pre-suspend frame, while corrected stage-3 Chromium does not. Both still collapse to the same `720x400` post-resume fallback. So the post-resume issue remains shared, but the pre-suspend visibility sensitivity is now clearly client-dependent.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 6)
+
+**Assistant interpretation:** Keep pushing the narrow experiment loop and clarify the remaining ambiguity in the corrected phase-3 results.
+
+**Inferred user intent:** Continue separating shared behavior from client-specific behavior without broadening the ticket again.
+
+### What I did
+- Ran the corrected stage-3 `weston-simple-shm` unbind control:
+```bash
+bash host/run_phase3_suspend_capture.sh \
+  --results-dir results-phase3-probe-shm-unbind1 \
+  --append-extra 'display_probe=1 display_unbind_fbcon=1 phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices'
+```
+- Compared it against the corrected stage-3 `weston-simple-shm` baseline `results-phase3-probe-shm2`.
+- Used the archived helper [compare_image_ae.py](../scripts/compare_image_ae.py) to compare:
+  - `00-pre.png`
+  - `01-post.png`
+
+### Why
+- Chromium and `weston-simple-shm` share the same stage-3 init stack.
+- If both behave the same under `display_unbind_fbcon=1`, the difference is stage-level.
+- If they diverge, the difference is client-level.
+
+### What worked
+- The corrected `weston-simple-shm` unbind run shows:
+  - `[init-phase3] unbound vtcon0 framebuffer console`
+  - `vtcon0 bind=0`
+  - `vtcon1 bind=1`
+  - stable `fb0=virtio_gpudrmfb`
+  - stable `Virtual-1 status=connected enabled=enabled dpms=On`
+- Image comparison results:
+```text
+AE(results-phase3-probe-shm2/00-pre.png, results-phase3-probe-shm-unbind1/00-pre.png) = 942400
+AE(results-phase3-probe-shm2/01-post.png, results-phase3-probe-shm-unbind1/01-post.png) = 0
+```
+- That means:
+  - pre-suspend visible output changes a lot
+  - post-resume visible output does not change at all
+
+### What didn't work
+- N/A
+
+### What I learned
+- Corrected stage 3 is not uniformly insensitive to fbcon unbinding.
+- The “no visible change” result is Chromium-specific, not stage-3-stack-specific.
+- The shared post-resume fallback still survives in both clients, so the main resume bug remains below this distinction.
+
+### What was tricky to build
+- The important thing here was not the run itself but making sure the comparison was against the **corrected** stage-3 baseline, not the older invalid runs from before the `init-phase3` subshell fix.
+
+### What warrants a second pair of eyes
+- The most plausible immediate explanation is that Chromium paints a full-screen surface that hides any pre-suspend fbcon visibility differences, while `weston-simple-shm` does not.
+- That is still an inference, not a proven mechanism.
+
+### What should be done in the future
+- Add one guest-visible screenshot or readback experiment after resume to compare guest-side output against host-side QMP `screendump`.
+- That is now the most direct way to test whether QMP is capturing the wrong plane.
+
+### Code review instructions
+- Review:
+  - `results-phase3-probe-shm2/guest-serial.log`
+  - `results-phase3-probe-shm-unbind1/guest-serial.log`
+  - `results-phase3-probe-chromium2/guest-serial.log`
+  - `results-phase3-probe-chromium-unbind2/guest-serial.log`
+- Then compare the image-diff outputs using [compare_image_ae.py](../scripts/compare_image_ae.py).
+
+### Technical details
+- Screenshot metadata:
+```text
+results-phase3-probe-shm-unbind1/00-pre.png:  1280 x 800
+results-phase3-probe-shm-unbind1/01-post.png:  720 x 400
+```
+- New narrowed conclusion:
+```text
+stage-3 pre-suspend sensitivity to fbcon unbinding is client-dependent
+stage-3 post-resume fallback is still client-independent
+```

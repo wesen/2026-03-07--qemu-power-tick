@@ -13,3 +13,4 @@
 - Added a concurrent stage-3 capture wrapper and reran corrected phase-3 `weston-simple-shm`, Chromium baseline, and Chromium unbind controls.
 - Confirmed that corrected phase-3 runs now emit `@@DISPLAY`, no longer reproduce the old `0x1203` DRM errors, and still show the same `1280x800 -> 720x400` post-resume fallback.
 - Backfilled the ticket-local `scripts/` archive with the new temporary helpers and uploaded `QEMU-05 Devices Resume Investigation Bundle Update` to reMarkable.
+- Ran corrected stage-3 `weston-simple-shm` with `display_unbind_fbcon=1` and showed that stage-3 pre-suspend sensitivity to fbcon unbinding is client-dependent, while the post-resume fallback remains shared.

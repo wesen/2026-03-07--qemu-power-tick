@@ -369,6 +369,30 @@ Interpretation:
 - in corrected stage 3, changing fbcon ownership does **not** change the visible screenshots,
 - which differs from corrected phase 2, where unbinding changed the pre-suspend visible plane.
 
+### Intervention H: Corrected stage-3 `weston-simple-shm` with `display_unbind_fbcon=1`
+
+Command:
+```bash
+bash host/run_phase3_suspend_capture.sh \
+  --results-dir results-phase3-probe-shm-unbind1 \
+  --append-extra 'display_probe=1 display_unbind_fbcon=1 phase3_client=weston-simple-shm phase3_runtime_seconds=35 phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=devices'
+```
+
+Observed:
+- `[init-phase3] unbound vtcon0 framebuffer console`
+- probe shows:
+  - `vtcon0 bind=0`
+  - `vtcon1 bind=1`
+- screenshots compared with corrected `weston-simple-shm` baseline:
+  - `AE(pre_baseline, pre_unbind) = 942400`
+  - `AE(post_baseline, post_unbind) = 0`
+
+Interpretation:
+- corrected stage-3 `weston-simple-shm` behaves like corrected phase 2:
+  - unbinding changes the visible pre-suspend frame,
+  - but does not change the post-resume fallback.
+- That means the stage-3 difference is not generic to the whole stack. It is client-dependent.
+
 ## What the Intern Should Conclude Right Now
 
 Do **not** conclude:
@@ -380,7 +404,9 @@ Do **not** conclude:
 Do conclude:
 - there is a shared lower-layer post-resume visibility problem,
 - fbcon ownership influences the visible pre-suspend plane in corrected phase 2,
-- corrected phase 3 does not show the same visible sensitivity to fbcon unbinding,
+- corrected phase 3 shows client-dependent pre-suspend sensitivity to fbcon unbinding:
+  - `weston-simple-shm`: yes
+  - Chromium: no visible change in the current test page setup
 - the stage-2 probe evidence points below simple `vtconsole` ownership,
 - the earlier phase-3 probe gap was a shell bug, not an inherent logging limitation.
 
@@ -427,8 +453,8 @@ Rejected because:
 ### Immediate next tests
 
 1. Re-run stage-3 `display_unbind_fbcon=1` with capture attached concurrently, not post-hoc.
-2. Compare corrected phase 2 and corrected phase 3 unbind behavior directly.
-3. Add a tighter post-resume probe if the next target is DRM/scanout state during the narrow resume window.
+2. Add one guest-visible screenshot or readback experiment to compare guest-side output with QMP `screendump` after resume.
+3. If that still points below QMP, add a tighter post-resume probe for DRM/scanout state during the narrow resume window.
 
 ### Likely follow-up experiments
 
