@@ -723,7 +723,10 @@ That changes the diagnosis materially. Pointer input is now working end-to-end t
 
 ### Prompt Context
 
-**User prompt (verbatim):** "mark down session 019cc9de-fbce-7bc3-91dc-30a36f28f3ec in the diary for future reference.\n\nThen continue."
+**User prompt (verbatim):**
+> mark down session 019cc9de-fbce-7bc3-91dc-30a36f28f3ec in the diary for future reference.
+>
+> Then continue.
 
 **Assistant interpretation:** Record the provided external session reference in the diary and continue implementation/debugging work immediately.
 
