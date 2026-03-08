@@ -10,7 +10,9 @@
 - [x] Validate host keyboard injection into Chromium.
 - [x] Validate host pointer injection into Chromium.
 - [x] Add a reproducible stage-3 checkpoint harness.
-- [ ] Reintroduce suspend/resume and verify Chromium continuity after resume.
+- [x] Reintroduce suspend/resume plumbing for stage 3.
+- [x] Verify Chromium continuity after `pm_test=freezer` resume.
+- [ ] Verify Chromium continuity after `pm_test=devices` resume.
 - [ ] Validate startup-URL mode and typed-URL mode.
 - [ ] Record Chromium-specific wake/idle observations and likely wake sources for the later study track.
 - [ ] Keep the diary updated after each meaningful step, including exact commands, failures, and lessons learned.

@@ -13,7 +13,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: Stage-3 ticket for Chromium on Weston kiosk mode, including packaging, host-driven validation, suspend/resume continuity, and the wake-study track.
-LastUpdated: 2026-03-07T22:20:00-05:00
+LastUpdated: 2026-03-07T22:55:00-05:00
 WhatFor: Track the Chromium kiosk stage that builds on the completed phase-2 Weston and Wayland-client stack.
 WhenToUse: Use this when implementing, validating, or documenting stage 3 of the lab.
 ---
@@ -45,7 +45,10 @@ Working status on 2026-03-07:
 - Chromium packaging investigation completed for the first working path,
 - Chromium booted visibly under Weston,
 - host keyboard and pointer injection validated against a deterministic browser page,
-- reproducible checkpoint helpers added to the repo and mirrored into the ticket.
+- reproducible checkpoint helpers added to the repo and mirrored into the ticket,
+- suspend/resume plumbing reintroduced for stage 3,
+- `pm_test=freezer` continuity validated,
+- `pm_test=devices` continuity still failing after resume.
 
 ## Topics
 

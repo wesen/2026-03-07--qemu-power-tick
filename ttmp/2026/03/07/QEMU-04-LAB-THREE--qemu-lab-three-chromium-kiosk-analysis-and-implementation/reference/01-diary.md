@@ -14,7 +14,7 @@ RelatedFiles: []
 ExternalSources:
     - local:01-lab2.md
 Summary: Chronological implementation diary for stage 3, including Chromium packaging, runtime bring-up, failures, measurements, and lessons learned.
-LastUpdated: 2026-03-07T22:20:00-05:00
+LastUpdated: 2026-03-07T22:55:00-05:00
 WhatFor: Preserve the stage-3 implementation trail and exact debugging outcomes while Chromium kiosk work is in progress.
 WhenToUse: Update this after every meaningful stage-3 design, packaging, implementation, or validation step.
 ---
@@ -305,3 +305,137 @@ That gave me a clean visual proof path. The first manual run showed the concept 
   - `results-phase3-checkpoints1/02-after-pointer.png`
 - Current QMP-reported active absolute mouse during the run:
   - `QEMU HID Tablet`
+
+## Step 4: Reintroduced Suspend For Stage 3 And Found A Real Continuity Split Between `freezer` And `devices`
+
+With input validation in place, I moved on to stage-3 suspend/resume. The main design choice here was to keep Chromium itself unmodified and move suspend orchestration into a separate guest helper. That keeps the phase-3 browser launcher thin and avoids dragging the phase-2 Wayland client state machine back into stage 3 where it no longer fits naturally.
+
+I added a tiny standalone helper, `suspendctl`, that performs the same core suspend work as the earlier labs:
+- optional `pm_test` programming,
+- RTC wakealarm programming,
+- writing `freeze` to `/sys/power/state`,
+- logging `state=SUSPENDING`,
+- logging `state=RESUMED`,
+- emitting `sleep_duration` and `suspend_resume_gap` metrics.
+
+`init-phase3` now parses stage-3 suspend-specific kernel command-line options and launches `suspendctl` in the background while Chromium is running. That gave me a working suspend pipeline quickly, but it also surfaced an immediate packaging regression: the first rebuild failed because `guest/build-suspendctl.sh` was not executable. After fixing that permission error, the rebuilt image booted correctly.
+
+The more important result came from the validation matrix:
+- `pm_test=devices` successfully enters and exits suspend and emits sensible metrics, but visible display continuity is broken after resume.
+- `pm_test=freezer` preserves the Chromium-rendered surface across the suspend cycle.
+
+That distinction matters. It means the stage-3 suspend plumbing itself is real and working, but the device-level resume path is not currently restoring the visible browser/compositor output correctly.
+
+### Prompt Context
+
+**User prompt (verbatim):** "ok continue"
+
+**Assistant interpretation:** Keep moving through stage 3 and tackle the next uncompleted lab milestone, while keeping implementation notes current.
+
+**Inferred user intent:** Continue from browser input into suspend/resume validation, not just planning.
+
+**Commit (code):** Pending at this step
+
+### What I did
+- Added:
+  - [guest/suspendctl.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/suspendctl.c)
+  - [guest/build-suspendctl.sh](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-suspendctl.sh)
+  - [host/capture_phase3_suspend_checkpoints.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/capture_phase3_suspend_checkpoints.py)
+- Updated:
+  - [guest/build-phase3-rootfs.sh](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-phase3-rootfs.sh)
+  - [guest/init-phase3](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase3)
+- Mirrored the new helper sources/scripts into the stage-3 ticket `scripts/` directory.
+- Rebuilt the phase-3 initramfs.
+- Ran stage-3 suspend validation with:
+  - `pm_test=devices` in:
+    - `results-phase3-suspend1`
+    - `results-phase3-suspend2`
+    - `results-phase3-suspend3`
+    - `results-phase3-suspend4`
+  - `pm_test=freezer` in:
+    - `results-phase3-suspend-freezer1`
+
+### Why
+- Stage 3 needs its own suspend path because the browser is now an external app, not a custom client where suspend can be embedded directly in the rendering loop.
+- The host-side checkpoint logic also needed to be saved as a real script instead of staying in inline Python snippets.
+- Testing both `freezer` and `devices` is important because they answer different questions:
+  - `freezer` checks the higher-level orchestration path without a full device exercise,
+  - `devices` checks whether the graphics/input stack survives the more realistic device resume path.
+
+### What worked
+- `suspendctl` successfully programmed wakealarm, entered suspend, resumed, and logged metrics.
+- `pm_test=devices` produced stable measurements:
+  - `results-phase3-suspend1`: `sleep_duration = 5778 ms`, `suspend_resume_gap = 5778 ms`
+  - `results-phase3-suspend2`: `sleep_duration = 5784 ms`, `suspend_resume_gap = 5784 ms`
+  - `results-phase3-suspend4`: `sleep_duration = 5780 ms`, `suspend_resume_gap = 5780 ms`
+- `pm_test=freezer` preserved the visible Chromium surface:
+  - `results-phase3-suspend-freezer1/00-pre.png`
+  - `results-phase3-suspend-freezer1/01-post.png`
+  - image delta `AE = 0`
+- The rebuilt non-suspend smoke run still rendered Chromium correctly in:
+  - `results-phase3-postrebuild-smoke1/00-smoke.png`
+
+### What didn't work
+- The first rebuild failed because `guest/build-suspendctl.sh` was missing execute permission.
+- `pm_test=devices` broke visible display continuity after resume.
+- Multiple `devices` attempts showed the same pattern:
+  - suspend metrics were emitted,
+  - the guest kept running,
+  - but QMP screenshots after resume showed a bad display state instead of the Chromium page.
+- Injecting post-resume keyboard and pointer input in `results-phase3-suspend4` did not recover the visible browser surface.
+
+### What I learned
+- There is now a clear stage-3 split:
+  - suspend orchestration works,
+  - `freezer` continuity works,
+  - `devices` continuity does not.
+- That points away from a general suspend helper bug and toward a lower-level graphics/compositor/device-resume issue.
+- The failed `devices` continuity is not just “Chromium forgot to repaint after resume,” because post-resume input did not restore the visible output.
+- The strongest log-level clue so far is in `results-phase3-suspend2/guest-serial.log`, where the `devices` path resumes with:
+  - `virtio_gpu_dequeue_ctrl_func ... *ERROR* response 0x1203 (command 0x105)`
+  - `virtio_gpu_dequeue_ctrl_func ... *ERROR* response 0x1203 (command 0x104)`
+  while the `freezer` path does not show the same DRM error pattern.
+
+### What was tricky to build
+- Timing the screenshots too close to the suspend marker produced misleading captures, so the suspend checkpoint path needed explicit pre/post delay controls.
+- The first `devices` runs were easy to misread because the metric logs looked healthy while the visible surface was not.
+- Distinguishing “helper works, display continuity fails” required comparing `devices` against `freezer`.
+
+### What warrants a second pair of eyes
+- Whether the `devices` failure is a virtio-gpu or Weston DRM-backend resume issue rather than a Chromium issue.
+- Whether a compositor restart, mode reprobe, or explicit redraw trigger exists that could recover the `devices` path without restarting Chromium itself.
+
+### What should be done in the future
+- Commit this suspend-plumbing milestone.
+- Investigate the `pm_test=devices` continuity failure specifically as a graphics/compositor resume problem.
+- Keep `pm_test=freezer` as the current known-good stage-3 continuity baseline while investigating the stronger `devices` path.
+
+### Code review instructions
+- Review:
+  - [guest/suspendctl.c](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/suspendctl.c)
+  - [guest/build-suspendctl.sh](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-suspendctl.sh)
+  - [guest/build-phase3-rootfs.sh](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-phase3-rootfs.sh)
+  - [guest/init-phase3](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase3)
+  - [host/capture_phase3_suspend_checkpoints.py](/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/capture_phase3_suspend_checkpoints.py)
+- Inspect:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-postrebuild-smoke1/00-smoke.png`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-suspend-freezer1/00-pre.png`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-suspend-freezer1/01-post.png`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase3-suspend4/01-post-resume-input.png`
+- Re-run a passing freezer validation:
+  - `URL=$(python3 host/make_phase3_test_url.py)`
+  - `guest/run-qemu-phase3.sh --kernel build/vmlinuz --initramfs build/initramfs-phase3.cpio.gz --results-dir results-phase3-suspend-freezer1 --append-extra "phase3_runtime_seconds=40 phase3_url=$URL phase3_suspend_delay_seconds=10 phase3_wake_seconds=5 phase3_pm_test=freezer"`
+  - `python3 host/capture_phase3_suspend_checkpoints.py --socket results-phase3-suspend-freezer1/qmp.sock --serial-log results-phase3-suspend-freezer1/guest-serial.log --results-dir results-phase3-suspend-freezer1 --pre-name 00-pre --post-name 01-post`
+
+### Technical details
+- `devices` metric samples:
+  - `results-phase3-suspend1`: `5778 ms`
+  - `results-phase3-suspend2`: `5784 ms`
+  - `results-phase3-suspend4`: `5780 ms`
+- `freezer` metric sample:
+  - `results-phase3-suspend-freezer1`: `5031 ms`
+- Current interpretation:
+  - stage-3 suspend plumbing is implemented,
+  - stage-3 continuity passes for `freezer`,
+  - stage-3 continuity remains open for `devices`,
+  - the best current root-cause lead is a virtio-gpu / DRM resume failure in the `devices` path.
