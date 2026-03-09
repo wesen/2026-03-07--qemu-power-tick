@@ -1,6 +1,17 @@
 # QEMU Sleep/Wake Lab
 
-This repository implements the stage-1 single-process suspend/resume lab described in the ticket docs.
+This repository started as the stage-1 single-process suspend/resume lab and later grew into:
+
+- a Weston-based Wayland client stack,
+- a Chromium-on-Weston kiosk path,
+- a direct DRM/Ozone `content_shell` investigation,
+- several follow-up investigations into suspend/resume display behavior.
+
+The best project-level starting point is:
+
+- [PROJECT-POSTMORTEM-AND-INTERN-GUIDE.md](./PROJECT-POSTMORTEM-AND-INTERN-GUIDE.md)
+
+That document explains the repository layout, the architecture of each stage, what actually worked, what failed, and where a new contributor should start.
 
 ## Planned Layout
 
