@@ -34,9 +34,10 @@ Starting state:
 - under the same no-fbdev setting, `kms_pattern` can still enable the connector
 
 Current hypothesis:
-- `content_shell` window sizing and controller matching are the most suspicious layer
 - the first corrected `800x600` run changed content geometry but did not bind a controller
-- the next highest-value control is an `800x600` no-fbdev run with shell chrome hidden
+- hiding shell chrome changed the scanout-capable buffer size but still did not activate a controller
+- the stronger current finding is that `content_shell` begins page-flipping while `ScreenManager` still has zero controllers
+- the next highest-value control is now display discovery / initialization ordering instrumentation, not more geometry tweaks
 
 ## Key Links
 

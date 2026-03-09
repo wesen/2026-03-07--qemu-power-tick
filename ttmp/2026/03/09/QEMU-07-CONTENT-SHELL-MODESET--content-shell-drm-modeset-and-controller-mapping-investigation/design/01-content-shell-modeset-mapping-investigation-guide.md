@@ -167,6 +167,13 @@ Expected outcomes:
 - If connector activation appears, the remaining mismatch was likely the shell frame/toolbar rather than content size.
 - If not, the investigation moves down into modeset/controller activation itself.
 
+What the toolbar-hidden control established:
+- `results-phase4-drm28` changed content geometry from roughly `800x595` to `800x600`.
+- It also changed scanout-capable `DrmThread` buffers from `814x669` to `810x628`.
+- But the connector still stayed disabled and the host-visible QMP frame stayed the same `640x480` fallback image.
+
+So shell chrome affects geometry, but it still does not explain the absence of visible scanout by itself.
+
 ### Step 3: Tighten Chromium DRM Logging
 
 Do not use broad wildcard VLOG patterns. Focus on:
@@ -183,7 +190,23 @@ Goal:
 - capture whether `TestModeset()` or `Modeset()` is called
 - capture whether the controller-window mapping is rejected
 
-### Step 4: Add A Guest-Trusted Visual Proof
+What the instrumented runs established:
+- `results-phase4-drm29` and `results-phase4-drm30` show:
+  - `ScreenManager::AddWindow ... controller_count=0`
+  - `UpdateControllerToWindowMapping begin controllers=0 windows=1`
+  - `DrmWindow::SchedulePageFlip ... controller=null ... -> ack without real flip`
+- No `ScreenManager::AddDisplayController` lines appeared in those runs.
+
+That moves the bug earlier than exact-bounds mismatch after controller discovery. At first-flip time, Chromium still has no controller in `ScreenManager` at all.
+
+### Step 4: Instrument Display Discovery Earlier
+
+Once the mapping path shows `controllers=0`, the next probe is no longer another geometry change. It is the display-discovery path that should eventually call:
+- `screen_manager_->AddDisplayControllersForDisplay(...)`
+
+The first pass at that was `results-phase4-drm31`, using added `drm_gpu_display_manager.cc` logging. That run still showed the same null-controller page flips but did not yet surface the new display-manager logs. So the next probe likely needs stronger visibility than `VLOG(1)` alone.
+
+### Step 5: Add A Guest-Trusted Visual Proof
 
 Because QMP becomes ambiguous in the no-fbdev configuration, add one guest-trusted display proof if needed:
 - guest-side DRM state
@@ -202,9 +225,9 @@ Run corrected 800x600 no-fbdev content_shell
             -> connector active?
                yes -> outer shell window bounds were the blocking mismatch
                no  -> inspect focused Chromium DRM logs
-            -> modeset attempted and failed?
-               yes -> debug TestModeset/Modeset path
-               no  -> debug window/controller mapping path
+            -> controllers present when first page flips happen?
+               no  -> debug display discovery / initialization ordering
+               yes -> inspect exact mapping and modeset path
 ```
 
 ## Pseudocode
@@ -226,7 +249,16 @@ else:
         page_flip()
 ```
 
-The ticket is about finding which branch is actually happening.
+The ticket originally started here. The current evidence now says the live branch is even earlier:
+
+```text
+create_window()
+if screen_manager.controller_count == 0:
+    page_flip_ack_without_real_flip
+    debug discovery/order path
+else:
+    attempt exact controller mapping
+```
 
 ## Success Criteria
 

@@ -21,17 +21,31 @@
 - [x] Determine which branch we are on after the corrected size-control run:
   - content area resizes, but controller still never binds
   - the remaining suspect is shell chrome / toolbar bounds rather than content size alone
-- [ ] Add an explicit `content-shell-hide-toolbar` control to the launcher/init path.
-- [ ] Rebuild the phase-4 initramfs with the new toolbar control.
-- [ ] Run the next no-fbdev control with:
+- [x] Add an explicit `content-shell-hide-toolbar` control to the launcher/init path.
+- [x] Rebuild the phase-4 initramfs with the new toolbar control.
+- [x] Run the next no-fbdev control with:
   - `phase4_content_shell_window_size=800,600`
   - `phase4_content_shell_fullscreen=0`
   - `phase4_content_shell_hide_toolbar=1`
-- [ ] Compare `drm28` to:
+- [x] Compare `drm28` to:
   - `results-phase4-drm27`
   - `results-phase4-kms2`
-- [ ] Determine whether removing shell chrome changes:
+- [x] Determine whether removing shell chrome changes:
   - `DrmThread` scanout buffer size
   - connector/CRTC activation
   - host-visible QMP output
-- [ ] Only if still ambiguous, add one guest-trusted visible-frame proof for the no-fbdev configuration.
+- [x] Instrument Chromium `drm_window.cc` and `screen_manager.cc` to log exact controller mapping and null-controller page-flip behavior.
+- [x] Run the instrumented controls:
+  - `results-phase4-drm29`
+  - `results-phase4-drm30`
+- [x] Determine whether the current branch is:
+  - no controller discovered at first-flip time
+  - controller discovered but exact-bounds mismatch
+  - controller discovered and modeset failed
+- [x] Add first-pass `drm_gpu_display_manager.cc` logging and run `results-phase4-drm31`.
+- [ ] Make the display-discovery path observable enough to explain why `ScreenManager` still has `controllers=0` when the first page flips happen.
+- [ ] Decide whether the next probe should use:
+  - unconditional `LOG(ERROR)` in discovery/configuration code
+  - earlier Ozone/DRM initialization instrumentation
+  - or a forced display refresh/configuration hook before the first page flip
+- [ ] Only if still ambiguous after the discovery-order probe, add one guest-trusted visible-frame proof for the no-fbdev configuration.

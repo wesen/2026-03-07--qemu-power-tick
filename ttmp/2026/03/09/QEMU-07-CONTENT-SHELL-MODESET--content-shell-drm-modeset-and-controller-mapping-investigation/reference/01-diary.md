@@ -191,3 +191,113 @@ After `drm26`, I checked Chromium source directly instead of trying another flag
   - launcher env: `WINDOW_SIZE=800,600 FULLSCREEN=0`
   - content sizing around `800x595`
   - but late DRM state still leaves the connector/CRTC inactive
+
+## Step 4: Hide The Toolbar And Re-test The No-fbdev 800x600 Control
+
+After `drm27`, the next smallest experiment was to remove shell chrome itself instead of changing content size again.
+
+### What I did
+- Added `phase4_content_shell_hide_toolbar=1` parsing to `guest/init-phase4-drm`.
+- Exported `CONTENT_SHELL_HIDE_TOOLBAR`.
+- Updated `guest/content-shell-drm-launcher.sh` to pass `--content-shell-hide-toolbar`.
+- Mirrored the updated scripts into the ticket `scripts/` folder.
+- Rebuilt the phase-4 initramfs.
+- Ran `results-phase4-drm28` with:
+  - `phase4_content_shell_window_size=800,600`
+  - `phase4_content_shell_fullscreen=0`
+  - `phase4_content_shell_hide_toolbar=1`
+  - `drm_kms_helper.fbdev_emulation=0`
+
+### Why
+- `drm27` proved that content sizing changes were real but insufficient.
+- The next plausible mismatch was the shell frame/toolbar around the content area.
+
+### What worked
+- The new flag reached the browser runtime.
+- Content geometry moved to `800x600`.
+- The scanout-capable `DrmThread` buffers changed from `814x669` to `810x628`.
+
+### What didn't work
+- The connector still stayed disabled.
+- The CRTC still stayed inactive.
+- `00-smoke.png` still stayed `640x480` with `684` nonblack pixels.
+
+### What I learned
+- Shell chrome affects geometry, but it still does not explain the absence of visible scanout by itself.
+
+## Step 5: Instrument Chromium's Mapping Path
+
+Once geometry changed again without activating scanout, the highest-value move was source-level logging inside Chromium itself.
+
+### What I did
+- Patched Chromium source in:
+  - `ui/ozone/platform/drm/gpu/drm_window.cc`
+  - `ui/ozone/platform/drm/gpu/screen_manager.cc`
+- Added logs for:
+  - `DrmWindow::SetBounds`
+  - `DrmWindow::SetController`
+  - `DrmWindow::SchedulePageFlip` when it ACKs with `controller=null`
+  - `ScreenManager::AddWindow`
+  - `ScreenManager::UpdateControllerToWindowMapping`
+- Rebuilt `content_shell` incrementally.
+- Restaged the payload.
+- Rebuilt the phase-4 initramfs.
+- Ran `results-phase4-drm29` and `results-phase4-drm30`.
+- Mirrored the patched Chromium files into the ticket `scripts/` folder:
+  - `chromium-drm_window.cc`
+  - `chromium-screen_manager.cc`
+
+### Why
+- The open question was no longer "did geometry change?"
+- The real question was whether Chromium had a controller at first-flip time at all.
+
+### What worked
+- The instrumentation answered that directly.
+- `results-phase4-drm29` and `results-phase4-drm30` show:
+  - `ScreenManager::AddWindow ... controller_count=0`
+  - `UpdateControllerToWindowMapping begin controllers=0 windows=1`
+  - `DrmWindow::SchedulePageFlip ... controller=null ... -> ack without real flip`
+
+### What didn't work
+- The connector still stayed disabled.
+- The host-visible image still stayed the same fallback frame.
+
+### What I learned
+- This closes the original branch of the investigation.
+- The failure is not "controller discovered, then exact-bounds mismatch prevented mapping."
+- The failure is earlier: `content_shell` starts page-flipping while `ScreenManager` still has zero controllers.
+
+## Step 6: Start Probing Display Discovery
+
+Once the mapping logs showed `controllers=0`, the next probe had to move earlier into the display-discovery path.
+
+### What I did
+- Added first-pass `VLOG(1)` instrumentation to:
+  - `ui/ozone/platform/drm/gpu/drm_gpu_display_manager.cc`
+  - `GetDisplays()`
+  - `NotifyScreenManager()`
+- Rebuilt Chromium incrementally.
+- Restaged the payload.
+- Rebuilt the phase-4 initramfs.
+- Ran `results-phase4-drm31` with:
+  - `phase4_content_shell_vmodule=screen_manager=1,drm_window=1,drm_gpu_display_manager=1`
+- Mirrored the patched Chromium file into the ticket `scripts/` folder:
+  - `chromium-drm_gpu_display_manager.cc`
+
+### Why
+- `AddDisplayController` never appeared in the instrumented mapping runs.
+- The next plausible missing piece was controller discovery / notification itself.
+
+### What worked
+- `drm31` reproduced the same null-controller behavior cleanly:
+  - `ScreenManager::AddWindow ... controller_count=0`
+  - `UpdateControllerToWindowMapping begin controllers=0 windows=1`
+  - `DrmWindow::SchedulePageFlip ... controller=null`
+
+### What didn't work
+- The first-pass `drm_gpu_display_manager` `VLOG` lines did not appear.
+- So this run did not yet explain whether discovery never ran, ran before logging was active, or needs stronger instrumentation.
+
+### What I learned
+- The strongest current conclusion is still the one from `drm29`/`drm30`: the bug is earlier than controller matching.
+- The next probe should probably use stronger logging than `VLOG(1)` in the discovery/configuration path.
