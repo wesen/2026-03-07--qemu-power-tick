@@ -301,3 +301,12 @@ Once the mapping logs showed `controllers=0`, the next probe had to move earlier
 ### What I learned
 - The strongest current conclusion is still the one from `drm29`/`drm30`: the bug is earlier than controller matching.
 - The next probe should probably use stronger logging than `VLOG(1)` in the discovery/configuration path.
+
+### External source state
+- Chromium checkout: `/home/manuel/chromium/src`
+- Local branch: `qemu-07-content-shell-controller-debug`
+- Commit: `9f6c936991`
+- Purpose: save the DRM/Ozone instrumentation in:
+  - `ui/ozone/platform/drm/gpu/drm_window.cc`
+  - `ui/ozone/platform/drm/gpu/screen_manager.cc`
+  - `ui/ozone/platform/drm/gpu/drm_gpu_display_manager.cc`

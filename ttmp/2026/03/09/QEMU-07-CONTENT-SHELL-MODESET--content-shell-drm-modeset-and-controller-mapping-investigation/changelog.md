@@ -16,3 +16,4 @@
 - Patched Chromium `drm_window.cc` and `screen_manager.cc` with focused logging, then ran `results-phase4-drm29` and `results-phase4-drm30`.
 - Those runs showed the stronger result: `ScreenManager::AddWindow` and `SetBounds` happen while `controllers=0`, and `DrmWindow::SchedulePageFlip` ACKs with `controller=null`. That moves the failure earlier than exact-bounds matching.
 - Added first-pass `drm_gpu_display_manager.cc` logging and ran `results-phase4-drm31`. The run still showed no controller-add activity and the same null-controller flips, so the next branch is display discovery / initialization ordering rather than more geometry tweaking.
+- Saved the external Chromium instrumentation on branch `qemu-07-content-shell-controller-debug` at commit `9f6c936991` in `/home/manuel/chromium/src`.
