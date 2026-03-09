@@ -46,7 +46,7 @@ set -- "$CONTENT_SHELL_BIN" \
   --use-angle=default \
   --no-sandbox \
   --user-data-dir="$PROFILE_DIR" \
-  "--window-size=$WINDOW_SIZE" \
+  "--content-shell-host-window-size=${WINDOW_SIZE/,/x}" \
   --no-first-run \
   --no-default-browser-check \
   --password-store=basic \
