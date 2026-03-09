@@ -33,3 +33,28 @@
 - Started the first real `autoninja` build for `content_shell`, `chrome_sandbox`, and `chrome_crashpad_handler`.
 - Added `host/stage_phase4_chromium_payload.sh` to copy the first Chromium build artifacts into `build/phase4/chromium-direct` and immediately probe the staged payload.
 - Stopped the first long-running `autoninja` build at the user's request and regenerated `out/Phase4DRM` with `ozone_platform_headless = true` in addition to `ozone_platform_drm = true` so the same `content_shell` build can support both DRM and headless backend testing.
+
+## 2026-03-09
+
+- The first local Chromium build finished successfully and produced a stageable `content_shell`, `chrome_sandbox`, and `chrome_crashpad_handler` payload.
+- Added and mirrored `host/run_phase4_headless_smoke.sh`, then validated the staged payload in host-side `--ozone-platform=headless` mode before returning to QEMU DRM.
+- Restaged the phase-4 Chromium payload so the guest rootfs builder now carries `content_shell.pak`, `snapshot_blob.bin`, ANGLE frontend libs, and the helper binaries that the first DRM boots actually needed.
+- Corrected the payload/runtime probe to distinguish base payload files from optional `content_shell` assets and to require the native Mesa/glvnd pieces that the DRM path needs.
+- Added `/dev/shm` bring-up and better launcher diagnostics, which removed the earlier shared-memory startup failures and made the remaining DRM failures much easier to read.
+- Identified and fixed the missing Ozone `PostCreateMainMessageLoop()` call in the local Chromium `content_shell` tree (outside this repo), which removed the `EventFactoryEvdev` / `user_input_task_runner_` crash and allowed the DRM startup path to reach real GPU initialization.
+- Switched the DRM launcher to `--use-gl=angle --use-angle=default`, then followed the resulting dependency chain from missing `libEGL.so.1` to the native Mesa/glvnd stack that ANGLE expects on Linux.
+- Expanded the phase-4 rootfs builder to stage host-native `libEGL.so.1`, `libGLdispatch.so.0`, `libEGL_mesa.so.0`, `libGLESv2.so.2`, `libgbm.so.1`, a minimal DRI driver set, and the `egl_vendor.d` / `drirc.d` data Chromium needed to get past the previous EGL loader failures.
+- Fixed a bad symlink experiment that had pointed `libEGL.so.1` back at Chromium's own bundled `libEGL.so` and triggered the ANGLE `GlobalMutex.cpp` recursion assert.
+- Fixed the phase-4 font layout and runtime directories:
+  - `/etc/fonts` contents now land at the correct path
+  - `HOME`, `XDG_CACHE_HOME`, and the user-data directory are now explicit under `/var/lib/content-shell`
+  - the launcher now requests a `1280x800` fullscreen window
+- Added and mirrored a phase-4 guest display probe path based on `display_probe.sh`, then used it to capture stable `fb0`/vtconsole/connector state while `content_shell` was running.
+- Proved the current direct-DRM state boundary:
+  - `content_shell` authenticates `/dev/dri/card0`
+  - the GPU process reaches `init_success:1`
+  - Ozone DRM discovers `renderD128`
+  - guest-side `@@DISPLAY` remains stable with `card0-Virtual-1 status=connected enabled=enabled dpms=On`
+  - host-side QMP screenshots remain completely black even with later capture delays
+- Exposed a second phase-4 harness issue while packaging the larger Mesa stack: several runs accidentally used a partially written initramfs. The stable lesson is that the current Mesa-heavy initramfs must be treated as a completed artifact before boot, and in practice the direct DRM runs have been most reliable with larger guest RAM while this rootfs stays initramfs-based.
+- Committed the repo-side runtime checkpoint as `8b88ab1` (`Advance phase 4 DRM runtime bring-up`).

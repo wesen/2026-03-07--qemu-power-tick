@@ -16,7 +16,7 @@ ExternalSources:
     - local:01-drm-ozone.md
     - local:02-chromium-build-and-ozone-reference.md
 Summary: ""
-LastUpdated: 2026-03-08T12:53:17.280619465-04:00
+LastUpdated: 2026-03-09T16:09:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
@@ -46,15 +46,19 @@ Current status:
 - first live Chromium fetch started; solution config exists and `gclient sync` is in progress
 - phase-4 kms-only initramfs and runner created
 - first no-Weston phase-4 QMP smoke screenshot captured successfully at `1280x800`
-- phase-4 payload/runtime probe added; current baseline says host DRM runtime looks present and Chromium payload artifacts are still the missing piece
-- Chromium `src/` tree is now materialized enough to inspect BUILD files
-- initial verified target set is `content_shell`, `chrome_sandbox`, and `chrome_crashpad_handler`
-- a first-pass phase-4 `args.gn` writer now creates `~/chromium/src/out/Phase4DRM/args.gn`
-- a phase-4 build driver now scripts `gclient runhooks -> gn gen -> autoninja`
-- official Chromium build-deps installer has now been run with sudo help from the user
-- `gclient sync --nohooks --no-history` and `gclient runhooks` are complete
-- `out/Phase4DRM/build.ninja` exists and the first `autoninja` build is in flight
-- the phase-4 GN config now compiles both Ozone DRM and Ozone headless backends so we can pivot to headless validation if direct KMS bring-up gets blocked
+- phase-4 payload/runtime probe added and corrected for the real DRM payload/runtime boundary
+- Chromium `src/` tree is materialized and the first local `content_shell` build completed
+- verified target set is `content_shell`, `chrome_sandbox`, and `chrome_crashpad_handler`
+- `out/Phase4DRM` now builds both Ozone DRM and Ozone headless backends
+- staged payload validated in host-side `--ozone-platform=headless` mode
+- local Chromium `content_shell` was patched outside this repo to call Ozone `PostCreateMainMessageLoop()`, which removed the earlier evdev/input crash on the DRM path
+- direct DRM/Ozone QEMU boots now get through:
+  - DRM authentication on `/dev/dri/card0`
+  - GPU process `init_success:1`
+  - Ozone discovery of `/dev/dri/renderD128`
+- native Mesa/glvnd runtime packaging is now present in the phase-4 guest
+- guest-side display probe stays stable while Chromium runs, but host-visible QMP screenshots are still fully black
+- the current open problem is no longer "Chromium won't start"; it is "Chromium starts on direct DRM but no visible frame reaches the host capture path yet"
 
 ## Key Links
 
@@ -87,9 +91,7 @@ See [changelog.md](./changelog.md) for recent changes and decisions.
 
 ## Structure
 
-- design/ - Architecture and design documents
+- design-doc/ - Architecture and design documents
 - reference/ - Prompt packs, API contracts, context summaries
-- playbooks/ - Command sequences and test procedures
 - scripts/ - Temporary code and tooling
-- various/ - Working notes and research
-- archive/ - Deprecated or reference-only artifacts
+- sources/ - Imported reference material

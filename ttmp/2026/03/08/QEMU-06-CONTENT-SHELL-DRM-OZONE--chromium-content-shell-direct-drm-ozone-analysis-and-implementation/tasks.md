@@ -15,8 +15,8 @@
 - [x] Add an end-to-end phase-4 Chromium build driver helper for `runhooks -> gn gen -> autoninja`.
 - [x] Run `gclient runhooks` and generate the first `out/Phase4DRM` build directory.
 - [x] Add a payload staging helper that can copy the first built Chromium artifacts into `build/phase4/chromium-direct`.
-- [ ] Finish the first `autoninja` build for `content_shell`, `chrome_sandbox`, and `chrome_crashpad_handler`.
-- [ ] Probe the built Chromium output directory and wire it into the phase-4 rootfs builder.
+- [x] Finish the first `autoninja` build for `content_shell`, `chrome_sandbox`, and `chrome_crashpad_handler`.
+- [x] Probe the built Chromium output directory and wire it into the phase-4 rootfs builder.
 - [x] Add phase-4 runtime files:
   - `guest/init-phase4-drm`
   - `guest/build-phase4-rootfs.sh`
@@ -27,7 +27,15 @@
 - [x] Add a phase-4 local HTML smoke page so the first `content_shell` test is file-backed, not network-backed.
 - [x] Add a phase-4 QMP smoke capture helper and mirror it into the ticket `scripts/` folder.
 - [x] Add a phase-4 rootfs/runtime dependency probe for Chromium DRM assets (`content_shell`, `icudtl.dat`, `resources.pak`, locales, GBM/EGL/DRI pieces).
-- [ ] Attempt the first direct DRM/Ozone `content_shell` boot with `virtio-gpu-pci` and `-vga none`.
-- [ ] Record the first failure mode or the first successful frame with screenshots, serial logs, and a diary step.
+- [x] Attempt the first direct DRM/Ozone `content_shell` boot with `virtio-gpu-pci` and `-vga none`.
+- [x] Record the first failure mode or the first successful frame with screenshots, serial logs, and a diary step.
+- [x] Validate the staged `content_shell` payload in host-side Ozone headless mode before continuing on DRM.
+- [x] Fix the missing Ozone `PostCreateMainMessageLoop()` handoff in the local Chromium `content_shell` tree so DRM startup can reach evdev/input initialization.
+- [x] Package the native Mesa/glvnd runtime pieces needed by ANGLE-on-DRM (`libEGL.so.1`, `libGLdispatch.so.0`, `libEGL_mesa.so.0`, vendor JSON, and a minimal DRI subset).
+- [x] Add a guest-side display probe path so DRM ownership can be compared against the host-visible QMP capture.
+- [ ] Reduce the phase-4 guest artifact size or switch to a non-initramfs rootfs transport so DRM runs do not depend on oversized guest RAM settings.
+- [ ] Add a deeper DRM/KMS debugfs or plane/FB probe to determine whether Chromium ever binds a new scanout buffer while the host screenshot remains black.
+- [ ] Explain or eliminate the remaining runtime warning from `leveldb_proto` about the database directory.
+- [ ] Get the first visibly non-black direct-DRM `content_shell` frame in a QMP screenshot.
 - [ ] Add a minimal phase-4 suspend harness only after no-suspend rendering works.
 - [ ] Decide whether phase 4 will continue with `content_shell` only, or branch into full Chrome/ash-style DRM boot later.

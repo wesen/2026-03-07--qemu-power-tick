@@ -1212,3 +1212,275 @@ ozone_platform_wayland = false
 ozone_platform_x11 = false
 ozone_platform = "drm"
 ```
+
+## Step 12: Validate the Built Payload in Headless Mode and Break the First Real DRM Startup Barrier
+
+This step is where phase 4 stopped being theoretical. The Chromium build finished, the first staged payload existed in-repo, and the first useful question became "is the browser payload itself valid?" rather than "can we compile Chromium at all?" I answered that by proving the staged `content_shell` works in host-side headless mode before returning to the much noisier QEMU DRM path.
+
+The second important part of this step happened outside the repo: the first direct DRM runs showed that `content_shell` itself was missing a necessary Ozone `PostCreateMainMessageLoop()` handoff. I patched the local Chromium tree under `/home/manuel/chromium/src` so the browser gets far enough into Ozone DRM initialization for real GPU/runtime failures to surface.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same ticket continuation; see Step 1)
+
+**Assistant interpretation:** Continue phase 4, keep the diary current, and push through the first real direct-DRM bring-up instead of stopping at build/bootstrap work.
+
+**Inferred user intent:** Turn the Chromium build into evidence: prove the payload is usable, then narrow the first direct DRM failure to a concrete layer instead of a vague "browser doesn't work" state.
+
+### What I did
+- Staged the built Chromium payload into:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/build/phase4/chromium-direct`
+- Added and mirrored:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/run_phase4_headless_smoke.sh`
+  - ticket-local mirror of the same script
+- Validated the staged payload in host-side Ozone headless mode:
+  - `results-phase4-headless-staged4/`
+- Drove the first direct DRM/Ozone guest boots and recorded the initial failure boundary in:
+  - `results-phase4-drm4/`
+  - `results-phase4-drm7/`
+  - `results-phase4-drm8/`
+- Patched the local Chromium source tree outside this repo:
+  - `/home/manuel/chromium/src/content/shell/browser/shell_browser_main_parts.cc`
+- Rebuilt the local Chromium `content_shell` target after that patch and restaged the payload.
+
+### Why
+- Headless is the cheapest way to prove the built payload is not fundamentally broken.
+- The direct DRM boot had to get past startup-order failures before runtime packaging and rendering issues could be debugged sanely.
+- A missing Ozone hook in `content_shell` would have invalidated every later DRM runtime conclusion if it stayed unfixed.
+
+### What worked
+- The staged payload works in host-side headless mode, so the first browser binary/artifact boundary is now validated.
+- The local Chromium patch removed the earlier Ozone/evdev startup crash and made the DRM logs materially better:
+  - the browser authenticates `/dev/dri/card0`
+  - the startup path reaches GPU initialization
+
+### What didn't work
+- The first direct DRM runs failed for multiple reasons before reaching stable GPU startup:
+  - missing `/dev/shm`
+  - incomplete staged payload entries
+  - the missing Ozone `PostCreateMainMessageLoop()` handoff in `content_shell`
+- Those failures showed up across the early result directories:
+  - `results-phase4-drm4/`
+  - `results-phase4-drm7/`
+  - `results-phase4-drm8/`
+
+### What I learned
+- The repo-side phase-4 work was not enough by itself; the local Chromium source tree needed a small but real `content_shell` fix to make the direct DRM path meaningful.
+- Headless validation is worth doing first because it cleanly separates "payload is bad" from "DRM runtime is bad."
+
+### What was tricky to build
+- The sharp edge here was provenance: the critical `content_shell` fix lives in the local Chromium checkout, not in this repo. That makes it easy to forget unless the diary records it explicitly.
+- The other tricky part was resisting the temptation to treat every early DRM crash as a graphics issue. Several of them were actually startup-order or payload-layout bugs.
+
+### What warrants a second pair of eyes
+- The local Chromium patch is outside the repo, so it still needs to be preserved more formally than "it exists in `~/chromium/src`."
+- It would be useful to capture the exact Chromium diff into the ticket or a reproducible patch file later.
+
+### What should be done in the future
+- Preserve the local Chromium `content_shell` Ozone patch in a tracked artifact.
+- Keep using headless as the quickest "is the payload still valid?" control whenever phase-4 packaging changes.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/run_phase4_headless_smoke.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/stage_phase4_chromium_payload.sh`
+  - `/home/manuel/chromium/src/content/shell/browser/shell_browser_main_parts.cc`
+- Validation artifacts:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-headless-staged4/`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm7/guest-serial.log`
+
+### Technical details
+- Useful output landmarks from this step:
+```text
+Succeeded authenticating /dev/dri/card0
+content_shell ozone PostCreateMainMessageLoop runner=1
+```
+
+## Step 13: Package the Native Mesa/glvnd DRM Runtime and Untangle the Initramfs Size Trap
+
+Once the startup hook issue was fixed, the next barrier was the Linux native graphics runtime itself. ANGLE on Linux did not just want Chromium's bundled `libEGL.so`; it wanted the native `libEGL.so.1` / `libGLdispatch.so.0` / Mesa vendor path as well. I followed that chain until the guest could finally reach `gpu initialization completed init_success:1`.
+
+This step also exposed a separate harness problem: the Mesa-heavy guest became large enough that a half-written initramfs or an unlucky initrd placement looked like random Chromium regressions. That was not a browser bug. It was a guest-artifact / boot-transport problem, and writing it down matters because it changes how later runs have to be launched.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same ticket continuation; see Step 1)
+
+**Assistant interpretation:** Keep moving forward from the direct DRM failures, preserve the debugging trail, and fix the actual runtime dependencies instead of stopping at the first opaque EGL error.
+
+**Inferred user intent:** Turn the first DRM bring-up into a disciplined dependency analysis so the ticket records exactly what Chromium needs in userspace and where the setup is still fragile.
+
+**Commit (code):** `8b88ab1` — `Advance phase 4 DRM runtime bring-up`
+
+### What I did
+- Updated the payload/runtime probe:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/probe_phase4_chromium_payload.py`
+- Updated the payload staging helper:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/stage_phase4_chromium_payload.sh`
+- Expanded the phase-4 rootfs builder:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-phase4-rootfs.sh`
+- Added host-side headless validation and mirrored it into the ticket scripts archive.
+- Followed the native graphics dependency chain through these key failure signatures:
+  - missing `libEGL.so.1`
+  - missing `libGLdispatch.so.0`
+  - bad recursion when `libEGL.so.1` pointed back at Chromium's own bundled `libEGL.so`
+- Copied and staged:
+  - native `libEGL.so.1`
+  - native `libGLdispatch.so.0`
+  - native `libEGL_mesa.so.0`
+  - native `libGLESv2.so.2`
+  - native `libgbm.so.1`
+  - `egl_vendor.d/50_mesa.json`
+  - a minimal DRI subset (`virtio_gpu_dri.so`, `kms_swrast_dri.so`, `swrast_dri.so`, `libdril_dri.so`)
+- Recorded and then corrected multiple invalid runs caused by booting a partially written or oversized initramfs.
+
+### Why
+- ANGLE on Linux uses both Chromium's bundled frontend libs and the host-native Mesa/glvnd path.
+- Without the native vendor side, "Chromium on DRM" never gets far enough to say anything meaningful about rendering.
+- The initramfs-size issue needed to be recorded separately because otherwise it looked like a random Chromium regression.
+
+### What worked
+- The guest now gets past the earlier EGL loader failures and reaches:
+```text
+gpu initialization completed init_success:1
+```
+- The working evidence for that transition is in:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm16/guest-serial.log`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm18/guest-serial.log`
+- The payload/runtime probe now reflects the real DRM runtime boundary instead of just the Chromium artifact boundary.
+
+### What didn't work
+- One bad experiment pointed `libEGL.so.1` back at Chromium's bundled `libEGL.so`, which caused the ANGLE recursion/assert path rather than fixing the native runtime.
+- Several later runs were invalid because I reused an initramfs before the rebuild had actually finished. That produced "Initramfs unpacking failed: read error" failures that were easy to misread as browser regressions.
+
+### What I learned
+- Chromium DRM bring-up in this configuration is a combined payload problem and native graphics-runtime problem.
+- The current initramfs-based transport is fragile once the Mesa runtime gets large; future direct DRM work should either slim the image or stop treating initramfs as the long-term rootfs.
+
+### What was tricky to build
+- The dependency split is counterintuitive: Chromium bundles `libEGL.so`, but ANGLE still expects the Linux native `libEGL.so.1` / `libGLdispatch.so.0` / Mesa vendor side.
+- The other sharp edge was tool control: I initially treated the build-session ID like a process ID and convinced myself the initramfs rebuild had finished when it had not. That led directly to invalid boot results.
+
+### What warrants a second pair of eyes
+- The current Mesa-heavy initramfs is usable for debugging but not robust. A second review should challenge whether phase 4 should stay initramfs-based at all.
+- The runtime packaging is now broad enough that it deserves one more pass for unnecessary bloat.
+
+### What should be done in the future
+- Either reduce the guest artifact size or move to a non-initramfs rootfs transport.
+- Preserve the exact "working enough to get `init_success:1`" runtime boundary in the guide and scripts.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-phase4-rootfs.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/probe_phase4_chromium_payload.py`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/stage_phase4_chromium_payload.sh`
+- Validation artifacts:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm11/guest-serial.log`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm16/guest-serial.log`
+
+### Technical details
+- Current direct-DRM runtime boundary includes both:
+```text
+/usr/lib/chromium-direct/libEGL.so
+/usr/lib/libEGL.so.1
+/usr/share/glvnd/egl_vendor.d/50_mesa.json
+/usr/lib/x86_64-linux-gnu/dri/virtio_gpu_dri.so
+```
+
+## Step 14: Prove That Chromium Starts on DRM While the Host-visible Frame Stays Black
+
+This is the current phase-4 state. The browser does start. The GPU process does initialize. Ozone DRM finds the render node. The guest-side connector state remains stable for the whole run. And despite all of that, the host-visible QMP screenshot is still entirely black. That is a much better problem than "Chromium crashes on startup," because it narrows the investigation to presentation/scanout visibility instead of generic bring-up.
+
+I also fixed a few runtime-hygiene problems in this step: fonts were being copied into the wrong path, Chromium was trying to use `/root/.cache`, and the content-shell log tail could race file creation and hide the only useful error output. Those are now cleaned up, so the remaining black-frame result is harder to dismiss as a trivial setup bug.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same ticket continuation; see Step 1)
+
+**Assistant interpretation:** Continue iterating on the direct DRM path, keep the diary detailed, and produce a trustworthy checkpoint instead of a hand-wavy "it still doesn't render."
+
+**Inferred user intent:** Distinguish between "browser/GPU startup works" and "browser content is actually visible," then document the exact current state so the next debugging step starts from facts instead of guesses.
+
+**Commit (code):** `8b88ab1` — `Advance phase 4 DRM runtime bring-up`
+
+### What I did
+- Fixed phase-4 font layout and runtime dirs in:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-phase4-rootfs.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/content-shell-drm-launcher.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase4-drm`
+- Added the guest display probe path using:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/display_probe.sh`
+  - mirrored ticket-local script
+- Ran the key validation/control runs:
+  - `results-phase4-drm18/`
+  - `results-phase4-drm19/`
+  - `results-phase4-drm20/`
+- Compared early and late captures and confirmed they are identical black frames.
+- Used the display probe to record:
+  - `fb0=virtio_gpudrmfb`
+  - `proc_fb=0 virtio_gpudrmfb`
+  - `card0-Virtual-1 status=connected enabled=enabled dpms=On`
+  - `vtcon1` frame-buffer console still bound
+
+### Why
+- The biggest risk at this point was false confidence. "GPU init succeeded" does not mean "the browser is visibly on screen."
+- The display probe gives the next intern a guest-side baseline even if the host screenshot continues to disagree with what Chromium claims to be doing.
+
+### What worked
+- Fontconfig and cache path noise were reduced:
+  - the previous `Fontconfig error: Cannot load default config file` message disappeared after the `/etc/fonts` copy fix
+  - the previous `/root/.cache` permission failure disappeared after the launcher got explicit state/cache dirs
+- The browser/GPU path now looks stable:
+```text
+Succeeded authenticating /dev/dri/card0
+gpu initialization completed init_success:1
+Found Gbm Device at /dev/dri/renderD128
+```
+- The guest-side display probe stayed stable for the full run in `results-phase4-drm20/guest-serial.log`.
+
+### What didn't work
+- The host-visible frame is still black, even with a later capture delay.
+- `results-phase4-drm18/00-smoke.png` and `results-phase4-drm19/00-smoke.png` are byte-for-byte equivalent and effectively black.
+- The browser still logs:
+```text
+libEGL warning: NEEDS EXTENSION: falling back to kms_swrast
+components/leveldb_proto/public/proto_database_provider.h:101 In memory database cannot use the given database directory
+```
+
+### What I learned
+- Phase 4 is no longer blocked on browser startup.
+- The remaining bug is presentation visibility: either Chromium never binds a visible plane, or QEMU is still not showing the plane Chromium is using.
+- The display probe is useful but not sufficient by itself because it shows only `fb0` / connector / vtconsole state, not DRM plane ownership or `FB_ID`.
+
+### What was tricky to build
+- The subtle bug here was the log-tail race in `init-phase4-drm`. Without pre-creating the log file and switching to `tail -F`, the browser could fail silently and leave the run looking healthier than it really was.
+- The other tricky part was interpreting black screenshots after the startup path had become healthy. That requires resisting the instinct to keep "fixing startup" and instead moving to deeper display-state inspection.
+
+### What warrants a second pair of eyes
+- The current display probe may still be too shallow. A second pair of eyes should look at whether the next probe should dump `/sys/kernel/debug/dri/0/state` or another plane/FB-oriented source of truth.
+- The remaining `leveldb_proto` warning may or may not matter; it should not be assumed benign without one more look.
+
+### What should be done in the future
+- Add a deeper DRM plane/FB debugfs probe.
+- Decide whether the black frame is a Chromium presentation bug or another host-visible capture/scanout mismatch.
+- Get the first unmistakably non-black frame on the host path before touching suspend work.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/content-shell-drm-launcher.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase4-drm`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/display_probe.sh`
+- Validation artifacts:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm18/`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm19/`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm20/guest-serial.log`
+
+### Technical details
+- Stable probe line shape from `results-phase4-drm20/guest-serial.log`:
+```text
+@@DISPLAY ... fb0=virtio_gpudrmfb ... drm=card0-Virtual-1 status=connected enabled=enabled dpms=On
+```
+- Current host-visible frame result:
+```text
+00-smoke.png: bbox None, nonblack 0
+```
