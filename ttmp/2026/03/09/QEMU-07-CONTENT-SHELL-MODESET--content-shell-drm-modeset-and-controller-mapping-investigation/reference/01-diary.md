@@ -85,3 +85,109 @@ This new ticket starts from a specific hypothesis derived from the imported `ozo
 ```text
 ttmp/2026/03/09/QEMU-07-CONTENT-SHELL-MODESET--content-shell-drm-modeset-and-controller-mapping-investigation
 ```
+
+## Step 2: Parameterize content_shell Window Controls And Run The First 800x600 Probe
+
+The first runtime change in this ticket was to make the phase-4 guest pass `content_shell` window controls through the kernel cmdline instead of hardcoding one launch shape. The reason was simple: if the mapping hypothesis is real, the experiment needs to vary window geometry without changing unrelated boot logic.
+
+### What I did
+- Updated `guest/init-phase4-drm` to parse:
+  - `phase4_content_shell_window_size=*`
+  - `phase4_content_shell_fullscreen=0`
+- Exported those values to `guest/content-shell-drm-launcher.sh`.
+- Updated the launcher to:
+  - log `WINDOW_SIZE` and `FULLSCREEN`
+  - optionally omit `--start-fullscreen`
+  - initially pass a generic `--window-size=$WINDOW_SIZE` switch
+- Mirrored the updated scripts into the ticket `scripts/` folder.
+- Rebuilt the phase-4 initramfs.
+- Ran the first no-fbdev `800x600` control as `results-phase4-drm26`.
+
+### Why
+- The imported `ozone-answers.md` note made window/controller mapping the main suspect.
+- The quickest way to test that was a non-fullscreen `800x600` run under `drm_kms_helper.fbdev_emulation=0`.
+
+### What worked
+- The new kernel-cmdline plumbing worked.
+- The run captured the usual evidence set:
+  - serial log
+  - DRM state snapshots
+  - display probe output
+  - QMP screenshot
+
+### What didn't work
+- `results-phase4-drm26` turned out not to be a valid size-control test.
+- The host-visible result stayed the same:
+  - `00-smoke.png` stayed `640x480`
+  - nonblack pixel count stayed `684`
+- The guest still showed scanout-capable `DrmThread` shared images at `814x669`.
+
+### What I learned
+- `content_shell` does not use Chrome's generic `--window-size` switch for its host window.
+- So `drm26` could not actually confirm or reject the mapping hypothesis.
+
+### What warrants a second pair of eyes
+- The right `content_shell` switch needed to be confirmed from Chromium source, not guessed from Chrome runtime habits.
+
+## Step 3: Correct The content_shell Size Switch And Re-run The Probe
+
+After `drm26`, I checked Chromium source directly instead of trying another flag guess.
+
+### What I did
+- Searched Chromium source and found:
+  - `content/shell/common/shell_switches.h`
+  - `content/shell/browser/shell.cc`
+- Confirmed that `content_shell` uses:
+  - `--content-shell-host-window-size=WxH`
+  - not Chrome's generic `--window-size=...`
+- Patched `guest/content-shell-drm-launcher.sh` to pass:
+  - `--content-shell-host-window-size=${WINDOW_SIZE/,/x}`
+- Mirrored the corrected launcher into the ticket `scripts/` folder.
+- Rebuilt the phase-4 initramfs again.
+- Reran the same no-fbdev `800x600` control as `results-phase4-drm27`.
+
+### Why
+- `drm26` was invalid as a real size-control experiment.
+- The only responsible next step was to use the real `content_shell` host-window-size API and rerun the exact same control.
+
+### What worked
+- The corrected switch did reach the browser runtime.
+- `results-phase4-drm27/guest-serial.log` now shows:
+  - `WINDOW_SIZE=800,600 FULLSCREEN=0`
+  - Blink/content geometry around `800x595`
+- This proves the experiment now changes the actual shell window/content sizing layer rather than just the launcher arguments.
+
+### What didn't work
+- Even with the corrected size switch:
+  - the connector stayed disabled
+  - the CRTC stayed inactive
+  - the active plane stayed unbound
+  - the scanout-capable `DrmThread` shared images still stayed `814x669`
+  - the host-visible frame stayed the same `640x480` fallback image with `684` nonblack pixels
+
+### What I learned
+- Content area sizing alone is not enough to get `content_shell` onto a visible controller in this setup.
+- The next obvious suspect is shell chrome itself, especially the toolbar/frame that wraps the content area.
+- Chromium source confirms that `content_shell` has an explicit switch for that too:
+  - `--content-shell-hide-toolbar`
+
+### What was tricky to build
+- The tricky part here was not code. It was not letting a bad first control pollute the conclusion.
+- `drm26` had to be written down as invalid for the original hypothesis even though it still produced logs and screenshots.
+
+### What should be done in the future
+- Add a guest-cmdline path for `content-shell-hide-toolbar`.
+- Rebuild.
+- Rerun the same no-fbdev `800x600` control with toolbar hidden.
+
+### Technical details
+- `results-phase4-drm26/00-smoke.png`:
+  - size `640x480`
+  - nonblack pixels `684`
+- `results-phase4-drm27/00-smoke.png`:
+  - size `640x480`
+  - nonblack pixels `684`
+- `results-phase4-drm27/guest-serial.log` shows:
+  - launcher env: `WINDOW_SIZE=800,600 FULLSCREEN=0`
+  - content sizing around `800x595`
+  - but late DRM state still leaves the connector/CRTC inactive

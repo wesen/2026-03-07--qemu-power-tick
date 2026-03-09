@@ -35,7 +35,8 @@ Starting state:
 
 Current hypothesis:
 - `content_shell` window sizing and controller matching are the most suspicious layer
-- the next highest-value control is an `800x600` no-fbdev run with focused Chromium DRM logs
+- the first corrected `800x600` run changed content geometry but did not bind a controller
+- the next highest-value control is an `800x600` no-fbdev run with shell chrome hidden
 
 ## Key Links
 

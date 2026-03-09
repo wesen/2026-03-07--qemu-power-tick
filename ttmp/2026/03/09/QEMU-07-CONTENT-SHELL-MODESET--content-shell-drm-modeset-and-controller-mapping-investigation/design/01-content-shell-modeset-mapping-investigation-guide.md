@@ -143,7 +143,31 @@ Expected outcomes:
 - If the connector becomes active, the mapping hypothesis is strongly supported.
 - If not, move to Chromium's modeset logic itself.
 
-### Step 2: Tighten Chromium DRM Logging
+What the first two runs already established:
+- `results-phase4-drm26` was not a valid size-control test because `content_shell` does not honor Chrome's generic `--window-size` switch.
+- `results-phase4-drm27` used Chromium's real `--content-shell-host-window-size=800x600` switch and did change Blink/content geometry to about `800x595`.
+- Even after that correction, the scanout-capable `DrmThread` buffers still stayed at `814x669`, the connector remained disabled, and the host-visible QMP frame remained the same `640x480` fallback image.
+
+That means content area sizing alone is not enough. The next branch is to remove shell chrome so the outer host window can get closer to the mode rectangle Chromium's controller-mapping logic expects.
+
+### Step 2: Remove Shell Chrome And Re-run
+
+The imported note and Chromium source both point at `content_shell` itself being a poor kiosk probe. The launcher should grow an explicit control for:
+- `--content-shell-hide-toolbar`
+
+The next control should keep:
+- `phase4_content_shell_window_size=800,600`
+- `phase4_content_shell_fullscreen=0`
+- `drm_kms_helper.fbdev_emulation=0`
+
+and add:
+- `phase4_content_shell_hide_toolbar=1`
+
+Expected outcomes:
+- If connector activation appears, the remaining mismatch was likely the shell frame/toolbar rather than content size.
+- If not, the investigation moves down into modeset/controller activation itself.
+
+### Step 3: Tighten Chromium DRM Logging
 
 Do not use broad wildcard VLOG patterns. Focus on:
 - `screen_manager`
@@ -159,7 +183,7 @@ Goal:
 - capture whether `TestModeset()` or `Modeset()` is called
 - capture whether the controller-window mapping is rejected
 
-### Step 3: Add A Guest-Trusted Visual Proof
+### Step 4: Add A Guest-Trusted Visual Proof
 
 Because QMP becomes ambiguous in the no-fbdev configuration, add one guest-trusted display proof if needed:
 - guest-side DRM state
@@ -171,10 +195,13 @@ This should only be added if the `800x600` and tighter-log runs still do not exp
 ## Decision Tree
 
 ```text
-Run 800x600 no-fbdev content_shell
+Run corrected 800x600 no-fbdev content_shell
   -> connector active?
      yes -> content_shell sizing/fullscreen mismatch was the main problem
-     no  -> inspect focused Chromium DRM logs
+     no  -> hide toolbar / shell chrome and rerun
+            -> connector active?
+               yes -> outer shell window bounds were the blocking mismatch
+               no  -> inspect focused Chromium DRM logs
             -> modeset attempted and failed?
                yes -> debug TestModeset/Modeset path
                no  -> debug window/controller mapping path
