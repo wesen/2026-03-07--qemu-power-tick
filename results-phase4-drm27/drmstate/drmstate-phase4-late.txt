@@ -1,0 +1,172 @@
+===== FILE state =====
+plane[31]: plane-0
+	crtc=(null)
+	fb=0
+	crtc-pos=0x0+0+0
+	src-pos=0.000000x0.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=0
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+plane[32]: plane-1
+	crtc=(null)
+	fb=0
+	crtc-pos=0x0+0+0
+	src-pos=0.000000x0.000000+0.000000+0.000000
+	rotation=1
+	normalized-zpos=0
+	color-encoding=ITU-R BT.601 YCbCr
+	color-range=YCbCr limited range
+	color_mgmt_changed=0
+crtc[35]: crtc-0
+	enable=0
+	active=0
+	self_refresh_active=0
+	planes_changed=0
+	mode_changed=0
+	active_changed=0
+	connectors_changed=0
+	color_mgmt_changed=0
+	plane_mask=0
+	connector_mask=0
+	encoder_mask=0
+	mode: "": 0 0 0 0 0 0 0 0 0 0 0x0 0x0
+connector[36]: Virtual-1
+	crtc=(null)
+	self_refresh_aware=0
+	max_requested_bpc=0
+	colorspace=Default
+
+===== END FILE state =====
+===== FILE framebuffer =====
+framebuffer[44]:
+	allocated by = DrmThread
+	refcount=1
+	format=XR24 little-endian (0x34325258)
+	modifier=0x0
+	size=814x669
+	layers:
+		size[0]=814x669
+		pitch[0]=3328
+		offset[0]=0
+		obj[0]:
+			name=0
+			refcount=5
+			start=00100478
+			size=2342912
+			imported=no
+			pages_use_count=2
+			vmap_use_count=0
+			vaddr=0000000000000000
+framebuffer[43]:
+	allocated by = DrmThread
+	refcount=1
+	format=AR24 little-endian (0x34325241)
+	modifier=0x0
+	size=814x669
+	layers:
+		size[0]=814x669
+		pitch[0]=3328
+		offset[0]=0
+		obj[0]:
+			name=0
+			refcount=5
+			start=00100478
+			size=2342912
+			imported=no
+			pages_use_count=2
+			vmap_use_count=0
+			vaddr=0000000000000000
+framebuffer[42]:
+	allocated by = DrmThread
+	refcount=1
+	format=XR24 little-endian (0x34325258)
+	modifier=0x0
+	size=814x669
+	layers:
+		size[0]=814x669
+		pitch[0]=3328
+		offset[0]=0
+		obj[0]:
+			name=0
+			refcount=4
+			start=0010023c
+			size=2342912
+			imported=no
+			pages_use_count=1
+			vmap_use_count=0
+			vaddr=0000000000000000
+framebuffer[41]:
+	allocated by = DrmThread
+	refcount=1
+	format=AR24 little-endian (0x34325241)
+	modifier=0x0
+	size=814x669
+	layers:
+		size[0]=814x669
+		pitch[0]=3328
+		offset[0]=0
+		obj[0]:
+			name=0
+			refcount=4
+			start=0010023c
+			size=2342912
+			imported=no
+			pages_use_count=1
+			vmap_use_count=0
+			vaddr=0000000000000000
+framebuffer[40]:
+	allocated by = DrmThread
+	refcount=1
+	format=XR24 little-endian (0x34325258)
+	modifier=0x0
+	size=814x669
+	layers:
+		size[0]=814x669
+		pitch[0]=3328
+		offset[0]=0
+		obj[0]:
+			name=0
+			refcount=4
+			start=00100000
+			size=2342912
+			imported=no
+			pages_use_count=1
+			vmap_use_count=0
+			vaddr=0000000000000000
+framebuffer[39]:
+	allocated by = DrmThread
+	refcount=1
+	format=AR24 little-endian (0x34325241)
+	modifier=0x0
+	size=814x669
+	layers:
+		size[0]=814x669
+		pitch[0]=3328
+		offset[0]=0
+		obj[0]:
+			name=0
+			refcount=4
+			start=00100000
+			size=2342912
+			imported=no
+			pages_use_count=1
+			vmap_use_count=0
+			vaddr=0000000000000000
+
+===== END FILE framebuffer =====
+===== FILE clients =====
+             command  tgid dev master a   uid      magic
+       content_shell   125   0   y    y     0          1
+       content_shell   193   0   n    n     0          0
+
+===== END FILE clients =====
+===== FILE gem_names =====
+  name     size handles refcount
+
+===== END FILE gem_names =====
+===== FILE name =====
+virtio_gpu dev=0000:00:02.0 unique=0000:00:02.0
+
+===== END FILE name =====

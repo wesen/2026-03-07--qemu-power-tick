@@ -1,0 +1,83 @@
+{
+  "payload_dir": "/home/manuel/code/wesen/2026-03-07--qemu-power-tick/build/phase4/chromium-direct",
+  "payload_exists": false,
+  "required_payload_files": {
+    "content_shell": false,
+    "chrome_sandbox": false,
+    "icudtl.dat": false,
+    "resources.pak": false,
+    "v8_context_snapshot.bin": false,
+    "chrome_100_percent.pak": false,
+    "chrome_200_percent.pak": false
+  },
+  "optional_payload_files": {
+    "chrome": false,
+    "chrome_crashpad_handler": false,
+    "nacl_helper": false
+  },
+  "locale_files": [],
+  "required_runtime_libs": {
+    "/lib/x86_64-linux-gnu/libdrm.so.2": true,
+    "/lib/x86_64-linux-gnu/libgbm.so.1": true,
+    "/lib/x86_64-linux-gnu/libEGL.so.1": true,
+    "/lib/x86_64-linux-gnu/libGLESv2.so.2": true,
+    "/lib/x86_64-linux-gnu/libxkbcommon.so.0": true
+  },
+  "dri_dirs": {
+    "/usr/lib/x86_64-linux-gnu/dri": [
+      "crocus_dri.so",
+      "d3d12_dri.so",
+      "d3d12_drv_video.so",
+      "i915_dri.so",
+      "i965_dri.so",
+      "i965_drv_video.so",
+      "iHD_drv_video.so",
+      "iris_dri.so",
+      "kms_swrast_dri.so",
+      "libdril_dri.so",
+      "nouveau_dri.so",
+      "nouveau_drv_video.so",
+      "nouveau_vieux_dri.so",
+      "r200_dri.so",
+      "r300_dri.so",
+      "r600_dri.so",
+      "r600_drv_video.so",
+      "radeon_dri.so",
+      "radeonsi_dri.so",
+      "radeonsi_drv_video.so",
+      "swrast_dri.so",
+      "virtio_gpu_dri.so",
+      "virtio_gpu_drv_video.so",
+      "vmwgfx_dri.so",
+      "zink_dri.so"
+    ],
+    "/lib/x86_64-linux-gnu/dri": [
+      "crocus_dri.so",
+      "d3d12_dri.so",
+      "d3d12_drv_video.so",
+      "i915_dri.so",
+      "i965_dri.so",
+      "i965_drv_video.so",
+      "iHD_drv_video.so",
+      "iris_dri.so",
+      "kms_swrast_dri.so",
+      "libdril_dri.so",
+      "nouveau_dri.so",
+      "nouveau_drv_video.so",
+      "nouveau_vieux_dri.so",
+      "r200_dri.so",
+      "r300_dri.so",
+      "r600_dri.so",
+      "r600_drv_video.so",
+      "radeon_dri.so",
+      "radeonsi_dri.so",
+      "radeonsi_drv_video.so",
+      "swrast_dri.so",
+      "virtio_gpu_dri.so",
+      "virtio_gpu_drv_video.so",
+      "vmwgfx_dri.so",
+      "zink_dri.so"
+    ]
+  },
+  "ldd_results": {}
+}

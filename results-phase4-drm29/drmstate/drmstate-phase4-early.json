@@ -1,0 +1,12 @@
+{
+  "base": "/sys/kernel/debug/dri/0",
+  "card": "0",
+  "compression": "gzip",
+  "files": "state,framebuffer,clients,gem_names,name",
+  "gzip_bytes": 737,
+  "gzip_size": "737",
+  "sha256_txt": "852c6e2ecf816f246c9caa9d35a223609abf98213a724ee1a2ba04a9cb95e3db",
+  "tag": "phase4-early",
+  "text_bytes": 3297,
+  "text_size": "3297"
+}
