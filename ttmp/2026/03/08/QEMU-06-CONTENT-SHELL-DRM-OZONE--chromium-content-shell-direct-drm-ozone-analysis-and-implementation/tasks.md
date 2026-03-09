@@ -34,7 +34,14 @@
 - [x] Package the native Mesa/glvnd runtime pieces needed by ANGLE-on-DRM (`libEGL.so.1`, `libGLdispatch.so.0`, `libEGL_mesa.so.0`, vendor JSON, and a minimal DRI subset).
 - [x] Add a guest-side display probe path so DRM ownership can be compared against the host-visible QMP capture.
 - [ ] Reduce the phase-4 guest artifact size or switch to a non-initramfs rootfs transport so DRM runs do not depend on oversized guest RAM settings.
-- [ ] Add a deeper DRM/KMS debugfs or plane/FB probe to determine whether Chromium ever binds a new scanout buffer while the host screenshot remains black.
+- [x] Add a deeper DRM/KMS debugfs or plane/FB probe to determine whether Chromium ever binds a new scanout buffer while the host screenshot remains black.
+- [ ] Explain why `plane[31]` remains bound to the fbcon-allocated framebuffer while Chromium-created `DrmThread` framebuffers exist and the GPU process reports `init_success:1`.
+- [x] Test one more direct control for plane ownership:
+  - disable or bypass the fbdev/fbcon scanout path more aggressively with `drm_kms_helper.fbdev_emulation=0`, or
+  - run a minimal post-Chromium KMS handoff experiment to see whether the plane can be stolen from `fbcon`
+- [x] Remove the forced `EGL_PLATFORM=surfaceless` default from the phase-4 launcher and rerun the direct DRM smoke with deep probes so the scanout result reflects Chromium's native DRM path instead of an explicitly surfaceless environment.
+- [ ] Explain why disabling fbdev emulation leaves Chromium with `DrmThread` framebuffers but no active CRTC/connector, even though `kms_pattern` can still enable the connector on the same guest image.
+- [ ] Add one guest-visible or guest-trusted display proof for the `drm_kms_helper.fbdev_emulation=0` configuration, because QMP falls back to a VGA-text-looking capture there and is no longer a trustworthy proxy for active KMS scanout by itself.
 - [ ] Explain or eliminate the remaining runtime warning from `leveldb_proto` about the database directory.
 - [ ] Get the first visibly non-black direct-DRM `content_shell` frame in a QMP screenshot.
 - [ ] Add a minimal phase-4 suspend harness only after no-suspend rendering works.

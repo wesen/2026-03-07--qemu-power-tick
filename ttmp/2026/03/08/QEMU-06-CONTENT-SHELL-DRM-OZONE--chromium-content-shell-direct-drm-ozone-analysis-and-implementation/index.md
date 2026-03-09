@@ -58,7 +58,18 @@ Current status:
   - Ozone discovery of `/dev/dri/renderD128`
 - native Mesa/glvnd runtime packaging is now present in the phase-4 guest
 - guest-side display probe stays stable while Chromium runs, but host-visible QMP screenshots are still fully black
-- the current open problem is no longer "Chromium won't start"; it is "Chromium starts on direct DRM but no visible frame reaches the host capture path yet"
+- deeper DRM debugfs snapshots now show why the situation is still stuck:
+  - Chromium creates `DrmThread` framebuffers
+  - the active plane remains bound to the fbcon-allocated framebuffer
+  - the result is unchanged even in the `phase4_unbind_fbcon=1` control
+- removing the forced `EGL_PLATFORM=surfaceless` default did not change that outcome
+- the stronger `drm_kms_helper.fbdev_emulation=0` control changed the state substantially:
+  - `fb0` disappears
+  - the connector becomes `connected enabled=disabled`
+  - `plane-0` no longer points at an fbcon-owned framebuffer
+  - Chromium still creates `DrmThread` framebuffers but does not activate the CRTC/connector
+  - the simple `kms_pattern` control can still re-enable the connector under the same kernel setting, which means the guest can still modeset without fbdev emulation
+- the current open problem is no longer "Chromium won't start"; it is "Chromium starts on direct DRM, but it still does not activate a visible scanout path, and QMP becomes ambiguous once fbdev emulation is disabled"
 
 ## Key Links
 

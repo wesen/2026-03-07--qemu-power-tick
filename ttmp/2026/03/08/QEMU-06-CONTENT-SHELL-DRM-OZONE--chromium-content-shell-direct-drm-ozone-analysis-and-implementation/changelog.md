@@ -58,3 +58,29 @@
   - host-side QMP screenshots remain completely black even with later capture delays
 - Exposed a second phase-4 harness issue while packaging the larger Mesa stack: several runs accidentally used a partially written initramfs. The stable lesson is that the current Mesa-heavy initramfs must be treated as a completed artifact before boot, and in practice the direct DRM runs have been most reliable with larger guest RAM while this rootfs stays initramfs-based.
 - Committed the repo-side runtime checkpoint as `8b88ab1` (`Advance phase 4 DRM runtime bring-up`).
+- Added and mirrored a deeper DRM debugfs probe path based on `dump_drm_state.sh`, and taught `init-phase4-drm` to emit tagged early/late DRM state snapshots during a run.
+- Extracted the phase-4 DRM debugfs snapshots with `host/extract_drmstate_from_serial.py` and captured the first direct `plane`/`framebuffer` answer in `results-phase4-drm21/drmstate/`.
+- The new result is sharper than the shallow probe:
+  - Chromium creates multiple `DrmThread` framebuffers
+  - the active plane still points at `framebuffer[39]`, allocated by `[fbcon]`
+  - early and late DRM state snapshots are byte-identical
+  - the host-visible frame is still black
+- Ran the `phase4_unbind_fbcon=1` control in `results-phase4-drm22/` and found that unbinding `vtcon1` does not change the active plane ownership; `plane[31]` still points at the `[fbcon]` framebuffer even after the console unbind.
+- Committed the deeper probe wiring as `4024dcb` (`Add phase 4 DRM state probes`).
+- Removed the forced `EGL_PLATFORM=surfaceless` default from `guest/content-shell-drm-launcher.sh`, rebuilt the phase-4 initramfs, and reran the direct DRM smoke with the deeper probes in `results-phase4-drm23/`.
+- The `results-phase4-drm23/` rerun did not change the scanout diagnosis:
+  - `EGL_PLATFORM` was truly unset in the launcher log
+  - the host-visible frame remained fully black
+  - the active plane still pointed at an fbcon-owned framebuffer
+  - Chromium still only created `814x669` `DrmThread` framebuffers
+- Ran the stronger `drm_kms_helper.fbdev_emulation=0` control in `results-phase4-drm24/`.
+- The no-fbdev control changed the guest state materially:
+  - `fb0` disappeared
+  - `vtcon1` disappeared from the display probe
+  - the connector stayed `connected enabled=disabled`
+  - the CRTC remained inactive
+  - the old fbcon-owned framebuffer disappeared from debugfs
+  - Chromium still created `DrmThread` framebuffers but never activated scanout
+- Ran the `kms_pattern` control under the same `drm_kms_helper.fbdev_emulation=0` kernel setting in `results-phase4-kms2/`.
+- The `kms_pattern` run proves the guest can still enable the connector with fbdev emulation disabled, but QMP capture becomes ambiguous in that mode and falls back to a VGA-text-looking frame instead of a trustworthy KMS screenshot.
+- Committed the launcher cleanup as `1254d5e` (`Stop forcing surfaceless EGL in phase 4 launcher`).

@@ -258,6 +258,196 @@ remote: Sending approximately 61.14 GiB ...
 - Once `src/` exists, verify the exact initial target set for phase 4.
 - Then create the phase-4 runtime file skeletons.
 
+## Step 16: Remove the Forced Surfaceless Default and Separate fbcon From Chromium's Own DRM Failure
+
+At this point the ticket already proved that Chromium could start on the direct DRM path, but the display result was still black and the active plane stayed on an fbcon-owned framebuffer. The next useful move was not another broad rerun. It was to peel apart two specific assumptions: first, whether I had accidentally forced Chromium into an offscreen/surfaceless path by exporting `EGL_PLATFORM=surfaceless`; second, whether the apparent scanout blockage was really just legacy fbdev/fbcon ownership.
+
+This step turned out to be the most informative control pass in the phase-4 ticket so far. Removing the forced `surfaceless` default did not help, which is good because it rules out an easy self-inflicted explanation. The stronger kernel control, `drm_kms_helper.fbdev_emulation=0`, changed the system sharply: it removed the fbcon-owned framebuffer and made the connector inactive, but Chromium still did not light up scanout. A matching `kms_pattern` control under the same kernel setting showed that userspace can still enable the connector without fbdev emulation, so the remaining problem has moved closer to Chromium's own display/modeset behavior.
+
+### Prompt Context
+
+**User prompt (verbatim):** "alright, add tasks, go ahead, commit when necessary, keep a diary"
+
+**Assistant interpretation:** Continue the phase-4 direct DRM investigation, keep the ticket task list and diary current, and checkpoint the work with clean commits instead of letting the evidence accumulate only in uncommitted logs.
+
+**Inferred user intent:** Drive the current investigation forward in small, reviewable slices while preserving enough narrative detail that a later report can explain exactly why each control was run and what it ruled in or out.
+
+**Commit (code):** `1254d5e` - `Stop forcing surfaceless EGL in phase 4 launcher`
+
+### What I did
+- Updated the ticket task list to make two immediate controls explicit:
+  - remove the forced `EGL_PLATFORM=surfaceless` default
+  - test a stronger plane-ownership control with `drm_kms_helper.fbdev_emulation=0`
+- Edited `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/content-shell-drm-launcher.sh` so it no longer exports `EGL_PLATFORM=surfaceless` by default.
+- Kept `EGL_PLATFORM` overrideable through `CONTENT_SHELL_EGL_PLATFORM` for future comparison runs.
+- Added launcher diagnostics so the guest serial log now prints whether `EGL_PLATFORM` is actually set or left unset.
+- Mirrored the updated launcher into the ticket script archive:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/scripts/content-shell-drm-launcher.sh`
+- Rebuilt the full phase-4 initramfs and explicitly waited for:
+```text
+built /home/manuel/code/wesen/2026-03-07--qemu-power-tick/build/initramfs-phase4.cpio.gz
+```
+- Ran the first control without the forced surfaceless default:
+```text
+python3 host/capture_phase4_smoke.py \
+  --kernel build/vmlinuz \
+  --initramfs build/initramfs-phase4.cpio.gz \
+  --results-dir results-phase4-drm23 \
+  --append-extra 'phase4_mode=content-shell phase4_runtime_seconds=30 phase4_display_probe=1 phase4_drmstate_probe=1' \
+  --capture-delay 12 \
+  --timeout 90
+```
+- Extracted the DRM debugfs dumps for that run:
+```text
+python3 host/extract_drmstate_from_serial.py \
+  --serial-log results-phase4-drm23/guest-serial.log \
+  --output-dir results-phase4-drm23/drmstate
+```
+- Ran the stronger no-fbdev control:
+```text
+python3 host/capture_phase4_smoke.py \
+  --kernel build/vmlinuz \
+  --initramfs build/initramfs-phase4.cpio.gz \
+  --results-dir results-phase4-drm24 \
+  --append-extra 'phase4_mode=content-shell phase4_runtime_seconds=30 phase4_display_probe=1 phase4_drmstate_probe=1 drm_kms_helper.fbdev_emulation=0' \
+  --capture-delay 12 \
+  --timeout 90
+```
+- Extracted the DRM debugfs dumps for that run too:
+```text
+python3 host/extract_drmstate_from_serial.py \
+  --serial-log results-phase4-drm24/guest-serial.log \
+  --output-dir results-phase4-drm24/drmstate
+```
+- Added a third control to separate "Chromium failed to modeset" from "no-fbdev mode is generally unusable":
+```text
+python3 host/capture_phase4_smoke.py \
+  --kernel build/vmlinuz \
+  --initramfs build/initramfs-phase4.cpio.gz \
+  --results-dir results-phase4-kms2 \
+  --append-extra 'phase4_mode=kms-pattern phase4_runtime_seconds=20 phase4_display_probe=1 phase4_drmstate_probe=1 drm_kms_helper.fbdev_emulation=0' \
+  --capture-delay 8 \
+  --timeout 60
+```
+
+### Why
+- The old direct-DRM state was ambiguous in one important way: `plane-0` was still tied to an fbcon-owned framebuffer, so it was possible that Chromium was fine and fbcon was simply winning the scanout race.
+- The launcher also still had a questionable inherited default from the imported note:
+```text
+EGL_PLATFORM=surfaceless
+```
+- Those two issues needed to be separated before doing any deeper Chromium-specific surgery.
+
+### What worked
+- The launcher change is now explicit and reviewable in one place:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/content-shell-drm-launcher.sh`
+- The guest log for `results-phase4-drm23/` proves the first control was real:
+```text
+[content-shell-drm-launcher] env EGL_PLATFORM=<unset> LD_LIBRARY_PATH=/usr/lib/chromium-direct:/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:/lib64
+```
+- `results-phase4-drm23/` stayed functionally identical to the old baseline:
+  - QMP screenshot remained fully black at `1280x800`
+  - debugfs still showed:
+    - `plane[31] -> fb=39 -> allocated by = [fbcon]`
+    - multiple `DrmThread` framebuffers at `814x669`
+- That means the forced `surfaceless` default was not the reason scanout stayed black.
+- The stronger `drm_kms_helper.fbdev_emulation=0` control changed the guest state in exactly the way a real fbdev-removal test should:
+  - `fb0=missing`
+  - no `[fbcon]` framebuffer in debugfs
+  - connector state in the shallow probe changed to:
+```text
+card0-Virtual-1statusconnected_enableddisabled_dpmsOn
+```
+  - DRM debugfs changed to:
+    - `crtc[35] enable=0 active=0`
+    - `connector[36] crtc=(null)`
+    - only `DrmThread` framebuffers remained
+- The `kms_pattern` control under the same no-fbdev kernel setting still enabled the connector:
+```text
+@@KMSPATTERN device=/dev/dri/card0 connector_id=36 crtc_id=35 fb_id=39 width=1280 height=800 pattern=pre
+```
+  - and the shallow display probe changed to:
+```text
+card0-Virtual-1statusconnected_enabledenabled_dpmsOn
+```
+- That proves the guest is still capable of direct userspace modeset without fbdev emulation.
+
+### What didn't work
+- Removing the forced `surfaceless` default did not change the black-frame result at all.
+- Chromium still did not activate scanout in `results-phase4-drm24/` even after the old fbcon-owned framebuffer was completely removed from the picture.
+- QMP became less trustworthy in the no-fbdev runs:
+  - `results-phase4-drm24/00-smoke.png` fell back to a mostly black `640x480` capture with a small gray VGA-text-looking patch
+  - `results-phase4-kms2/00-smoke.png` showed a centered VGA-text-looking patch even though `kms_pattern` had enabled the connector according to the guest probe
+- So no-fbdev mode is useful for guest-state separation, but QMP alone stops being a reliable display truth source there.
+
+### What I learned
+- The old baseline diagnosis was incomplete. fbcon ownership was real, but it was not the whole problem.
+- There are now two different failure modes:
+  - with fbdev emulation enabled, the active plane stays on an fbcon-owned framebuffer
+  - with fbdev emulation disabled, Chromium still creates `DrmThread` framebuffers but never activates the CRTC/connector
+- The direct KMS control is still essential. Without `results-phase4-kms2/`, the no-fbdev Chromium result could have been misread as "the kernel setting broke the whole display stack."
+- QMP `screendump` is once again only a host-side symptom, not a trustworthy truth source, once the legacy fbdev path is removed.
+
+### What was tricky to build
+- The first tricky part was operational, not conceptual: the phase-4 initramfs is still large enough that every rebuild must be treated as asynchronous and potentially misleading until the final `built ...` line appears. Earlier in the ticket, partial artifacts already produced invalid runs, so I explicitly waited for a complete artifact this time instead of reusing the file as soon as it existed.
+- The second tricky part was interpretation. `results-phase4-drm24/` changed the screenshot shape, the display probe, and the DRM debugfs output all at once. It would have been easy to overreact to the `640x480` QMP screenshot and say "the no-fbdev control made things worse." The deeper reading is more useful: it removed the old fbcon-owned scanout path and exposed that Chromium still does not activate the connector by itself.
+- The third tricky part was that the `kms_pattern` no-fbdev control partially re-opened the QMP trust problem. Guest state says the connector is enabled, but QMP still shows a VGA-text-looking patch. That means later follow-up work needs a guest-trusted visual proof in addition to QMP.
+
+### What warrants a second pair of eyes
+- The `814x669` size of Chromium's `DrmThread` framebuffers still looks suspicious. A reviewer familiar with Chromium Ozone DRM may recognize whether that is a normal content-shell window size, a scaling artifact, or a clue that the browser never transitions into a real fullscreen scanout path.
+- The interpretation of the no-fbdev `kms_pattern` result should be checked carefully. The guest state clearly changes, but QMP does not show a convincing direct KMS frame. That makes it worth reviewing whether we should trust the shallow probe, the DRM debugfs state, or a new guest-side image proof as the primary truth source in this branch.
+
+### What should be done in the future
+- Add one guest-side or guest-trusted visible-frame proof for the no-fbdev configuration.
+- Inspect Chromium/Ozone DRM logs or code paths for why the host/display side never enables the connector under `drm_kms_helper.fbdev_emulation=0`.
+- Decide whether the next experiment should be a Chromium-specific modeset/viewport investigation or a guest-side visual proof harness first.
+
+### Code review instructions
+- Start with the launcher change:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/content-shell-drm-launcher.sh`
+- Then inspect the high-signal artifacts in this order:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm23/guest-serial.log`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm23/drmstate/drmstate-phase4-early.txt`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm24/guest-serial.log`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm24/drmstate/drmstate-phase4-early.txt`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-kms2/guest-serial.log`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-kms2/drmstate/drmstate-phase4-early.txt`
+- The shortest validation commands are:
+```text
+python3 host/extract_drmstate_from_serial.py --serial-log results-phase4-drm24/guest-serial.log --output-dir results-phase4-drm24/drmstate
+python3 host/extract_drmstate_from_serial.py --serial-log results-phase4-kms2/guest-serial.log --output-dir results-phase4-kms2/drmstate
+```
+
+### Technical details
+- `results-phase4-drm23/00-smoke.png`:
+  - size `1280x800`
+  - non-black pixels `0`
+- `results-phase4-drm24/00-smoke.png`:
+  - size `640x480`
+  - top colors:
+```text
+(306516, (0, 0, 0))
+(684, (170, 170, 170))
+```
+- `results-phase4-drm24/drmstate/drmstate-phase4-early.txt` key state:
+```text
+crtc[35]:
+	enable=0
+	active=0
+connector[36]:
+	crtc=(null)
+framebuffer[44..39]:
+	allocated by = DrmThread
+```
+- `results-phase4-kms2/drmstate/drmstate-phase4-early.txt` key state:
+```text
+crtc[35]:
+	enable=1
+	active=1
+connector[36]:
+	crtc=crtc-0
+```
+
 ### Code review instructions
 - Start with:
   - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/bootstrap_chromium_checkout.sh`
@@ -1483,4 +1673,123 @@ components/leveldb_proto/public/proto_database_provider.h:101 In memory database
 - Current host-visible frame result:
 ```text
 00-smoke.png: bbox None, nonblack 0
+```
+
+## Step 15: Add a Real DRM Debugfs Probe and Prove That Chromium's Buffers Never Become the Active Plane
+
+This step is the clearest state transition in the phase-4 investigation so far. The shallow display probe was good enough to prove the connector stayed alive, but it could not answer the important question: is Chromium actually replacing the active scanout framebuffer? The deeper debugfs probe answers that directly.
+
+The answer is no, at least in the current guest/QEMU setup. Chromium creates several `DrmThread` framebuffers, the GPU process reports `init_success:1`, and the display connector stays enabled, but the active plane still points at the original fbcon-allocated framebuffer. Even unbinding the framebuffer console from `vtcon1` does not move the active plane away from that fbcon buffer.
+
+### Prompt Context
+
+**User prompt (verbatim):** "alright, add tasks, go ahead, commit when necessary, keep a diary"
+
+**Assistant interpretation:** Continue the phase-4 investigation without pausing, add the next concrete tasks, run the next informative tests, commit real checkpoints, and keep the ticket diary current as the work evolves.
+
+**Inferred user intent:** Keep momentum while making the debugging state legible and reviewable, so the next steps are grounded in evidence rather than trial-and-error.
+
+**Commit (code):** `4024dcb` — `Add phase 4 DRM state probes`
+
+### What I did
+- Reused the existing DRM debugfs dumper pattern from the earlier QEMU-05 investigation instead of inventing a new probe format.
+- Wired `dump_drm_state.sh` into phase 4 by updating:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-phase4-rootfs.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase4-drm`
+- Mirrored the new probe script into the ticket archive:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/scripts/dump_drm_state.sh`
+- Added a `phase4_drmstate_probe=1` path that emits two tagged debugfs snapshots during a run:
+  - `phase4-early`
+  - `phase4-late`
+- Ran the new probe capture:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm21/`
+- Extracted the embedded DRM debugfs snapshots with:
+```text
+python3 host/extract_drmstate_from_serial.py \
+  --serial-log results-phase4-drm21/guest-serial.log \
+  --output-dir results-phase4-drm21/drmstate
+```
+- Ran the `phase4_unbind_fbcon=1` control with the same probe:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm22/`
+
+### Why
+- The prior probe could only say "the connector is alive" and "fb0 still exists."
+- The actual unresolved question was narrower:
+  - does Chromium ever bind a new `FB_ID` to the active plane?
+- That is exactly what the DRM debugfs `state` and `framebuffer` files are good for.
+
+### What worked
+- The embedded debugfs blocks extracted cleanly in `results-phase4-drm21/drmstate/`.
+- The early and late dumps are byte-identical, which means the display state is stable rather than flapping.
+- The high-signal finding is:
+```text
+plane[31]: plane-0
+  crtc=crtc-0
+  fb=39
+    allocated by = [fbcon]
+```
+- At the same time, Chromium-created buffers are present:
+```text
+framebuffer[47]: allocated by = DrmThread
+framebuffer[46]: allocated by = DrmThread
+...
+```
+- The browser side still looks healthy enough to matter:
+```text
+gpu initialization completed init_success:1
+```
+
+### What didn't work
+- The host-visible frame in `results-phase4-drm21/00-smoke.png` is still entirely black.
+- Unbinding the framebuffer console did not solve plane ownership:
+  - `results-phase4-drm22/guest-serial.log` confirms `vtcon1` was unbound
+  - `results-phase4-drm22/drmstate/drmstate-phase4-early.txt` still shows `plane[31] -> fb=39 -> allocated by = [fbcon]`
+- So the `phase4_unbind_fbcon=1` control did not change the scanout result in the way I hoped it would.
+
+### What I learned
+- This is not just a host-capture mystery anymore. Inside the guest, Chromium's buffers exist, but the active plane never switches to them.
+- The current problem statement is more precise now:
+  - Chromium starts on DRM
+  - Chromium allocates `DrmThread` framebuffers
+  - the active primary plane remains on the fbcon-owned framebuffer
+- That is a better basis for the next experiment than the older generic "the frame is black" summary.
+
+### What was tricky to build
+- The tricky part was not the debugfs script itself, because that already existed in a previous investigation. The real trap was process hygiene: phase-4 rebuilds had to be treated as long-running artifacts, not assumed complete from partial polling, or the guest would boot a truncated initramfs and produce misleading early failures.
+- The other subtle point is that unbinding the framebuffer console at the vtconsole layer is not equivalent to proving the KMS plane stops referencing the old fbcon framebuffer. The `drmstate` output made that distinction explicit.
+
+### What warrants a second pair of eyes
+- The next step should challenge the remaining assumption that fbcon is merely "still present." The active-plane result suggests something deeper is keeping the fbcon framebuffer selected.
+- A second pair of eyes should look at whether the next control should:
+  - disable or bypass the fbdev/fbcon scanout path more aggressively, or
+  - run a post-Chromium KMS takeover experiment that forcibly binds one of the `DrmThread`-style buffers or another known test buffer to the plane.
+
+### What should be done in the future
+- Explain why the active plane stays on `fb=39` even after `phase4_unbind_fbcon=1`.
+- Add one more control aimed specifically at taking ownership of the primary plane away from fbcon.
+- Only after that, return to the higher-level "why is the screenshot black?" framing.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase4-drm`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/build-phase4-rootfs.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/dump_drm_state.sh`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/extract_drmstate_from_serial.py`
+- Validation artifacts:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm21/drmstate/drmstate-phase4-early.txt`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm21/drmstate/drmstate-phase4-late.txt`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm22/drmstate/drmstate-phase4-early.txt`
+
+### Technical details
+- Stable phase-4 DRM-state summary from `results-phase4-drm21/`:
+```text
+plane[31] -> fb=39 -> allocated by = [fbcon]
+framebuffer[47] -> allocated by = DrmThread
+framebuffer[46] -> allocated by = DrmThread
+...
+```
+- `phase4_unbind_fbcon=1` changed vtconsole binding state but not active plane ownership:
+```text
+vtcon1 bind=0
+plane[31] -> fb=39 -> allocated by = [fbcon]
 ```
