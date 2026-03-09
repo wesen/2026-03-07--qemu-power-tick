@@ -32,6 +32,8 @@ DISPLAY_PROBE=0
 DRMSTATE_PROBE=0
 CONTENT_SHELL_VERBOSE=
 CONTENT_SHELL_VMODULE=
+CONTENT_SHELL_WINDOW_SIZE=
+CONTENT_SHELL_FULLSCREEN=1
 
 for arg in $(cat /proc/cmdline); do
   case "$arg" in
@@ -43,6 +45,8 @@ for arg in $(cat /proc/cmdline); do
     phase4_drmstate_probe=1) DRMSTATE_PROBE=1 ;;
     phase4_content_shell_verbose=*) CONTENT_SHELL_VERBOSE=${arg#phase4_content_shell_verbose=} ;;
     phase4_content_shell_vmodule=*) CONTENT_SHELL_VMODULE=${arg#phase4_content_shell_vmodule=} ;;
+    phase4_content_shell_window_size=*) CONTENT_SHELL_WINDOW_SIZE=${arg#phase4_content_shell_window_size=} ;;
+    phase4_content_shell_fullscreen=0) CONTENT_SHELL_FULLSCREEN=0 ;;
   esac
 done
 
@@ -136,6 +140,10 @@ case "$MODE" in
     if [ -n "$CONTENT_SHELL_VMODULE" ]; then
       export CONTENT_SHELL_VMODULE
     fi
+    if [ -n "$CONTENT_SHELL_WINDOW_SIZE" ]; then
+      export CONTENT_SHELL_WINDOW_SIZE
+    fi
+    export CONTENT_SHELL_FULLSCREEN
     /usr/bin/content-shell-drm-launcher "$URL" >/var/log/content-shell.log 2>&1 &
     APP_PID=$!
     tail -F /var/log/content-shell.log >/dev/console 2>&1 &

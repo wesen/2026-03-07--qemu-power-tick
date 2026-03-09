@@ -8,6 +8,8 @@ HOME_DIR=$STATE_DIR/home
 CACHE_DIR=$STATE_DIR/cache
 CHROMIUM_DIR=/usr/lib/chromium-direct
 CONTENT_SHELL_BIN=$CHROMIUM_DIR/content_shell
+WINDOW_SIZE=${CONTENT_SHELL_WINDOW_SIZE:-1280,800}
+FULLSCREEN=${CONTENT_SHELL_FULLSCREEN:-1}
 
 mkdir -p "$PROFILE_DIR" "$HOME_DIR" "$CACHE_DIR"
 chmod 700 "$STATE_DIR" "$PROFILE_DIR" "$HOME_DIR" "$CACHE_DIR" 2>/dev/null || true
@@ -35,7 +37,7 @@ if [ -n "${CONTENT_SHELL_EGL_PLATFORM:-}" ]; then
   export EGL_PLATFORM=$CONTENT_SHELL_EGL_PLATFORM
 fi
 
-echo "[content-shell-drm-launcher] env EGL_PLATFORM=${EGL_PLATFORM:-<unset>} LD_LIBRARY_PATH=$LD_LIBRARY_PATH CONTENT_SHELL_VERBOSE=${CONTENT_SHELL_VERBOSE:-<unset>} CONTENT_SHELL_VMODULE=${CONTENT_SHELL_VMODULE:-<unset>}" >&2
+echo "[content-shell-drm-launcher] env EGL_PLATFORM=${EGL_PLATFORM:-<unset>} LD_LIBRARY_PATH=$LD_LIBRARY_PATH CONTENT_SHELL_VERBOSE=${CONTENT_SHELL_VERBOSE:-<unset>} CONTENT_SHELL_VMODULE=${CONTENT_SHELL_VMODULE:-<unset>} WINDOW_SIZE=$WINDOW_SIZE FULLSCREEN=$FULLSCREEN" >&2
 
 set -- "$CONTENT_SHELL_BIN" \
   --enable-features=UseOzonePlatform \
@@ -44,13 +46,16 @@ set -- "$CONTENT_SHELL_BIN" \
   --use-angle=default \
   --no-sandbox \
   --user-data-dir="$PROFILE_DIR" \
-  --window-size=1280,800 \
-  --start-fullscreen \
+  "--window-size=$WINDOW_SIZE" \
   --no-first-run \
   --no-default-browser-check \
   --password-store=basic \
   --enable-logging=stderr \
   --log-level=0
+
+if [ "$FULLSCREEN" = "1" ]; then
+  set -- "$@" --start-fullscreen
+fi
 
 if [ -n "${CONTENT_SHELL_VERBOSE:-}" ]; then
   set -- "$@" "--v=$CONTENT_SHELL_VERBOSE"
