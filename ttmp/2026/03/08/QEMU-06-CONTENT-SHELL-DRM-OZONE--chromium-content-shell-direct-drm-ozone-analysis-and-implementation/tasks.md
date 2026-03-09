@@ -42,6 +42,7 @@
 - [x] Remove the forced `EGL_PLATFORM=surfaceless` default from the phase-4 launcher and rerun the direct DRM smoke with deep probes so the scanout result reflects Chromium's native DRM path instead of an explicitly surfaceless environment.
 - [ ] Explain why disabling fbdev emulation leaves Chromium with `DrmThread` framebuffers but no active CRTC/connector, even though `kms_pattern` can still enable the connector on the same guest image.
 - [ ] Add one guest-visible or guest-trusted display proof for the `drm_kms_helper.fbdev_emulation=0` configuration, because QMP falls back to a VGA-text-looking capture there and is no longer a trustworthy proxy for active KMS scanout by itself.
+- [ ] Tune the new phase-4 Chromium DRM verbosity controls so the next no-fbdev run yields a compact display/modeset explanation instead of generic high-volume VLOG noise.
 - [ ] Explain or eliminate the remaining runtime warning from `leveldb_proto` about the database directory.
 - [ ] Get the first visibly non-black direct-DRM `content_shell` frame in a QMP screenshot.
 - [ ] Add a minimal phase-4 suspend harness only after no-suspend rendering works.

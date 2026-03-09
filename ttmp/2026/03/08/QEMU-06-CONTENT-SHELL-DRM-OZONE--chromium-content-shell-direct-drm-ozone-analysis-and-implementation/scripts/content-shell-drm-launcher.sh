@@ -35,9 +35,9 @@ if [ -n "${CONTENT_SHELL_EGL_PLATFORM:-}" ]; then
   export EGL_PLATFORM=$CONTENT_SHELL_EGL_PLATFORM
 fi
 
-echo "[content-shell-drm-launcher] env EGL_PLATFORM=${EGL_PLATFORM:-<unset>} LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >&2
+echo "[content-shell-drm-launcher] env EGL_PLATFORM=${EGL_PLATFORM:-<unset>} LD_LIBRARY_PATH=$LD_LIBRARY_PATH CONTENT_SHELL_VERBOSE=${CONTENT_SHELL_VERBOSE:-<unset>} CONTENT_SHELL_VMODULE=${CONTENT_SHELL_VMODULE:-<unset>}" >&2
 
-exec "$CONTENT_SHELL_BIN" \
+set -- "$CONTENT_SHELL_BIN" \
   --enable-features=UseOzonePlatform \
   --ozone-platform=drm \
   --use-gl=angle \
@@ -50,5 +50,14 @@ exec "$CONTENT_SHELL_BIN" \
   --no-default-browser-check \
   --password-store=basic \
   --enable-logging=stderr \
-  --log-level=0 \
-  "$URL"
+  --log-level=0
+
+if [ -n "${CONTENT_SHELL_VERBOSE:-}" ]; then
+  set -- "$@" "--v=$CONTENT_SHELL_VERBOSE"
+fi
+
+if [ -n "${CONTENT_SHELL_VMODULE:-}" ]; then
+  set -- "$@" "--vmodule=$CONTENT_SHELL_VMODULE"
+fi
+
+exec "$@" "$URL"

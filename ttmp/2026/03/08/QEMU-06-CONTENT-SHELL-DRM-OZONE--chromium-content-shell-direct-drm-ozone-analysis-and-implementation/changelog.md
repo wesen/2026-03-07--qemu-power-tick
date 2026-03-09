@@ -84,3 +84,10 @@
 - Ran the `kms_pattern` control under the same `drm_kms_helper.fbdev_emulation=0` kernel setting in `results-phase4-kms2/`.
 - The `kms_pattern` run proves the guest can still enable the connector with fbdev emulation disabled, but QMP capture becomes ambiguous in that mode and falls back to a VGA-text-looking frame instead of a trustworthy KMS screenshot.
 - Committed the launcher cleanup as `1254d5e` (`Stop forcing surfaceless EGL in phase 4 launcher`).
+- Added optional phase-4 Chromium DRM logging controls wired from the kernel cmdline through `init-phase4-drm` into `content-shell-drm-launcher.sh`:
+  - `phase4_content_shell_verbose=...`
+  - `phase4_content_shell_vmodule=...`
+- Mirrored the updated launcher and init scripts into the ticket `scripts/` folder.
+- Ran a first verbose no-fbdev control in `results-phase4-drm25/`.
+- The first verbose run confirmed the new debug controls work, but the chosen `vmodule` patterns were still too broad and mostly surfaced unrelated VLOG noise; the run did not yet produce a clean Chromium-side explanation for why the connector remains disabled.
+- Committed the new debug helper path as `02aa2a2` (`Add phase 4 Chromium debug flag controls`).

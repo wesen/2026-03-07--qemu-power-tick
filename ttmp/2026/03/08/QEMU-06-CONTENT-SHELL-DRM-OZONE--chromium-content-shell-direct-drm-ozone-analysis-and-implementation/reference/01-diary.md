@@ -448,6 +448,107 @@ connector[36]:
 	crtc=crtc-0
 ```
 
+## Step 17: Add Cmdline-Driven Chromium DRM Verbosity Controls and Probe the Next Logging Layer
+
+After the no-fbdev controls, the next obvious question was whether Chromium itself would explain why the connector never becomes active. I did not want to hardcode one noisy logging setting into the launcher and then rewrite it again on the next run, so this step was about turning display-logging into a reusable experiment knob instead of a one-off patch.
+
+The result is a small but useful debugging capability. Phase 4 can now inject Chromium verbosity and `--vmodule` filters from the kernel cmdline. The first run with those knobs did not reveal the modeset failure cleanly, but that is still progress: the mechanism works, and the remaining task is now choosing better module filters rather than editing guest scripts repeatedly.
+
+### Prompt Context
+
+**User prompt (verbatim):** (same as Step 16)
+
+**Assistant interpretation:** Continue the investigation in small slices, preserve the narrative, and keep improving the tooling around the current blocker instead of only accumulating opaque result directories.
+
+**Inferred user intent:** Make the debugging process more reproducible and less fragile while still pushing toward the direct DRM answer.
+
+**Commit (code):** `02aa2a2` - `Add phase 4 Chromium debug flag controls`
+
+### What I did
+- Updated `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase4-drm` so it now parses:
+  - `phase4_content_shell_verbose=...`
+  - `phase4_content_shell_vmodule=...`
+- Exported those values into the `content-shell` launch path only when present.
+- Refactored `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/content-shell-drm-launcher.sh` so the Chromium argv is built incrementally and can append:
+  - `--v=<n>`
+  - `--vmodule=<filters>`
+- Expanded the launcher diagnostics to print the debug env in the guest serial log.
+- Mirrored both updated scripts into the ticket archive:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/scripts/init-phase4-drm`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/scripts/content-shell-drm-launcher.sh`
+- Rebuilt the phase-4 initramfs again and waited for the explicit success line:
+```text
+built /home/manuel/code/wesen/2026-03-07--qemu-power-tick/build/initramfs-phase4.cpio.gz
+```
+- Ran the first verbose no-fbdev control:
+```text
+python3 host/capture_phase4_smoke.py \
+  --kernel build/vmlinuz \
+  --initramfs build/initramfs-phase4.cpio.gz \
+  --results-dir results-phase4-drm25 \
+  --append-extra 'phase4_mode=content-shell phase4_runtime_seconds=30 phase4_display_probe=1 phase4_drmstate_probe=1 phase4_content_shell_verbose=2 phase4_content_shell_vmodule=drm*=3,screen_manager*=3,drm_window*=3,hardware_display*=3,gbm_surface_factory*=3 drm_kms_helper.fbdev_emulation=0' \
+  --capture-delay 12 \
+  --timeout 90
+```
+
+### Why
+- The previous run narrowed the problem to Chromium's own direct DRM display activation, but the logs were too shallow to say why the connector remained disabled.
+- Re-editing the launcher for every logging experiment would create noisy history and make later review harder.
+- A cmdline-driven mechanism is a better long-term tool for this ticket.
+
+### What worked
+- The new debug controls showed up exactly where expected in the guest serial log:
+```text
+[content-shell-drm-launcher] env EGL_PLATFORM=<unset> ... CONTENT_SHELL_VERBOSE=2 CONTENT_SHELL_VMODULE=drm*=3,screen_manager*=3,drm_window*=3,hardware_display*=3,gbm_surface_factory*=3
+```
+- The no-fbdev display state remained reproducible in `results-phase4-drm25/`:
+  - `fb0=missing`
+  - `card0-Virtual-1 status=connected enabled=disabled`
+- The helper path itself is now ready for more targeted logging runs without another launcher edit.
+
+### What didn't work
+- The first `vmodule` choice was too broad and too blunt.
+- It produced a very large log dominated by unrelated VLOG traffic and still did not surface a useful Chromium-side explanation for the disabled connector.
+- The early ad hoc extraction attempt also raced the serial stream and hit:
+```text
+missing metadata for drmstate tag=phase4-early
+```
+- That was a timing issue in my extraction attempt, not a new guest failure.
+
+### What I learned
+- The logging hook is worth keeping even though the first filter set was noisy.
+- The next step is not "more generic verbosity"; it is a narrower filter against the specific Ozone DRM files that decide display configuration and modeset activation.
+- The ticket now has a reusable path for Chromium-specific introspection, which is better than continuing to infer everything from external probes alone.
+
+### What was tricky to build
+- The main trickiness here was balancing usefulness against noise. Chromium's general VLOG machinery turns on far more than the DRM path if the filters are too loose, and once the serial log gets flooded it becomes harder, not easier, to see the display state transitions. That is why I kept this as a separate tooling step rather than pretending it answered the main bug immediately.
+- The other subtlety was shell argument handling. The launcher previously `exec`'d Chromium with a fixed argv. To add optional debug flags safely under busybox `sh`, I had to switch to a `set -- ...; exec "$@" "$URL"` style so the flags remain explicit and reviewable.
+
+### What warrants a second pair of eyes
+- The `vmodule` patterns should be reviewed by someone familiar with Chromium's logging conventions, because `drm*=3` is clearly too broad to be the final useful filter.
+- The current knob names are practical and ticket-specific, but a reviewer may have a better idea for which exact DRM/Ozone files should be targeted first.
+
+### What should be done in the future
+- Run a narrower verbose control focused on the exact display-configuration files rather than whole-name wildcards.
+- Keep the new cmdline-driven logging mechanism and build future direct DRM logging experiments on top of it.
+
+### Code review instructions
+- Start with:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/init-phase4-drm`
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/guest/content-shell-drm-launcher.sh`
+- Then inspect:
+  - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/results-phase4-drm25/guest-serial.log`
+
+### Technical details
+- New kernel-cmdline knobs:
+```text
+phase4_content_shell_verbose=2
+phase4_content_shell_vmodule=drm*=3,screen_manager*=3,drm_window*=3,hardware_display*=3,gbm_surface_factory*=3
+```
+- First result:
+  - the knob plumbing works
+  - the filter choice still needs tuning
+
 ### Code review instructions
 - Start with:
   - `/home/manuel/code/wesen/2026-03-07--qemu-power-tick/host/bootstrap_chromium_checkout.sh`
