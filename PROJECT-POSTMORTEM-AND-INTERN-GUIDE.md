@@ -1,100 +1,124 @@
-# QEMU Sleep/Wake Lab Project Postmortem And Intern Guide
+# QEMU Sleep/Wake Lab
+## Project Postmortem, Architecture Walkthrough, and Intern Guide
 
-## What This Document Is
+## Why This Exists
 
-This document is the project-level end result of the work in this repository. It is meant to serve four jobs at once:
+If you open this repository cold, the first thing you notice is that it does not describe one neat, finished product. It describes a sequence of experiments, deliverables, regressions, recoveries, and increasingly ambitious graphics stacks built on the same QEMU suspend/resume lab idea.
 
-- a retrospective on what was actually built,
-- a design guide for a new intern who needs to understand the stack quickly,
-- an implementation map showing how the repository is organized,
-- a postmortem explaining what worked, what failed, what remains unfinished, and why.
+That is both the strength and the weakness of the project.
 
-This is not just a stage-1 summary. The repository evolved through several distinct efforts:
+The strength is that the repository contains real engineering work:
 
-- stage 1: single-process suspend/resume lab,
-- stage 2: Weston plus a custom Wayland client,
-- stage 3: Chromium on Weston kiosk mode,
-- stage 4: direct DRM/Ozone `content_shell`,
-- follow-up investigations into resume capture and direct-DRM controller discovery.
+- a minimal stage-1 suspend/resume prototype,
+- a working Weston-based Wayland stack,
+- a mostly working Chromium-on-Weston kiosk stack,
+- a serious direct DRM/Ozone browser investigation,
+- and a very detailed trail of evidence in diaries, reports, and scripts.
 
-The important outcome is that the repository now contains multiple partially overlapping system models. A new contributor must understand which parts are stable, which parts are experimental, and which parts are still open problems.
+The weakness is that a new person can easily confuse:
 
-## Executive Summary
+- the stable path,
+- the historically important path,
+- and the currently experimental path.
 
-The project succeeded in building a real suspend/resume lab environment inside QEMU. The strongest completed results are:
+This document is meant to solve that problem. It is the “big picture” explanation of what the system is, how it is organized, what was built, what went wrong, what was learned, and how to continue the work without repeating the same confusion.
 
-- a stage-1 single-process guest with measured suspend/resume behavior,
-- a stage-2 Weston-based guest GUI stack with a working custom Wayland client,
-- host-side QMP screenshot and input automation,
-- measured suspend/resume and reconnect timings,
-- a stage-3 Chromium-on-Weston path that visibly boots and accepts host keyboard and pointer input.
+If you are a new intern, read this file before you start reading code.
 
-The project did not fully close every target. The most important unresolved areas are:
+## The Short Version
 
-- `pm_test=devices` display continuity in the Weston-based graphics path,
-- host-side QEMU screenshot/capture ambiguity after device-resume,
-- direct DRM/Ozone `content_shell` visible scanout, where Chromium currently begins page-flipping before `ScreenManager` has any controllers.
+This repository started as a small QEMU lab for a sleepy, mostly idle Linux guest process. It then grew, step by step, into a full graphical testbed:
 
-The short version is:
+1. stage 1 proved the suspend/resume semantics in a minimal initramfs guest,
+2. stage 2 replaced the text-mode output with a real Weston compositor and a custom Wayland client,
+3. stage 3 replaced the custom client with Chromium running under Weston kiosk shell,
+4. stage 4 attempted to simplify the browser path further by removing Weston and running Chromium `content_shell` directly on Ozone DRM,
+5. later investigation tickets tried to separate “guest graphics state is wrong” from “QEMU host-visible capture is wrong.”
 
-- the infrastructure is real,
-- the Wayland compositor path is much more mature than the direct DRM path,
-- the repository contains strong evidence and good experiments,
-- but the direct Ozone DRM branch remains a debug target rather than a finished solution.
+The current practical state is:
 
-## Repository Map
+- stage 1 is complete enough to trust,
+- stage 2 is the strongest working graphical implementation,
+- stage 3 is largely successful but not fully closed under realistic device-resume,
+- stage 4 is still a real investigation, not a finished implementation.
 
-The main directories matter for different reasons:
+If you want the safest working path, use the Weston-based path.
 
-- [guest/](./guest) contains guest bootstraps, guest binaries, and QEMU launchers.
-- [host/](./host) contains host-side orchestration, QMP helpers, capture tools, and smoke harnesses.
-- [scripts/](./scripts) contains reusable helper scripts shared across phases.
-- [ttmp/](./ttmp) contains ticket workspaces, long-form docs, tasks, diaries, playbooks, and investigation artifacts.
-- `results-*` directories contain local runtime evidence from many experiments and should be treated as uncommitted investigation artifacts.
+If you want the most interesting open problem, continue the direct DRM/Ozone path.
 
-The most important guest-side files are:
+## Reading Order
 
-- [guest/sleepdemo.c](./guest/sleepdemo.c)
-- [guest/init](./guest/init)
-- [guest/build-initramfs.sh](./guest/build-initramfs.sh)
-- [guest/run-qemu.sh](./guest/run-qemu.sh)
-- [guest/init-phase2](./guest/init-phase2)
-- [guest/build-phase2-rootfs.sh](./guest/build-phase2-rootfs.sh)
-- [guest/wl_sleepdemo.c](./guest/wl_sleepdemo.c)
-- [guest/wl_suspend.c](./guest/wl_suspend.c)
-- [guest/init-phase3](./guest/init-phase3)
-- [guest/build-phase3-rootfs.sh](./guest/build-phase3-rootfs.sh)
-- [guest/init-phase4-drm](./guest/init-phase4-drm)
-- [guest/content-shell-drm-launcher.sh](./guest/content-shell-drm-launcher.sh)
-- [guest/build-phase4-rootfs.sh](./guest/build-phase4-rootfs.sh)
+This repository has many ticket docs. The best reading order for a newcomer is:
 
-The most important host-side files are:
+1. this file,
+2. [README.md](./README.md),
+3. [QEMU-01 final report](./ttmp/2026/03/07/QEMU-01-LAB-ONE--qemu-lab-one-analysis-and-implementation-guide/design-doc/02-final-implementation-report.md),
+4. [QEMU-02 final report](./ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/design-doc/03-phase-2-final-implementation-report.md),
+5. [QEMU-04 stage-3 review](./ttmp/2026/03/07/QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/design/02-stage-3-postmortem-and-review-guide.md),
+6. [QEMU-05 QMP capture postmortem](./ttmp/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/design-doc/02-qmp-capture-path-postmortem-report.md),
+7. [QEMU-07 controller-discovery guide](./ttmp/2026/03/09/QEMU-07-CONTENT-SHELL-MODESET--content-shell-drm-modeset-and-controller-mapping-investigation/design/01-content-shell-modeset-mapping-investigation-guide.md).
 
-- [host/drip_server.py](./host/drip_server.py)
-- [host/qmp_harness.py](./host/qmp_harness.py)
-- [host/capture_phase2_checkpoints.py](./host/capture_phase2_checkpoints.py)
-- [host/capture_phase3_checkpoints.py](./host/capture_phase3_checkpoints.py)
-- [host/capture_phase4_smoke.py](./host/capture_phase4_smoke.py)
-- [host/extract_drmstate_from_serial.py](./host/extract_drmstate_from_serial.py)
-- [host/stage_phase4_chromium_payload.sh](./host/stage_phase4_chromium_payload.sh)
-- [host/configure_phase4_chromium_build.sh](./host/configure_phase4_chromium_build.sh)
+If you want the raw chronology rather than the cleaned final reports, the most useful diaries are:
 
-The most important documentation tickets are:
+- [QEMU-02 diary](./ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/reference/01-diary.md)
+- [QEMU-04 diary](./ttmp/2026/03/07/QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/reference/01-diary.md)
+- [QEMU-05 investigation diary](./ttmp/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/reference/01-investigation-diary.md)
+- [QEMU-07 diary](./ttmp/2026/03/09/QEMU-07-CONTENT-SHELL-MODESET--content-shell-drm-modeset-and-controller-mapping-investigation/reference/01-diary.md)
 
-- [QEMU-01](./ttmp/2026/03/07/QEMU-01-LAB-ONE--qemu-lab-one-analysis-and-implementation-guide/index.md)
-- [QEMU-02](./ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/index.md)
-- [QEMU-04](./ttmp/2026/03/07/QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/index.md)
-- [QEMU-05](./ttmp/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/index.md)
-- [QEMU-06](./ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/index.md)
-- [QEMU-07](./ttmp/2026/03/09/QEMU-07-CONTENT-SHELL-MODESET--content-shell-drm-modeset-and-controller-mapping-investigation/index.md)
+## What The Repository Actually Contains
 
-## System Model
+At a very high level, the repository contains four kinds of things:
 
-There are three system shapes in this repository.
+- guest-side programs and bootstraps,
+- host-side orchestration and capture tools,
+- build/packaging scripts for initramfs-based guests,
+- ticket-local documentation and investigation artifacts.
 
-### 1. Minimal single-process guest
+The top-level directories matter for different reasons:
 
-This is the stage-1 shape:
+- [guest/](./guest): guest user space, init scripts, QEMU launchers, browser launchers, DRM helpers
+- [host/](./host): QMP tools, screenshot harnesses, Chromium build/payload helpers
+- [scripts/](./scripts): smaller shared helpers, especially metric extraction
+- [ttmp/](./ttmp): ticket workspaces, design docs, reports, tasks, diaries, playbooks
+
+There are also many local `results-*` directories. These are not random junk. They are the forensic evidence of the project:
+
+- screenshots,
+- serial logs,
+- metrics,
+- extracted DRM debugfs state,
+- parser outputs.
+
+They are noisy, but they are how many of the final conclusions were earned.
+
+## The Core Design Pattern
+
+Across all stages, the project keeps reusing the same broad pattern:
+
+```text
+host tools
+  -> boot a small Linux guest in QEMU
+  -> stimulate it with network/input/timers
+  -> suspend and resume it
+  -> capture evidence from serial and screenshots
+  -> compare the observed state against the intended state
+```
+
+The guest is almost always built as:
+
+```text
+kernel + initramfs + one small custom /init + a small set of guest binaries
+```
+
+That design is deliberate. It keeps the lab inspectable. The work rarely depends on a full distro image, a package manager inside the guest, or a large service graph. That made the project harder to package, but much easier to reason about.
+
+## The Three System Shapes
+
+The codebase really contains three related but distinct systems.
+
+### System Shape 1: Minimal Single-Process Guest
+
+This is the stage-1 model:
 
 ```text
 host
@@ -104,215 +128,66 @@ host
            -> sleepdemo
 ```
 
-This path is intentionally tiny. It exists to test suspend timing, reconnect behavior, redraw timing, and the mechanics of booting a minimal guest out of a custom initramfs.
+The point of this system is not graphics. It is semantics:
 
-### 2. Weston plus a custom Wayland client
-
-This is the stage-2 shape:
-
-```text
-host
-  -> QEMU
-     -> kernel + initramfs
-        -> /init (mounts fs, loads modules, starts udev + seatd)
-           -> weston --backend=drm
-              -> wl_sleepdemo
-```
-
-This path is much closer to a real UI system. It adds:
-
-- a compositor,
-- input device enumeration,
-- a real Wayland surface,
-- host screenshots and host input injection.
-
-### 3. Chromium browser stack
-
-There are two Chromium variants in the repository:
-
-- stage 3: Chromium on Wayland under Weston kiosk shell,
-- stage 4: `content_shell` on direct Ozone DRM without Weston.
-
-That split is important because the Wayland compositor path is far more mature than the direct DRM path.
-
-## Boot And Shipping Model
-
-The shipping model for most of the repository is not a disk image. It is:
-
-- a host kernel,
-- a compressed initramfs,
-- a QEMU command line.
-
-At a high level:
-
-```text
-build rootfs tree
-  -> copy binaries, libs, configs, modules
-  -> pack with cpio+gzip
-  -> boot with qemu -kernel ... -initrd ...
-```
-
-Pseudocode:
-
-```text
-rootfs = make_empty_tree()
-copy_busybox(rootfs)
-copy_guest_init(rootfs)
-copy_custom_binaries(rootfs)
-copy_runtime_libraries(rootfs)
-copy_selected_kernel_modules(rootfs)
-copy_data_files(rootfs)
-pack_rootfs_to_initramfs(rootfs)
-boot_qemu(kernel, initramfs)
-```
-
-Why this was a good choice:
-
-- iteration is fast,
-- system contents are explicit,
-- there is no full guest distro to fight,
-- the lab is reproducible from scripts.
-
-Why this was painful:
-
-- packaging dependencies is manual,
-- missing symlinks or missing data files break runtime in non-obvious ways,
-- graphics stacks want more runtime baggage than text-mode test programs.
-
-## Host Control Plane
-
-The host-side control plane is one of the strongest parts of the project.
-
-It has three main jobs:
-
-- control QEMU through QMP,
-- generate synthetic network traffic,
-- capture evidence from guest serial logs and screenshots.
-
-### QMP
-
-QMP is the QEMU Machine Protocol. In this project it is used for:
-
-- `screendump`,
-- key injection,
-- pointer motion and click injection,
-- monitor queries during investigation.
-
-Relevant file:
-
-- [host/qmp_harness.py](./host/qmp_harness.py)
-
-### Network source
-
-The host drip server provides a deterministic network stimulus:
-
-- active interval,
-- paused interval,
-- disconnect behavior,
-- resume-triggered reconnect tests.
+- idle waiting,
+- suspend entry,
+- RTC wake,
+- reconnect,
+- redraw,
+- shutdown,
+- structured timing metrics.
 
 Relevant files:
-
-- [host/drip_server.py](./host/drip_server.py)
-- [host/resume_drip_server.py](./host/resume_drip_server.py)
-
-### Evidence extraction
-
-The guest logs structured lines to serial:
-
-- `@@LOG`
-- `@@METRIC`
-- `@@DISPLAY`
-- `@@DRMSTATE`
-
-These logs are later parsed into screenshots, metrics, and debugfs snapshots.
-
-Relevant files:
-
-- [scripts/measure_run.py](./scripts/measure_run.py)
-- [host/extract_drmstate_from_serial.py](./host/extract_drmstate_from_serial.py)
-
-## Stage 1: Single-Process Suspend Lab
-
-The stage-1 deliverable is the cleanest completed subsystem in the repository.
-
-Architecture:
-
-```text
-/init
-  -> mount proc/sys/dev
-  -> bring up basic networking
-  -> exec sleepdemo
-
-sleepdemo
-  -> connect to host drip server
-  -> draw to serial/text state
-  -> suspend after idle delay
-  -> wake via rtc wakealarm
-  -> reconnect
-  -> emit metrics
-```
-
-Important files:
 
 - [guest/sleepdemo.c](./guest/sleepdemo.c)
 - [guest/init](./guest/init)
 - [guest/build-initramfs.sh](./guest/build-initramfs.sh)
 - [guest/run-qemu.sh](./guest/run-qemu.sh)
+- [host/drip_server.py](./host/drip_server.py)
+- [scripts/measure_run.py](./scripts/measure_run.py)
 
-Important result:
-
-- this stage is working and reproducible,
-- suspend/resume intervals were measured,
-- reconnect behavior was measured,
-- the system became the conceptual template for later stages.
-
-Representative measured values from the stage-1 work:
-
-- `sleep_duration` around `5024-5033 ms`
-- `resume_to_redraw` around `3-4 ms`
-- `resume_to_reconnect` around `4-5 ms` in the simple reconnect path
-
-What stage 1 did well:
-
-- minimal scope,
-- deterministic metrics,
-- small enough code surface to reason about.
-
-What stage 1 taught:
-
-- RTC wakealarm plus `pm_test=*` is a practical way to test suspend in QEMU,
-- it is worth logging explicit structured metrics early,
-- a tiny userspace is enough to validate the basic lab.
-
-## Stage 2: Weston Plus Custom Wayland Client
-
-Stage 2 is where the project became a real graphics stack instead of a text-mode suspend harness.
-
-Important ticket:
-
-- [QEMU-02 final report](./ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/design-doc/03-phase-2-final-implementation-report.md)
-
-Architecture:
+The important mental model is:
 
 ```text
-guest /init
-  -> load DRM + input modules
-  -> start systemd-udevd
-  -> start seatd
-  -> start weston
-  -> launch wl_sleepdemo
+/init
+  mount core filesystems
+  bring up guest network
+  exec sleepdemo
 
-wl_sleepdemo
-  -> wl_display
-  -> wl_compositor + xdg-shell
-  -> wl_seat keyboard/pointer
-  -> shm buffer rendering
-  -> network reconnect loop
-  -> suspend/resume logic
+sleepdemo
+  epoll_wait()
+  react to socket/timer/signal readiness
+  enter suspend
+  resume
+  emit metrics
 ```
 
-Important files:
+This stage is the cleanest fully working subsystem in the repository.
+
+### System Shape 2: Weston Plus A Custom Wayland Client
+
+This is the stage-2 model:
+
+```text
+host
+  -> QEMU
+     -> kernel + initramfs
+        -> /init
+           -> udev + seatd
+           -> weston --backend=drm
+           -> wl_sleepdemo
+```
+
+This was the first genuinely graphical stage. It replaced “serial/text redraw” with:
+
+- real DRM device ownership,
+- real compositor startup,
+- real input device enumeration,
+- a real Wayland surface,
+- real host screenshots and input injection.
+
+Relevant files:
 
 - [guest/init-phase2](./guest/init-phase2)
 - [guest/build-phase2-rootfs.sh](./guest/build-phase2-rootfs.sh)
@@ -322,141 +197,363 @@ Important files:
 - [guest/wl_render.c](./guest/wl_render.c)
 - [guest/wl_net.c](./guest/wl_net.c)
 - [guest/wl_suspend.c](./guest/wl_suspend.c)
+- [guest/run-qemu-phase2.sh](./guest/run-qemu-phase2.sh)
 
-What worked:
+The conceptual diagram is:
 
-- Weston booted on DRM,
+```text
+guest /init
+  -> load DRM/input modules
+  -> start systemd-udevd
+  -> start seatd
+  -> start weston
+  -> exec wl_sleepdemo
+
+wl_sleepdemo
+  -> Wayland registry
+  -> xdg-shell toplevel
+  -> shm buffers
+  -> keyboard/pointer listeners
+  -> reconnect and suspend logic
+```
+
+This is the strongest finished graphics path in the repo.
+
+### System Shape 3: Browser Stacks
+
+There are two browser variants:
+
+- stage 3: Chromium on Wayland under Weston,
+- stage 4: direct DRM/Ozone `content_shell` without Weston.
+
+They are related, but they are not the same problem.
+
+The stage-3 browser path is a client inside a working compositor platform:
+
+```text
+Weston
+  -> Wayland socket
+  -> Chromium --ozone-platform=wayland
+```
+
+The stage-4 browser path asks Chromium to own DRM directly:
+
+```text
+guest /init
+  -> udev + DRM
+  -> content_shell --ozone-platform=drm
+```
+
+That second path is much riskier, and currently much less mature.
+
+## The Boot And Shipping Model
+
+One of the most important design choices in the whole project was to use custom initramfs guests rather than full disk images.
+
+At a high level, the shipping model is:
+
+```text
+build a rootfs tree
+  -> copy binaries
+  -> copy libraries
+  -> copy configs
+  -> copy selected kernel modules
+  -> package with cpio + gzip
+boot QEMU with:
+  -kernel ...
+  -initrd ...
+  rdinit=/init
+```
+
+Pseudocode:
+
+```text
+rootfs = make_empty_tree()
+copy_busybox(rootfs)
+copy_guest_init(rootfs)
+copy_custom_binaries(rootfs)
+copy_runtime_deps(rootfs)
+copy_kernel_modules(rootfs)
+copy_data_files(rootfs)
+pack_initramfs(rootfs)
+run_qemu(kernel, initramfs)
+```
+
+This had clear advantages:
+
+- iteration remained fast,
+- boot contents stayed explicit,
+- no hidden distro services confused the story,
+- each stage could tailor its guest exactly.
+
+But it also created recurring pain:
+
+- packaging graphics stacks is harder than packaging a text-mode tool,
+- missing data files cause strange runtime failures,
+- library sonames and symlinks matter,
+- browser payloads are much larger and more fragile than small C helpers.
+
+## Host Control Plane
+
+The host-side tools are one of the strongest architectural successes in the project.
+
+The host does not just “launch QEMU.” It provides a reusable control plane.
+
+### QMP
+
+QMP, the QEMU Machine Protocol, is used for:
+
+- screenshots via `screendump`,
+- injecting keyboard events,
+- injecting pointer events,
+- querying QEMU state during investigations.
+
+The central tool is [host/qmp_harness.py](./host/qmp_harness.py).
+
+This mattered because it gave the project a standard way to:
+
+- capture before/after images,
+- drive UI tests from the host,
+- compare the guest-visible state to QEMU-visible state.
+
+### Deterministic network stimulus
+
+The host drip server provides a small but extremely useful network model:
+
+- periodic bytes,
+- pauses,
+- disconnect-on-pause behavior,
+- reconnect timing tests.
+
+Relevant files:
+
+- [host/drip_server.py](./host/drip_server.py)
+- [host/resume_drip_server.py](./host/resume_drip_server.py)
+
+This is not fancy, but it gave the guest a deterministic external event source and made reconnect timing measurable rather than anecdotal.
+
+### Structured evidence extraction
+
+The guest side logs structured lines like:
+
+- `@@LOG`
+- `@@METRIC`
+- `@@DISPLAY`
+- `@@DRMSTATE`
+
+Those are later parsed by tools like:
+
+- [scripts/measure_run.py](./scripts/measure_run.py)
+- [host/extract_drmstate_from_serial.py](./host/extract_drmstate_from_serial.py)
+
+This was one of the best early decisions in the entire repository. Without it, the later graphics investigations would have been far messier.
+
+## Stage 1 In Detail
+
+Stage 1 is documented in:
+
+- [QEMU-01 index](./ttmp/2026/03/07/QEMU-01-LAB-ONE--qemu-lab-one-analysis-and-implementation-guide/index.md)
+- [QEMU-01 final report](./ttmp/2026/03/07/QEMU-01-LAB-ONE--qemu-lab-one-analysis-and-implementation-guide/design-doc/02-final-implementation-report.md)
+- [QEMU-01 diary](./ttmp/2026/03/07/QEMU-01-LAB-ONE--qemu-lab-one-analysis-and-implementation-guide/reference/01-diary.md)
+
+The stage-1 system proved that a mostly idle Linux guest process could:
+
+- block on fd readiness,
+- connect to a host data source,
+- suspend after becoming idle,
+- wake via RTC,
+- redraw immediately after resume,
+- reconnect cleanly,
+- emit timing metrics that could be parsed later.
+
+Representative result values:
+
+- `sleep_duration` around `5024-5033 ms`
+- `resume_to_redraw` around `3-4 ms`
+- `resume_to_reconnect` around `4-5 ms`
+
+Why stage 1 matters even now:
+
+- it established the suspend state-machine pattern reused later,
+- it established the metric format reused later,
+- it gave a working semantic baseline before graphics complexity entered the picture.
+
+In other words, stage 1 was not throwaway code. It was the conceptual seed of everything that followed.
+
+## Stage 2 In Detail
+
+Stage 2 is documented in:
+
+- [QEMU-02 index](./ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/index.md)
+- [QEMU-02 final report](./ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/design-doc/03-phase-2-final-implementation-report.md)
+- [QEMU-02 postmortem](./ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/design-doc/02-postmortem-and-review-guide.md)
+- [QEMU-02 input playbook](./ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/reference/02-input-bring-up-playbook.md)
+- [QEMU-02 diary](./ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/reference/01-diary.md)
+
+This stage took the core stage-1 semantics and transplanted them into a real graphical stack.
+
+The crucial architectural change was:
+
+```text
+text-mode redraw
+  -> compositor-managed Wayland surface
+```
+
+The guest bootstrap in [guest/init-phase2](./guest/init-phase2) performs a very explicit sequence:
+
+1. mount core filesystems,
+2. bring up the simple guest network,
+3. load `virtio-gpu`, HID, USB, and xHCI modules,
+4. start `systemd-udevd`,
+5. trigger and settle input/DRM devices,
+6. start `seatd`,
+7. start Weston on the DRM backend,
+8. launch the client.
+
+This stage taught an important lesson: once graphics are involved, `udevd` is not optional plumbing. It is part of the correctness story.
+
+The client itself began as a large monolith and was later modularized. The important modules became:
+
+- [guest/wl_sleepdemo.c](./guest/wl_sleepdemo.c): thin orchestration layer
+- [guest/wl_wayland.c](./guest/wl_wayland.c): Wayland registry, seat, xdg-shell
+- [guest/wl_render.c](./guest/wl_render.c): shm buffer allocation and drawing
+- [guest/wl_net.c](./guest/wl_net.c): reconnect behavior
+- [guest/wl_suspend.c](./guest/wl_suspend.c): suspend metrics and wake behavior
+
+That modularization was not cosmetic. It made later reasoning and stage-3 reuse much easier.
+
+What stage 2 achieved:
+
+- Weston on DRM booted reliably,
 - the custom client rendered visibly,
-- keyboard input worked,
-- pointer input worked,
-- suspend/resume worked with `pm_test=devices`,
-- metrics and screenshots were captured.
+- host-side keyboard injection worked,
+- host-side pointer injection worked,
+- suspend/resume with `pm_test=devices` worked,
+- metrics and screenshots were reproducible.
 
 Representative measured values:
 
 - `sleep_duration = 5755 ms`
+- `suspend_resume_gap = 5755 ms`
 - `resume_to_redraw = 5 ms`
 - `resume_to_reconnect = 1243 ms`
 
-Interpretation:
+That reconnect figure looks long, but the project correctly identified that it includes orchestration delay and reconnect cadence, not just raw socket cost.
 
-- redraw recovery was fast,
-- reconnect looked long mainly because the harness and reconnect cadence were coarse,
-- the compositor path was stable enough to measure.
+The strongest qualitative result of stage 2 is simple:
 
-What stage 2 did especially well:
+- the compositor path is real,
+- the input path is real,
+- the suspend path is real,
+- and the tooling around it is reusable.
 
-- input debugging discipline,
-- modularization after the initial monolith got too large,
-- building reusable harnesses and screenshot capture scripts,
-- keeping a diary detailed enough to support later reports.
+## Stage 3 In Detail
 
-What stage 2 struggled with:
-
-- packaging Weston and its runtime deps into the initramfs,
-- getting `wl_seat` to appear correctly,
-- the many layers in host input injection:
-  - QMP,
-  - QEMU device model,
-  - guest evdev,
-  - Weston/libinput,
-  - client bindings.
-
-What stage 2 taught:
-
-- `systemd-udevd` matters for correctness in the graphical stack,
-- a compositor-based path is much easier to make visibly real than direct DRM/Ozone,
-- once input works end-to-end, a lot of later system questions become easier.
-
-## Stage 3: Chromium On Weston Kiosk
-
-Stage 3 reused the working Weston stack and replaced the custom client with Chromium.
-
-Important ticket:
+Stage 3 is documented in:
 
 - [QEMU-04 index](./ttmp/2026/03/07/QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/index.md)
+- [QEMU-04 stage-3 guide](./ttmp/2026/03/07/QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/design/01-stage-3-chromium-kiosk-guide.md)
+- [QEMU-04 stage-3 review](./ttmp/2026/03/07/QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/design/02-stage-3-postmortem-and-review-guide.md)
+- [QEMU-04 diary](./ttmp/2026/03/07/QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/reference/01-diary.md)
 
-Architecture:
+This stage reused the working Weston path and replaced the custom client with Chromium.
+
+That mattered because it tested a different proposition:
+
+- not “can we render something under Weston?”
+- but “can we run a real browser stack, drive it from the host, and keep suspend semantics?”
+
+The project got quite far here.
+
+What was validated:
+
+- Chromium booted visibly under Weston kiosk shell,
+- host keyboard injection was validated against a deterministic test page,
+- host pointer injection was validated against a deterministic test page,
+- the browser stack survived the higher-level `pm_test=freezer` suspend path.
+
+What remained broken:
+
+- visible continuity under `pm_test=devices`.
+
+This is a key subtlety. Stage 3 was not “failed.” It was partially successful and very informative. The work isolated a real split:
+
+- the higher-level orchestration path was fine,
+- the realistic device-resume graphics path was not.
+
+That distinction prevented the project from flattening all failures into one vague “Chromium is broken” conclusion.
+
+## The QMP Capture Investigation
+
+The most intellectually important investigation in the repo is probably QEMU-05:
+
+- [QEMU-05 index](./ttmp/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/index.md)
+- [QEMU-05 analysis guide](./ttmp/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/design-doc/01-devices-resume-analysis-guide.md)
+- [QEMU-05 QMP postmortem](./ttmp/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/design-doc/02-qmp-capture-path-postmortem-report.md)
+- [QEMU-05 diary](./ttmp/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/reference/01-investigation-diary.md)
+
+This ticket changed the project’s mental model of the problem.
+
+Before this investigation, it was easy to say:
+
+- the guest resumed,
+- but the screenshots are wrong,
+- so the guest graphics stack must be wrong.
+
+After this investigation, that became much harder to defend.
+
+The evidence showed:
+
+- guest DRM debugfs state could remain healthy,
+- guest-side compositor screenshots could remain healthy,
+- while QMP `screendump` still showed the wrong thing.
+
+That is a major conceptual shift.
+
+It means:
+
+- guest truth and host-capture truth can diverge,
+- `/dev/fb0` is not necessarily the truth source in the compositor path,
+- QMP `screendump` is a witness, not an oracle.
+
+That finding is why later tickets became sharper and more believable.
+
+## Stage 4 And The Direct DRM/Ozone Branch
+
+Stage 4 is documented in:
+
+- [QEMU-06 guide](./ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/design-doc/01-direct-drm-ozone-content-shell-analysis-and-implementation-guide.md)
+- [QEMU-06 diary](./ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/reference/01-diary.md)
+- [QEMU-07 guide](./ttmp/2026/03/09/QEMU-07-CONTENT-SHELL-MODESET--content-shell-drm-modeset-and-controller-mapping-investigation/design/01-content-shell-modeset-mapping-investigation-guide.md)
+- [QEMU-07 diary](./ttmp/2026/03/09/QEMU-07-CONTENT-SHELL-MODESET--content-shell-drm-modeset-and-controller-mapping-investigation/reference/01-diary.md)
+
+This branch was motivated by a seductive idea:
+
+- if Weston already works,
+- maybe removing Weston will simplify the problem.
+
+That is partly true and partly false.
+
+It simplified the conceptual stack:
 
 ```text
-guest /init
-  -> start weston kiosk-shell
-  -> launch Chromium on Wayland
-
-host
-  -> inject keyboard and pointer via QMP
-  -> capture screenshots via QMP
+Weston + Wayland + Chromium client
+  -> content_shell owning DRM directly
 ```
 
-What worked:
+But it also shifted responsibility onto Chromium’s Ozone DRM path and made packaging much harder.
 
-- Chromium booted visibly under Weston,
-- host keyboard injection was validated,
-- host pointer injection was validated,
-- `pm_test=freezer` continuity worked.
-
-What did not fully work:
-
-- `pm_test=devices` continuity still failed.
-
-That failure was not fake progress. The work established a real split:
-
-- the higher-level orchestration path worked,
-- the realistic device-resume graphics path still had a visible continuity failure.
-
-That is an important engineering result because it narrowed the problem from “Chromium is broken” to “the graphics/display stack under realistic device resume is broken.”
-
-## QEMU-05: QMP Capture And Resume Investigation
-
-The resume investigation changed the project’s understanding of the display problem in an important way.
-
-Important ticket:
-
-- [QEMU-05 analysis guide](./ttmp/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/design-doc/01-devices-resume-analysis-guide.md)
-
-The critical finding was:
-
-- guest-side DRM/KMS state could stay healthy,
-- guest-side Weston screenshots could stay healthy,
-- while QMP `screendump` still showed the wrong post-resume surface.
-
-That means:
-
-- guest graphics state and host capture state can diverge,
-- QMP `screendump` is not always trustworthy as the final truth for visible scanout after `pm_test=devices`,
-- some of the “resume is broken” conclusions had to be reframed as “host-visible capture path is broken or ambiguous.”
-
-This was a major conceptual improvement in the project.
-
-## Stage 4: Direct DRM/Ozone content_shell
-
-The direct DRM branch was created to simplify the graphics stack by removing Weston.
-
-Important tickets:
-
-- [QEMU-06 direct DRM/Ozone guide](./ttmp/2026/03/08/QEMU-06-CONTENT-SHELL-DRM-OZONE--chromium-content-shell-direct-drm-ozone-analysis-and-implementation/design-doc/01-direct-drm-ozone-content-shell-analysis-and-implementation-guide.md)
-- [QEMU-07 modeset/controller investigation](./ttmp/2026/03/09/QEMU-07-CONTENT-SHELL-MODESET--content-shell-drm-modeset-and-controller-mapping-investigation/design/01-content-shell-modeset-mapping-investigation-guide.md)
-
-This branch achieved a lot of infrastructure:
+The branch still achieved a lot:
 
 - Chromium was cloned and built from source,
 - Ozone DRM and Ozone headless support were configured,
-- a staged Chromium payload was packaged into the guest,
+- a payload staging path was built,
 - headless `content_shell` worked,
 - direct DRM startup reached real GPU initialization,
-- source-level instrumentation was added to Chromium’s DRM path.
+- source-level Chromium instrumentation was added and saved on a dedicated branch:
+  - `qemu-07-content-shell-controller-debug`
 
-But this branch is not finished.
-
-Current strongest finding:
-
-- `content_shell` allocates scanout-capable buffers,
-- but begins page-flipping while `ScreenManager` still has zero controllers,
-- so `DrmWindow::SchedulePageFlip()` ACKs without a real flip.
-
-That means the bug is currently understood as a controller discovery or initialization-order problem, not just a geometry mismatch.
-
-Representative branch result:
+The strongest current finding from that work is not a working browser frame. It is a diagnostic one:
 
 ```text
 ScreenManager::AddWindow ... controller_count=0
@@ -464,229 +561,271 @@ UpdateControllerToWindowMapping begin controllers=0 windows=1
 DrmWindow::SchedulePageFlip ... controller=null ... -> ack without real flip
 ```
 
-This is useful progress, but it is still a debug path, not a working implementation.
+That is valuable because it collapses a vague graphics mystery into a smaller question:
 
-## What Was Good
+- why does `content_shell` begin flipping before Chromium’s DRM path has any controllers to map against?
 
-Several things went unusually well for a project with this many moving parts.
+This branch is still open. It is educational and promising, but not yet a finished implementation.
 
-### 1. Diary discipline
+## The Story Of What Worked
 
-The diaries are one of the strongest assets in the repository.
+Several things in this project went very well.
 
-Why they mattered:
+### The diaries
 
-- they preserved failed experiments,
-- they recorded exact commands and artifacts,
-- they prevented false conclusions from surviving too long,
-- they made later postmortems and review guides possible.
+The diaries are not filler. They are one of the best assets in the repo.
 
-### 2. Incremental narrowing
+They preserve:
 
-The work generally improved by shrinking the problem:
+- the order of experiments,
+- the commands that mattered,
+- the exact errors,
+- the false starts,
+- the corrected interpretations.
 
-- stage 1 proved suspend mechanics,
-- stage 2 proved a real compositor path,
-- stage 3 proved browser integration,
-- QEMU-05 separated guest health from host capture ambiguity,
-- QEMU-07 separated geometry questions from controller-discovery questions.
+Without them, the later postmortems would be much weaker, and the direct DRM path would be much harder to continue safely.
 
-That is good engineering behavior.
+### The incremental narrowing
 
-### 3. Reusable automation
+The project generally got better when it shrank the question:
 
-The project did not rely only on ad-hoc shell history. It accumulated reusable harnesses for:
+- stage 1 validated suspend semantics,
+- stage 2 validated a real compositor path,
+- stage 3 validated browser integration on the compositor path,
+- QEMU-05 separated guest truth from host capture truth,
+- QEMU-07 separated geometry theories from controller-discovery theories.
 
-- QMP,
-- screenshot capture,
-- suspend timing,
-- results parsing,
-- payload staging,
-- rootfs building.
+That is good systems debugging.
 
-### 4. Willingness to revisit wrong assumptions
+### The host tooling
 
-Several earlier ideas were corrected rather than defended:
+The project built reusable host-side tools rather than relying only on one-off shell history:
 
-- generic `--window-size` was not the right `content_shell` flag,
-- QMP `screendump` was not always ground truth,
-- some apparent stage-3-specific failures were actually shared lower-level issues,
-- some debug changes contaminated results and had to be rolled back conceptually.
+- QMP harnesses,
+- screenshot scripts,
+- metric parsers,
+- resume capture tools,
+- Chromium payload staging helpers.
 
-That is exactly how this kind of systems debugging should work.
+This made the repo much more reviewable and much less dependent on luck.
 
-## What Was Bad
+### The willingness to revise the story
 
-The project also had consistent weaknesses.
+The work repeatedly corrected itself:
 
-### 1. Too many overlapping branches of work
+- generic `--window-size` was not the real `content_shell` switch,
+- a bad debug change could poison interpretation,
+- QMP `screendump` was not always authoritative,
+- some browser-looking failures turned out to be lower-level display problems.
 
-By the end, the repository had:
+That willingness to revise the model is exactly what kept the project from devolving into superstition.
 
-- stage-1 artifacts,
-- stage-2 working compositor code,
-- stage-3 working-ish browser/compositor code,
-- stage-4 direct DRM code,
-- multiple follow-up investigations.
+## The Story Of What Went Badly
 
-This is useful historically, but it increases cognitive load for a new person.
+The project also had recurring weaknesses.
 
-### 2. Packaging complexity
+### The repo now contains multiple historical truths
 
-The initramfs model was good for control, but expensive in packaging effort.
+This is the hardest onboarding problem.
 
-Typical recurring problems:
+A newcomer can easily mistake:
 
-- missing symlinks,
-- missing runtime data,
-- missing library sonames,
-- missing fontconfig assets,
-- missing device-manager pieces.
+- the strongest working path,
+- the most recently touched path,
+- and the most interesting open problem
 
-### 3. Debug contamination
+for the same thing. They are not the same thing.
 
-At several points, a debug change made interpretation harder:
+### Packaging complexity consumed a lot of time
 
-- extra log tails,
-- incomplete control runs,
-- assumptions based on the wrong switch.
+The initramfs model was a good architectural choice, but it made the cost of graphics stacks very obvious:
 
-This was usually corrected, but it cost time.
+- missing sonames,
+- missing fontconfig state,
+- missing XKB data,
+- missing input/runtime services,
+- missing Chromium runtime bits.
 
-### 4. Detached external state
+None of these are intellectually glamorous, but they matter.
 
-The Chromium checkout lived outside the lab repo. That was necessary, but it made provenance weaker until the instrumentation was saved on a dedicated branch:
+### Some debug experiments contaminated the signal
+
+This happened more than once:
+
+- invalid control runs,
+- debug logging changes that changed behavior,
+- assumptions based on the wrong browser flag,
+- incomplete experimental isolation.
+
+The work did recover from these mistakes, but they slowed the pace.
+
+### The external Chromium checkout was initially too detached from the repo story
+
+That improved later when the instrumentation was saved on:
 
 - `qemu-07-content-shell-controller-debug`
 
-That should have happened earlier.
+but this should have been stabilized earlier.
 
 ## What We Learned
 
-The project produced several durable lessons.
+The project produced several technical lessons that are worth carrying forward.
 
-### Technical lessons
+### Lesson 1: the compositor path is the pragmatic path
 
-- A compositor-based path is much easier to stabilize than direct DRM/Ozone browser startup.
-- QMP `screendump` can disagree with guest-visible truth after device-resume.
-- `pm_test=freezer` and `pm_test=devices` answer different questions and should not be treated as interchangeable.
-- `content_shell` is not a perfect kiosk probe; its shell/window behavior matters.
-- `systemd-udevd` is not optional once Weston/libinput are involved.
+Weston plus a custom client was not merely easier than direct DRM. It became the most dependable graphics path in the repository.
 
-### Process lessons
+That matters because it tells a new contributor where to stand first.
 
-- Keep the system small at first.
-- Add measurement and structured logs early.
-- Split tickets when the question changes.
-- Preserve failed experiments in writing.
-- Save temporary scripts and patched external sources before they get lost.
+### Lesson 2: `pm_test=freezer` and `pm_test=devices` are not interchangeable
 
-## If A New Intern Starts Tomorrow
+They answer different questions.
 
-Start here:
+- `freezer` tells you about higher-level orchestration with limited device exercise,
+- `devices` tells you much more about realistic graphics/input/device resume.
 
-1. Read this file.
-2. Read [README.md](./README.md).
-3. Read [QEMU-02 final report](./ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/design-doc/03-phase-2-final-implementation-report.md).
-4. Read [QEMU-05 analysis guide](./ttmp/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/design-doc/01-devices-resume-analysis-guide.md).
-5. Read [QEMU-07 guide](./ttmp/2026/03/09/QEMU-07-CONTENT-SHELL-MODESET--content-shell-drm-modeset-and-controller-mapping-investigation/design/01-content-shell-modeset-mapping-investigation-guide.md).
+Treating them as equivalent would have hidden real failures.
 
-Recommended mental model:
+### Lesson 3: host-visible capture is not always display truth
 
-- stage 1 is the clean suspend baseline,
-- stage 2 is the strongest working graphics path,
-- stage 3 proves Chromium on the compositor path,
-- stage 4 is the experimental direct DRM branch,
-- QEMU-05 and QEMU-07 explain the current graphics investigations.
+This was one of the deepest lessons in the project.
 
-Recommended implementation order if you need working results soon:
+QMP screenshots can disagree with:
 
-1. Prefer the Weston path.
-2. Reproduce stage 2 cleanly.
-3. Reproduce stage 3 cleanly with `freezer`.
-4. Only then return to direct DRM/Ozone if you need it specifically.
+- guest DRM debugfs state,
+- guest compositor screenshots,
+- the guest application’s own understanding of the world.
 
-Recommended implementation order if you need to continue the direct DRM branch:
+That means a screenshot failure is not automatically a guest failure.
 
-1. Continue from the saved Chromium branch:
-   - `qemu-07-content-shell-controller-debug`
-2. Instrument display discovery with stronger logs than `VLOG`.
-3. Prove whether controller discovery happens too late or not at all.
-4. Only after that revisit bounds/modeset hypotheses.
+### Lesson 4: structured logs are worth the effort
 
-## Practical Build And Test References
+The decision to emit structured tags like `@@METRIC`, `@@DISPLAY`, and `@@DRMSTATE` paid off over and over again.
 
-### Stage 1
+### Lesson 5: direct DRM browser startup is a different class of problem
 
-Build:
+Once Weston is removed, Chromium’s own display-controller and initialization logic becomes the center of the problem. That is not just “stage 3 minus one process.” It is a fundamentally different debugging problem.
 
-```sh
-make build initramfs
-```
+## If You Are A New Intern
 
-Run:
+Here is the advice I would give you.
 
-```sh
-python3 host/drip_server.py --host 0.0.0.0 --port 5555 --interval 0.25 --active-seconds 30 --pause-seconds 2 --stop-after 12
-RUNTIME_SECONDS=5 NO_SUSPEND=1 RESULTS_DIR=results guest/run-qemu.sh --kernel build/vmlinuz --initramfs build/initramfs.cpio.gz
-```
+### First, choose your goal
 
-### Stage 2
+Ask yourself which of these you actually need:
 
-Boot artifact model:
+1. a working suspend/resume lab,
+2. a working graphical lab,
+3. a working browser on the compositor path,
+4. progress on the direct DRM browser path.
 
-```text
-build/vmlinuz
-build/initramfs-phase2.cpio.gz
-```
+Those are different goals.
 
-Launcher:
+### If you need a stable implementation
 
-- [guest/run-qemu-phase2.sh](./guest/run-qemu-phase2.sh)
+Use the Weston path.
 
-### Stage 4
+Recommended sequence:
 
-Chromium checkout:
+1. reproduce stage 1,
+2. reproduce stage 2,
+3. reproduce stage 3 with `pm_test=freezer`,
+4. only then touch the harder investigations.
 
-```text
-/home/manuel/chromium/src
-```
+### If you need to continue the direct DRM work
 
-Payload staging:
+Start from the saved Chromium instrumentation:
 
-- [host/stage_phase4_chromium_payload.sh](./host/stage_phase4_chromium_payload.sh)
+- Chromium checkout: `/home/manuel/chromium/src`
+- branch: `qemu-07-content-shell-controller-debug`
 
-Rootfs build:
+Then do this:
+
+1. keep the current controller-discovery hypothesis,
+2. instrument the display-discovery/configuration path more aggressively,
+3. prove whether controllers are discovered too late or never handed off,
+4. only after that revisit window-bounds theories.
+
+### Read the right artifacts
+
+Do not start from random code first. Start from:
+
+- this document,
+- [QEMU-02 final report](./ttmp/2026/03/07/QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/design-doc/03-phase-2-final-implementation-report.md),
+- [QEMU-05 QMP postmortem](./ttmp/2026/03/07/QEMU-05-DEVICES-RESUME-INVESTIGATION--devices-resume-display-ownership-investigation/design-doc/02-qmp-capture-path-postmortem-report.md),
+- [QEMU-07 guide](./ttmp/2026/03/09/QEMU-07-CONTENT-SHELL-MODESET--content-shell-drm-modeset-and-controller-mapping-investigation/design/01-content-shell-modeset-mapping-investigation-guide.md).
+
+That order gives you the cleanest mental map.
+
+## Practical File Guide
+
+If you want to understand the repository through files rather than tickets, start here.
+
+### Core stage-1 files
+
+- [guest/sleepdemo.c](./guest/sleepdemo.c)
+- [guest/init](./guest/init)
+- [guest/build-initramfs.sh](./guest/build-initramfs.sh)
+- [guest/run-qemu.sh](./guest/run-qemu.sh)
+
+### Core Weston path files
+
+- [guest/build-phase2-rootfs.sh](./guest/build-phase2-rootfs.sh)
+- [guest/init-phase2](./guest/init-phase2)
+- [guest/weston.ini](./guest/weston.ini)
+- [guest/wl_wayland.c](./guest/wl_wayland.c)
+- [guest/wl_render.c](./guest/wl_render.c)
+- [guest/wl_suspend.c](./guest/wl_suspend.c)
+
+### Core browser-on-Weston files
+
+- [guest/build-phase3-rootfs.sh](./guest/build-phase3-rootfs.sh)
+- [guest/init-phase3](./guest/init-phase3)
+- [guest/chromium-wayland-launcher.sh](./guest/chromium-wayland-launcher.sh)
+
+### Core direct DRM files
 
 - [guest/build-phase4-rootfs.sh](./guest/build-phase4-rootfs.sh)
-
-Direct DRM launcher:
-
 - [guest/init-phase4-drm](./guest/init-phase4-drm)
 - [guest/content-shell-drm-launcher.sh](./guest/content-shell-drm-launcher.sh)
+- [host/configure_phase4_chromium_build.sh](./host/configure_phase4_chromium_build.sh)
+- [host/stage_phase4_chromium_payload.sh](./host/stage_phase4_chromium_payload.sh)
 
-## Open Problems
+### Core evidence tools
 
-The most important open problems are:
+- [host/qmp_harness.py](./host/qmp_harness.py)
+- [host/capture_phase4_smoke.py](./host/capture_phase4_smoke.py)
+- [host/extract_drmstate_from_serial.py](./host/extract_drmstate_from_serial.py)
+- [scripts/measure_run.py](./scripts/measure_run.py)
 
-- close or clearly document the `pm_test=devices` graphics continuity issue in the compositor path,
-- understand QEMU host-visible capture versus guest-visible scanout more rigorously,
-- finish or abandon the direct DRM `content_shell` path based on whether controller discovery can be made to work reasonably.
+## Recommended Next Steps
+
+If the goal is “make the project more practically usable,” the best next work is:
+
+1. keep the Weston path healthy and documented,
+2. decide whether stage-3 `pm_test=devices` should be fixed or explicitly documented as a known limitation,
+3. continue the direct DRM path only if there is a strong reason to own DRM directly.
+
+If the goal is “solve the most interesting open systems problem,” the next work is:
+
+1. keep the current Chromium debug branch,
+2. instrument display discovery more strongly than `VLOG`,
+3. prove exactly why `ScreenManager` has zero controllers at first-flip time,
+4. only then revisit modeset and window-size hypotheses.
 
 ## Final Assessment
 
-This project is not garbage, and it is not “just notes.” It built real systems:
+This repository is not a neat single-product codebase. It is a layered record of a systems project that kept moving forward by building small working systems, measuring them, and then climbing to more ambitious ones.
 
-- a minimal suspend lab,
-- a real Wayland compositor client stack,
-- a working browser-on-Weston path,
-- a partially working direct Ozone DRM browser path with saved source-level instrumentation.
+That means two things are true at once:
 
-The strongest completed implementation is the Wayland compositor approach. The most educational open problem is the direct DRM path. The best documentation asset is the ticket diary/report system. The biggest practical risk is that a new contributor confuses the stable Weston path with the still-experimental direct DRM branch.
+- it is messier than a greenfield polished codebase,
+- and it is much more honest than one.
 
-The right overall conclusion is:
+The strongest completed implementation is the Weston-based path. The most educational unresolved work is the direct DRM/Ozone path. The best project artifact is the documentation trail: the tickets, diaries, postmortems, and harnesses together tell a coherent story of real engineering progress.
 
-- stage 1: complete enough to trust,
-- stage 2: complete enough to use,
-- stage 3: mostly working, but not fully closed under realistic device-resume,
-- stage 4: still an investigation.
+If you are here to use something today, use the Weston path.
+
+If you are here to learn, study the tickets.
+
+If you are here to push the frontier, continue the direct DRM investigation carefully and keep writing the diary.

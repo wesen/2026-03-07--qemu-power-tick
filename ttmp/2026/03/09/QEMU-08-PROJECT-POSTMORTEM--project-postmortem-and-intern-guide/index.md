@@ -16,7 +16,7 @@ Owners: []
 RelatedFiles: []
 ExternalSources: []
 Summary: ""
-LastUpdated: 2026-03-09T19:13:03.906723464-04:00
+LastUpdated: 2026-03-10T00:01:00-04:00
 WhatFor: ""
 WhenToUse: ""
 ---
@@ -25,7 +25,7 @@ WhenToUse: ""
 
 ## Overview
 
-This ticket exists to hold the final project-level retrospective and intern guide for the repository. Unlike the narrower phase tickets, it summarizes the full arc of the work:
+This ticket exists to hold the project-level retrospective and intern guide for the repository. Unlike the narrower phase tickets, it summarizes the full arc of the work:
 
 - what was built,
 - which approaches were most successful,
@@ -35,8 +35,8 @@ This ticket exists to hold the final project-level retrospective and intern guid
 
 ## Key Links
 
-- **Root-level report**: [PROJECT-POSTMORTEM-AND-INTERN-GUIDE.md](../../../../../../../PROJECT-POSTMORTEM-AND-INTERN-GUIDE.md)
-- **Ticket copy**: [design/01-project-postmortem-and-intern-guide.md](./design/01-project-postmortem-and-intern-guide.md)
+- **Canonical root-level report**: [PROJECT-POSTMORTEM-AND-INTERN-GUIDE.md](../../../../../../../PROJECT-POSTMORTEM-AND-INTERN-GUIDE.md)
+- **Ticket companion**: [design/01-project-postmortem-and-intern-guide.md](./design/01-project-postmortem-and-intern-guide.md)
 - **Diary**: [reference/01-diary.md](./reference/01-diary.md)
 - **Stage-2 final report**: [../QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/design-doc/03-phase-2-final-implementation-report.md](../QEMU-02-LAB-TWO--qemu-lab-two-wayland-client-analysis-and-implementation/design-doc/03-phase-2-final-implementation-report.md)
 - **Stage-3 review**: [../QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/design/02-stage-3-postmortem-and-review-guide.md](../QEMU-04-LAB-THREE--qemu-lab-three-chromium-kiosk-analysis-and-implementation/design/02-stage-3-postmortem-and-review-guide.md)
@@ -48,12 +48,12 @@ Current status: **active**
 
 Current working state:
 
-- root-level report written,
-- ticket copy written,
+- root-level report expanded into a much more detailed blog-style onboarding guide,
+- ticket companion updated to point at the canonical root version and preserve the supporting reading map,
 - diary started,
 - README link updated,
 - ticket validated,
-- reMarkable bundle uploaded.
+- reMarkable bundle uploaded and refreshed after the rewrite.
 
 ## Topics
 
