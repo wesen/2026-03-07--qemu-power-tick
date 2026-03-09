@@ -37,6 +37,7 @@ cp /usr/bin/busybox "$ROOTFS/bin/busybox"
 cp "$SCRIPT_DIR/init-phase4-drm" "$ROOTFS/init"
 cp "$SCRIPT_DIR/content-shell-drm-launcher.sh" "$ROOTFS/usr/bin/content-shell-drm-launcher"
 cp "$SCRIPT_DIR/display_probe.sh" "$ROOTFS/usr/bin/display_probe.sh"
+cp "$SCRIPT_DIR/dump_drm_state.sh" "$ROOTFS/usr/bin/dump_drm_state.sh"
 cp "$SCRIPT_DIR/phase4-smoke.html" "$ROOTFS/root/phase4-smoke.html"
 cp "$SCRIPT_DIR/build-kms-pattern.sh" "$ROOTFS/usr/bin/build-kms-pattern.sh"
 "$SCRIPT_DIR/build-kms-pattern.sh" "$BUILD_DIR" "$BUILD_DIR/kms_pattern"
@@ -45,6 +46,7 @@ chmod +x \
   "$ROOTFS/init" \
   "$ROOTFS/usr/bin/content-shell-drm-launcher" \
   "$ROOTFS/usr/bin/display_probe.sh" \
+  "$ROOTFS/usr/bin/dump_drm_state.sh" \
   "$ROOTFS/usr/bin/kms_pattern" \
   "$ROOTFS/usr/bin/build-kms-pattern.sh"
 

@@ -29,6 +29,7 @@ URL=file:///root/phase4-smoke.html
 RUNTIME_SECONDS=20
 UNBIND_FBCON=0
 DISPLAY_PROBE=0
+DRMSTATE_PROBE=0
 
 for arg in $(cat /proc/cmdline); do
   case "$arg" in
@@ -37,6 +38,7 @@ for arg in $(cat /proc/cmdline); do
     phase4_runtime_seconds=*) RUNTIME_SECONDS=${arg#phase4_runtime_seconds=} ;;
     phase4_unbind_fbcon=1) UNBIND_FBCON=1 ;;
     phase4_display_probe=1) DISPLAY_PROBE=1 ;;
+    phase4_drmstate_probe=1) DRMSTATE_PROBE=1 ;;
   esac
 done
 
@@ -103,6 +105,18 @@ else
   DISPLAY_PROBE_PID=
 fi
 
+if [ "$DRMSTATE_PROBE" = "1" ]; then
+  (
+    sleep 6
+    /usr/bin/dump_drm_state.sh phase4-early >/dev/console 2>&1 || true
+    sleep 10
+    /usr/bin/dump_drm_state.sh phase4-late >/dev/console 2>&1 || true
+  ) &
+  DRMSTATE_PROBE_PID=$!
+else
+  DRMSTATE_PROBE_PID=
+fi
+
 case "$MODE" in
   kms-pattern)
     : >/var/log/kms-pattern.log
@@ -127,4 +141,5 @@ esac
 wait "${RUNTIME_PID:-}" || true
 wait "${TAIL_PID:-}" || true
 wait "${DISPLAY_PROBE_PID:-}" || true
+wait "${DRMSTATE_PROBE_PID:-}" || true
 poweroff -f
