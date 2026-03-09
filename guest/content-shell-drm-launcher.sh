@@ -24,13 +24,18 @@ ls -l "$CONTENT_SHELL_BIN" "$CHROMIUM_DIR"/content_shell.pak "$CHROMIUM_DIR"/sna
 export HOME=$HOME_DIR
 export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/0}
 export XDG_CACHE_HOME=$CACHE_DIR
-export EGL_PLATFORM=${EGL_PLATFORM:-surfaceless}
 export XKB_CONFIG_ROOT=${XKB_CONFIG_ROOT:-/usr/share/X11/xkb}
 export FONTCONFIG_PATH=${FONTCONFIG_PATH:-/etc/fonts}
 export FONTCONFIG_FILE=${FONTCONFIG_FILE:-/etc/fonts/fonts.conf}
 export LIBGL_DRIVERS_PATH=${LIBGL_DRIVERS_PATH:-/usr/lib/x86_64-linux-gnu/dri}
 export __EGL_VENDOR_LIBRARY_DIRS=${__EGL_VENDOR_LIBRARY_DIRS:-/usr/share/glvnd/egl_vendor.d}
 export LD_LIBRARY_PATH=$CHROMIUM_DIR:/usr/lib/x86_64-linux-gnu:/lib/x86_64-linux-gnu:/lib64
+
+if [ -n "${CONTENT_SHELL_EGL_PLATFORM:-}" ]; then
+  export EGL_PLATFORM=$CONTENT_SHELL_EGL_PLATFORM
+fi
+
+echo "[content-shell-drm-launcher] env EGL_PLATFORM=${EGL_PLATFORM:-<unset>} LD_LIBRARY_PATH=$LD_LIBRARY_PATH" >&2
 
 exec "$CONTENT_SHELL_BIN" \
   --enable-features=UseOzonePlatform \
