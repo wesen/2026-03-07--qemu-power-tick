@@ -6,11 +6,16 @@ import subprocess
 import sys
 
 
-REQUIRED_PAYLOAD_FILES = [
+BASE_REQUIRED_PAYLOAD_FILES = [
     "content_shell",
     "chrome_sandbox",
     "icudtl.dat",
+]
+
+CONTENT_SHELL_OPTIONAL_ASSETS = [
+    "content_shell.pak",
     "resources.pak",
+    "snapshot_blob.bin",
     "v8_context_snapshot.bin",
     "chrome_100_percent.pak",
     "chrome_200_percent.pak",
@@ -20,12 +25,25 @@ OPTIONAL_PAYLOAD_FILES = [
     "chrome",
     "chrome_crashpad_handler",
     "nacl_helper",
+    "content_shell.pak",
+    "resources.pak",
+    "snapshot_blob.bin",
+    "v8_context_snapshot.bin",
+    "chrome_100_percent.pak",
+    "chrome_200_percent.pak",
+    "libminigbm.so",
+    "libEGL.so",
+    "libGLESv2.so",
+    "libvk_swiftshader.so",
+    "libvulkan.so.1",
 ]
 
 REQUIRED_RUNTIME_LIBS = [
     "/lib/x86_64-linux-gnu/libdrm.so.2",
     "/lib/x86_64-linux-gnu/libgbm.so.1",
     "/lib/x86_64-linux-gnu/libEGL.so.1",
+    "/lib/x86_64-linux-gnu/libGLdispatch.so.0",
+    "/usr/lib/x86_64-linux-gnu/libEGL_mesa.so.0",
     "/lib/x86_64-linux-gnu/libGLESv2.so.2",
     "/lib/x86_64-linux-gnu/libxkbcommon.so.0",
 ]
@@ -33,6 +51,10 @@ REQUIRED_RUNTIME_LIBS = [
 DRI_DIRS = [
     "/usr/lib/x86_64-linux-gnu/dri",
     "/lib/x86_64-linux-gnu/dri",
+]
+
+REQUIRED_GL_CONFIGS = [
+    "/usr/share/glvnd/egl_vendor.d/50_mesa.json",
 ]
 
 
@@ -68,12 +90,16 @@ def main() -> int:
     payload_dir = pathlib.Path(args.payload_dir).resolve()
     payload_exists = payload_dir.exists()
 
-    required_files = {name: (payload_dir / name).exists() for name in REQUIRED_PAYLOAD_FILES}
+    required_files = {name: (payload_dir / name).exists() for name in BASE_REQUIRED_PAYLOAD_FILES}
+    content_shell_assets = {
+        name: (payload_dir / name).exists() for name in CONTENT_SHELL_OPTIONAL_ASSETS
+    }
     optional_files = {name: (payload_dir / name).exists() for name in OPTIONAL_PAYLOAD_FILES}
     locales_dir = payload_dir / "locales"
     locale_files = sorted(p.name for p in locales_dir.glob("*.pak")) if locales_dir.is_dir() else []
 
     runtime_libs = {path: pathlib.Path(path).exists() for path in REQUIRED_RUNTIME_LIBS}
+    gl_configs = {path: pathlib.Path(path).exists() for path in REQUIRED_GL_CONFIGS}
     dri_dirs = {}
     for directory in DRI_DIRS:
         path = pathlib.Path(directory)
@@ -94,9 +120,11 @@ def main() -> int:
         "payload_dir": str(payload_dir),
         "payload_exists": payload_exists,
         "required_payload_files": required_files,
+        "content_shell_assets": content_shell_assets,
         "optional_payload_files": optional_files,
         "locale_files": locale_files,
         "required_runtime_libs": runtime_libs,
+        "required_gl_configs": gl_configs,
         "dri_dirs": dri_dirs,
         "ldd_results": ldd_results,
     }
@@ -108,10 +136,16 @@ def main() -> int:
 
     missing_required = [name for name, present in required_files.items() if not present]
     missing_runtime = [path for path, present in runtime_libs.items() if not present]
+    missing_gl_configs = [path for path, present in gl_configs.items() if not present]
+    has_shell_pack = content_shell_assets["content_shell.pak"] or content_shell_assets["resources.pak"]
+    has_snapshot = (
+        content_shell_assets["snapshot_blob.bin"]
+        or content_shell_assets["v8_context_snapshot.bin"]
+    )
 
     if not payload_exists and args.allow_missing_payload:
         return 0
-    if missing_required or missing_runtime:
+    if missing_required or missing_runtime or missing_gl_configs or not has_shell_pack or not has_snapshot:
         return 1
     return 0
 

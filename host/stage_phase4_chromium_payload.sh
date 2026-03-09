@@ -52,16 +52,23 @@ required=(
   content_shell
   chrome_sandbox
   icudtl.dat
-  resources.pak
-  v8_context_snapshot.bin
-  chrome_100_percent.pak
-  chrome_200_percent.pak
+  content_shell.pak
+  snapshot_blob.bin
 )
 
 optional=(
   chrome
   chrome_crashpad_handler
   nacl_helper
+  resources.pak
+  v8_context_snapshot.bin
+  chrome_100_percent.pak
+  chrome_200_percent.pak
+  libminigbm.so
+  libEGL.so
+  libGLESv2.so
+  libvk_swiftshader.so
+  libvulkan.so.1
 )
 
 missing=()
@@ -87,8 +94,6 @@ done
 
 if [[ -d "$SRC_OUT/locales" ]]; then
   cp -a "$SRC_OUT/locales/." "$DEST_DIR/locales/"
-else
-  missing+=("locales/")
 fi
 
 if (( ${#missing[@]} > 0 )) && (( ALLOW_MISSING == 0 )); then
